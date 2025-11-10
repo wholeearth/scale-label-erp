@@ -73,6 +73,12 @@ export const BulkAssignDialog = ({ orders, open, onOpenChange }: BulkAssignDialo
   // Aggregate items across selected orders
   const aggregatedItems: AggregatedItem[] = orders.reduce((acc, order) => {
     order.order_items.forEach(item => {
+      // Skip if item or items data is missing
+      if (!item.item_id || !item.items) {
+        console.warn('Skipping item with missing data:', item);
+        return;
+      }
+
       const existing = acc.find(a => a.item_id === item.item_id);
       if (existing) {
         existing.total_quantity += item.quantity;
@@ -92,6 +98,8 @@ export const BulkAssignDialog = ({ orders, open, onOpenChange }: BulkAssignDialo
     });
     return acc;
   }, [] as AggregatedItem[]);
+
+  console.log('Aggregated items for bulk assign:', aggregatedItems);
 
   const selectedItem = aggregatedItems.find(item => item.item_id === selectedItemId);
 
@@ -121,6 +129,10 @@ export const BulkAssignDialog = ({ orders, open, onOpenChange }: BulkAssignDialo
     mutationFn: async () => {
       if (!selectedItemId || assignments.length === 0) return;
 
+      console.log('Selected item ID:', selectedItemId);
+      console.log('Aggregated items:', aggregatedItems);
+      console.log('Selected item:', selectedItem);
+
       const assignmentData = assignments.map(assignment => ({
         operator_id: assignment.operator_id,
         item_id: selectedItemId,
@@ -128,11 +140,16 @@ export const BulkAssignDialog = ({ orders, open, onOpenChange }: BulkAssignDialo
         status: 'active',
       }));
 
+      console.log('Assignment data to insert:', assignmentData);
+
       const { error } = await supabase
         .from('operator_assignments')
         .insert(assignmentData);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -144,12 +161,12 @@ export const BulkAssignDialog = ({ orders, open, onOpenChange }: BulkAssignDialo
       onOpenChange(false);
     },
     onError: (error) => {
+      console.error('Assignment error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create assignments',
+        description: error instanceof Error ? error.message : 'Failed to create assignments',
         variant: 'destructive',
       });
-      console.error('Assignment error:', error);
     },
   });
 
