@@ -283,7 +283,7 @@ const ProductionInterface = () => {
   };
 
   const printLabel = () => {
-    const printWindow = window.open('', '', 'width=400,height=600');
+    const printWindow = window.open('', '', 'width=400,height=300');
     if (!printWindow) return;
 
     const barcodeCanvas = barcodeCanvasRef.current;
@@ -294,50 +294,76 @@ const ProductionInterface = () => {
         <head>
           <title>Production Label</title>
           <style>
+            @page {
+              size: 60mm 40mm;
+              margin: 0;
+            }
             body { 
               font-family: Arial, sans-serif; 
-              padding: 10px;
               margin: 0;
+              padding: 2mm;
+              width: 60mm;
+              height: 40mm;
+              box-sizing: border-box;
             }
             .label {
               width: 100%;
-              text-align: center;
+              height: 100%;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
             }
-            .serial {
-              font-size: 16px;
+            .header {
+              font-size: 8px;
               font-weight: bold;
-              margin: 10px 0;
+              text-align: center;
+              margin-bottom: 1mm;
             }
-            .details {
-              font-size: 12px;
-              margin: 10px 0;
-              text-align: left;
+            .content {
+              display: flex;
+              gap: 2mm;
             }
-            .barcode, .qrcode {
-              margin: 15px 0;
+            .left {
+              flex: 1;
+              font-size: 5px;
+              line-height: 1.3;
             }
-            img {
-              max-width: 100%;
+            .right {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 1mm;
+            }
+            .barcode img {
+              width: 25mm;
+              height: auto;
+            }
+            .qrcode img {
+              width: 15mm;
+              height: 15mm;
             }
           </style>
         </head>
         <body>
           <div class="label">
-            <div class="serial">${selectedItem?.items.product_name}</div>
-            <div class="details">
-              <div>Code: ${selectedItem?.items.product_code}</div>
-              <div>Color: ${selectedItem?.items.color || '-'}</div>
-              <div>Length: ${selectedItem?.items.length_yards || '-'} yards</div>
-              <div>Width: ${selectedItem?.items.width_inches || '-'} inches</div>
-              <div>Weight: ${currentWeight.toFixed(2)} kg</div>
-              <div>Operator: ${profile?.full_name} (${profile?.employee_code})</div>
-              <div>Date: ${new Date().toLocaleString()}</div>
-            </div>
-            <div class="barcode">
-              <img src="${barcodeCanvas?.toDataURL()}" />
-            </div>
-            <div class="qrcode">
-              <img src="${qrcodeCanvas?.toDataURL()}" />
+            <div class="header">${selectedItem?.items.product_name}</div>
+            <div class="content">
+              <div class="left">
+                <div>Code: ${selectedItem?.items.product_code}</div>
+                <div>Color: ${selectedItem?.items.color || '-'}</div>
+                <div>L: ${selectedItem?.items.length_yards || '-'} yds</div>
+                <div>W: ${selectedItem?.items.width_inches || '-'} in</div>
+                <div>Wt: ${currentWeight.toFixed(2)} kg</div>
+                <div>Op: ${profile?.employee_code}</div>
+              </div>
+              <div class="right">
+                <div class="barcode">
+                  <img src="${barcodeCanvas?.toDataURL()}" />
+                </div>
+                <div class="qrcode">
+                  <img src="${qrcodeCanvas?.toDataURL()}" />
+                </div>
+              </div>
             </div>
           </div>
         </body>
