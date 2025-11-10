@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Pencil, Check } from 'lucide-react';
 
 const orderItemSchema = z.object({
   item_id: z.string().min(1, 'Product is required'),
@@ -37,6 +37,9 @@ export const AdminEditOrderDialog = ({ open, onOpenChange, orderId }: AdminEditO
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editQuantity, setEditQuantity] = useState<string>('');
+  const [editPrice, setEditPrice] = useState<string>('');
 
   const { data: existingOrder } = useQuery({
     queryKey: ['order-details-edit', orderId],
@@ -178,6 +181,24 @@ export const AdminEditOrderDialog = ({ open, onOpenChange, orderId }: AdminEditO
     setOrderItems(orderItems.filter((_, i) => i !== index));
   };
 
+  const startEditItem = (index: number) => {
+    const item = orderItems[index];
+    setEditingIndex(index);
+    setEditQuantity(item.quantity.toString());
+    setEditPrice(item.unit_price.toString());
+  };
+
+  const saveEditItem = (index: number) => {
+    const updatedItems = [...orderItems];
+    updatedItems[index] = {
+      ...updatedItems[index],
+      quantity: parseFloat(editQuantity),
+      unit_price: parseFloat(editPrice),
+    };
+    setOrderItems(updatedItems);
+    setEditingIndex(null);
+  };
+
   const getProductById = (id: string) => {
     return customerProducts?.find(cp => cp.item_id === id);
   };
@@ -200,24 +221,74 @@ export const AdminEditOrderDialog = ({ open, onOpenChange, orderId }: AdminEditO
               <h3 className="font-semibold">Order Items</h3>
               {orderItems.map((item, index) => {
                 const product = getProductById(item.item_id);
+                const isEditing = editingIndex === index;
+                
                 return (
                   <div key={index} className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                     <div className="flex-1">
                       <div className="font-medium">
                         {product?.items?.product_code} - {product?.items?.product_name}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Quantity: {item.quantity} × ${item.unit_price.toFixed(2)} = ${(item.quantity * item.unit_price).toFixed(2)}
-                      </div>
+                      {isEditing ? (
+                        <div className="flex gap-2 mt-2">
+                          <div className="flex-1">
+                            <label className="text-xs text-muted-foreground">Quantity</label>
+                            <Input
+                              type="number"
+                              value={editQuantity}
+                              onChange={(e) => setEditQuantity(e.target.value)}
+                              className="h-8"
+                              step="1"
+                              min="1"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-xs text-muted-foreground">Price ($)</label>
+                            <Input
+                              type="number"
+                              value={editPrice}
+                              onChange={(e) => setEditPrice(e.target.value)}
+                              className="h-8"
+                              step="0.01"
+                              min="0"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          Quantity: {item.quantity} × ${item.unit_price.toFixed(2)} = ${(item.quantity * item.unit_price).toFixed(2)}
+                        </div>
+                      )}
                     </div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => removeItem(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      {isEditing ? (
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="icon"
+                          onClick={() => saveEditItem(index)}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => startEditItem(index)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => removeItem(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
