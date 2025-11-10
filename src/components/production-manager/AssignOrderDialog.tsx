@@ -115,7 +115,7 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
     },
   });
 
-  const selectedItem = order.order_items.find(item => item.id === selectedItemId);
+  const selectedItem = order.order_items.find(item => item.item_id === selectedItemId);
   const remainingQuantity = selectedItem 
     ? selectedItem.quantity - selectedItem.produced_quantity 
     : 0;
@@ -142,7 +142,7 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
               </SelectTrigger>
               <SelectContent>
                 {order.order_items.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
+                  <SelectItem key={item.id} value={item.item_id}>
                     {item.items.product_code} - {item.items.product_name}
                     {item.items.color && ` (${item.items.color})`}
                     {' - '}
