@@ -5,11 +5,21 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Weight, Clock, Barcode, Printer, RefreshCw } from 'lucide-react';
+import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import JsBarcode from 'jsbarcode';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Assignment {
   id: string;
@@ -25,6 +35,8 @@ interface Assignment {
     color: string | null;
     use_predefined_weight: boolean | null;
     predefined_weight_kg: number | null;
+    expected_weight_kg: number | null;
+    weight_tolerance_percentage: number | null;
   };
 }
 
@@ -43,6 +55,8 @@ const ProductionInterface = () => {
   const [currentWeight, setCurrentWeight] = useState<number>(0);
   const [isCapturingWeight, setIsCapturingWeight] = useState(false);
   const [autoWeight, setAutoWeight] = useState(true);
+  const [showWeightWarning, setShowWeightWarning] = useState(false);
+  const [weightVariance, setWeightVariance] = useState<{ deviation: number; isOver: boolean } | null>(null);
   const barcodeCanvasRef = useRef<HTMLCanvasElement>(null);
   const qrcodeCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -126,6 +140,7 @@ const ProductionInterface = () => {
 
       const data = await response.json();
       setCurrentWeight(data.weight);
+      checkWeightVariance(data.weight);
       
       if (data.mock) {
         console.log('Using mock weight data');
@@ -134,6 +149,28 @@ const ProductionInterface = () => {
       console.error('Weight capture error:', error);
     } finally {
       setIsCapturingWeight(false);
+    }
+  };
+
+  const checkWeightVariance = (weight: number) => {
+    if (!selectedItem?.items.expected_weight_kg || !selectedItem?.items.weight_tolerance_percentage) {
+      return;
+    }
+
+    const expectedWeight = selectedItem.items.expected_weight_kg;
+    const tolerance = selectedItem.items.weight_tolerance_percentage;
+    const minWeight = expectedWeight * (1 - tolerance / 100);
+    const maxWeight = expectedWeight * (1 + tolerance / 100);
+
+    if (weight < minWeight || weight > maxWeight) {
+      const deviation = Math.abs(((weight - expectedWeight) / expectedWeight) * 100);
+      setWeightVariance({
+        deviation: Math.round(deviation * 10) / 10,
+        isOver: weight > maxWeight,
+      });
+      setShowWeightWarning(true);
+    } else {
+      setWeightVariance(null);
     }
   };
 
@@ -403,6 +440,25 @@ const ProductionInterface = () => {
       });
       return;
     }
+
+    // Check weight variance before proceeding
+    if (selectedItem?.items.expected_weight_kg && selectedItem?.items.weight_tolerance_percentage) {
+      const expectedWeight = selectedItem.items.expected_weight_kg;
+      const tolerance = selectedItem.items.weight_tolerance_percentage;
+      const minWeight = expectedWeight * (1 - tolerance / 100);
+      const maxWeight = expectedWeight * (1 + tolerance / 100);
+
+      if (currentWeight < minWeight || currentWeight > maxWeight) {
+        setShowWeightWarning(true);
+        return;
+      }
+    }
+
+    productionMutation.mutate();
+  };
+
+  const proceedWithProduction = () => {
+    setShowWeightWarning(false);
     productionMutation.mutate();
   };
 
@@ -485,6 +541,46 @@ const ProductionInterface = () => {
         <canvas ref={barcodeCanvasRef} />
         <canvas ref={qrcodeCanvasRef} />
       </div>
+
+      {/* Weight Variance Alert Dialog */}
+      <AlertDialog open={showWeightWarning} onOpenChange={setShowWeightWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Weight Variance Detected
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                The captured weight <strong>{currentWeight.toFixed(2)} kg</strong> is{' '}
+                {weightVariance && (
+                  <>
+                    <strong>{weightVariance.isOver ? 'above' : 'below'}</strong> the expected range by{' '}
+                    <strong>{weightVariance.deviation}%</strong>
+                  </>
+                )}
+              </p>
+              {selectedItem?.items.expected_weight_kg && (
+                <p className="text-sm">
+                  Expected: <strong>{selectedItem.items.expected_weight_kg} kg</strong> (±
+                  {selectedItem.items.weight_tolerance_percentage}%)
+                </p>
+              )}
+              <p className="mt-4 font-semibold">
+                Do you want to proceed with this weight or re-measure?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => captureWeight()}>
+              Re-measure Weight
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={proceedWithProduction}>
+              Proceed Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card>
         <CardHeader>

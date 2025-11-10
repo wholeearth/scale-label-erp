@@ -26,6 +26,8 @@ const itemSchema = z.object({
   unit_id: z.string().optional(),
   predefined_weight_kg: z.string().optional(),
   use_predefined_weight: z.boolean().default(false),
+  expected_weight_kg: z.string().optional(),
+  weight_tolerance_percentage: z.string().optional(),
 });
 
 type ItemFormData = z.infer<typeof itemSchema>;
@@ -53,6 +55,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
       unit_id: '',
       predefined_weight_kg: '',
       use_predefined_weight: false,
+      expected_weight_kg: '',
+      weight_tolerance_percentage: '10',
     },
   });
 
@@ -68,6 +72,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         unit_id: item.unit_id || '',
         predefined_weight_kg: item.predefined_weight_kg?.toString() || '',
         use_predefined_weight: item.use_predefined_weight || false,
+        expected_weight_kg: (item as any).expected_weight_kg?.toString() || '',
+        weight_tolerance_percentage: (item as any).weight_tolerance_percentage?.toString() || '10',
       });
     } else {
       form.reset({
@@ -80,6 +86,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         unit_id: '',
         predefined_weight_kg: '',
         use_predefined_weight: false,
+        expected_weight_kg: '',
+        weight_tolerance_percentage: '10',
       });
     }
   }, [item, form]);
@@ -96,6 +104,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         unit_id: data.unit_id || null,
         predefined_weight_kg: data.predefined_weight_kg ? parseFloat(data.predefined_weight_kg) : null,
         use_predefined_weight: data.use_predefined_weight,
+        expected_weight_kg: data.expected_weight_kg ? parseFloat(data.expected_weight_kg) : null,
+        weight_tolerance_percentage: data.weight_tolerance_percentage ? parseFloat(data.weight_tolerance_percentage) : 10,
       };
 
       if (item) {
@@ -293,6 +303,44 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-semibold mb-4">Quality Control Settings</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="expected_weight_kg"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expected Weight (kg)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="e.g., 40.0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Used for quality control weight variance checks
+                      </p>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="weight_tolerance_percentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weight Tolerance (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" min="0" max="100" placeholder="e.g., 10" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Acceptable deviation from expected weight (default: 10%)
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
