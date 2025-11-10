@@ -12,7 +12,8 @@ import {
   LogOut,
   Ruler,
   UserCheck,
-  ShoppingCart
+  ShoppingCart,
+  Cpu
 } from 'lucide-react';
 import LiveProductionDashboard from '@/components/admin/LiveProductionDashboard';
 import UserManagement from '@/components/admin/UserManagement';
@@ -21,6 +22,7 @@ import UnitsManagement from '@/components/admin/UnitsManagement';
 import CustomerManagement from '@/components/admin/CustomerManagement';
 import OrderManagement from '@/components/admin/OrderManagement';
 import SystemSettings from '@/components/admin/SystemSettings';
+import MachineManagement from '@/components/admin/MachineManagement';
 
 const AdminDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -104,7 +106,7 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9">
             <TabsTrigger value="live-dashboard">
               <Activity className="h-4 w-4 mr-2" />
               Live
@@ -128,6 +130,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="units">
               <Ruler className="h-4 w-4 mr-2" />
               Units
+            </TabsTrigger>
+            <TabsTrigger value="machines">
+              <Cpu className="h-4 w-4 mr-2" />
+              Machines
             </TabsTrigger>
             <TabsTrigger value="settings">
               <Settings className="h-4 w-4 mr-2" />
@@ -161,6 +167,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="units" className="space-y-6">
             <UnitsManagement />
+          </TabsContent>
+
+          <TabsContent value="machines" className="space-y-6">
+            <MachineManagement />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
