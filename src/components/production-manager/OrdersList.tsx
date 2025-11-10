@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClipboardList, Package, Calendar, TrendingUp } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { addDays, format, subDays } from 'date-fns';
 import { AssignOrderDialog } from './AssignOrderDialog';
 import { BulkAssignDialog } from './BulkAssignDialog';
@@ -46,7 +46,7 @@ export const OrdersList = () => {
     );
   };
 
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading, refetch: refetchOrders } = useQuery({
     queryKey: ['approved-orders'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -77,7 +77,48 @@ export const OrdersList = () => {
       if (error) throw error;
       return data as Order[];
     },
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
+
+  // Set up real-time subscriptions for assignment and production updates
+  useEffect(() => {
+    const assignmentChannel = supabase
+      .channel('assignment-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'operator_assignments',
+        },
+        (payload) => {
+          console.log('Assignment changed:', payload);
+          refetchOrders();
+        }
+      )
+      .subscribe();
+
+    const productionChannel = supabase
+      .channel('production-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'production_records',
+        },
+        (payload) => {
+          console.log('Production record added:', payload);
+          refetchOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(assignmentChannel);
+      supabase.removeChannel(productionChannel);
+    };
+  }, [refetchOrders]);
 
   // Fetch production rates for the last 7 days
   const { data: productionRates } = useQuery({
