@@ -1,7 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Factory, LogOut } from 'lucide-react';
+import { Factory, LogOut, ClipboardList, Users } from 'lucide-react';
+import { OrdersList } from '@/components/production-manager/OrdersList';
+import { ActiveAssignments } from '@/components/production-manager/ActiveAssignments';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ProductionManagerDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -16,34 +19,53 @@ const ProductionManagerDashboard = () => {
                 <Factory className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-sidebar-foreground">Production ERP</h1>
-                <p className="text-sm text-sidebar-foreground/70">Production Manager Dashboard</p>
+                <h1 className="text-xl font-semibold text-sidebar-foreground">Production Manager</h1>
+                <p className="text-sm text-sidebar-foreground/70">
+                  {profile?.full_name} {profile?.employee_code && `(${profile.employee_code})`}
+                </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-sidebar-foreground">{profile?.full_name}</p>
-                <p className="text-xs text-sidebar-foreground/70">Production Manager</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
+            <Button variant="outline" onClick={signOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Production Manager Dashboard</CardTitle>
-            <CardDescription>Assign work and monitor production progress</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Factory className="h-6 w-6" />
+              Production Management Dashboard
+            </CardTitle>
+            <CardDescription>
+              View approved orders and assign production work to operators
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Production manager features coming soon...</p>
-          </CardContent>
         </Card>
+
+        <Tabs defaultValue="orders" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="orders" className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Approved Orders
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Active Assignments
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orders" className="space-y-4">
+            <OrdersList />
+          </TabsContent>
+
+          <TabsContent value="assignments" className="space-y-4">
+            <ActiveAssignments />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
