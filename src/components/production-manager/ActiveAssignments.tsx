@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,7 +53,7 @@ export const ActiveAssignments = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [editQuantity, setEditQuantity] = useState<string>('');
 
-  const { data: assignments, isLoading } = useQuery({
+  const { data: assignments, isLoading, refetch: refetchAssignments } = useQuery({
     queryKey: ['operator-assignments'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -80,7 +80,31 @@ export const ActiveAssignments = () => {
       if (error) throw error;
       return data as Assignment[];
     },
+    refetchInterval: 3000, // Auto-refresh every 3 seconds for real-time progress updates
   });
+
+  // Set up real-time subscription for assignment updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('assignments-progress')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'operator_assignments',
+        },
+        (payload) => {
+          console.log('Assignment progress updated:', payload);
+          refetchAssignments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetchAssignments]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
