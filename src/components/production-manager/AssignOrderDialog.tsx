@@ -59,14 +59,13 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, employee_code')
-        .in('id', 
-          (await supabase
-            .from('user_roles')
-            .select('user_id')
-            .eq('role', 'operator')
-          ).data?.map(r => r.user_id) || []
-        );
+        .select(`
+          id,
+          full_name,
+          employee_code,
+          user_roles!inner(role)
+        `)
+        .eq('user_roles.role', 'operator');
 
       if (error) throw error;
       return data as Operator[];
