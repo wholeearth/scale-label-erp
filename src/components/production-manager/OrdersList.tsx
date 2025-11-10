@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ClipboardList, Package } from 'lucide-react';
-import { useState } from 'react';
+import { ClipboardList, Package, Calendar, TrendingUp } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { addDays, format, subDays } from 'date-fns';
 import { AssignOrderDialog } from './AssignOrderDialog';
 import { BulkAssignDialog } from './BulkAssignDialog';
 
@@ -78,6 +79,101 @@ export const OrdersList = () => {
     },
   });
 
+  // Fetch production rates for the last 7 days
+  const { data: productionRates } = useQuery({
+    queryKey: ['production-rates'],
+    queryFn: async () => {
+      const sevenDaysAgo = subDays(new Date(), 7).toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('production_records')
+        .select('item_id, production_date')
+        .gte('production_date', sevenDaysAgo);
+
+      if (error) throw error;
+
+      // Calculate production rate per item (items per day)
+      const rateMap = new Map<string, { count: number; days: Set<string> }>();
+      
+      data.forEach((record) => {
+        const existing = rateMap.get(record.item_id) || { count: 0, days: new Set<string>() };
+        existing.count += 1;
+        existing.days.add(record.production_date);
+        rateMap.set(record.item_id, existing);
+      });
+
+      // Convert to items per day
+      const rates = new Map<string, number>();
+      rateMap.forEach((value, itemId) => {
+        const daysActive = value.days.size;
+        rates.set(itemId, daysActive > 0 ? value.count / daysActive : 0);
+      });
+
+      return rates;
+    },
+  });
+
+  // Fetch active assignments to factor in current capacity
+  const { data: activeAssignments } = useQuery({
+    queryKey: ['active-assignments-for-estimates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('operator_assignments')
+        .select('item_id, quantity_assigned, quantity_produced')
+        .eq('status', 'active');
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Calculate estimated completion date for an order item
+  const calculateEstimatedCompletion = (itemId: string, remainingQuantity: number): Date | null => {
+    if (remainingQuantity <= 0) return new Date(); // Already complete
+    
+    const rate = productionRates?.get(itemId) || 0;
+    
+    if (rate === 0) {
+      // No production history, estimate based on average or return null
+      return null;
+    }
+
+    // Check active assignments for this item
+    const assignedQuantity = activeAssignments
+      ?.filter(a => a.item_id === itemId)
+      .reduce((sum, a) => sum + (a.quantity_assigned - a.quantity_produced), 0) || 0;
+
+    // If there are active assignments, factor them into the calculation
+    const effectiveRate = assignedQuantity > 0 ? rate * 1.5 : rate; // Boost rate if actively assigned
+    
+    const daysToComplete = Math.ceil(remainingQuantity / effectiveRate);
+    return addDays(new Date(), daysToComplete);
+  };
+
+  // Calculate overall order completion estimate
+  const orderCompletionEstimates = useMemo(() => {
+    if (!orders || !productionRates) return new Map<string, Date | null>();
+    
+    const estimates = new Map<string, Date | null>();
+    
+    orders.forEach(order => {
+      let latestDate: Date | null = null;
+      
+      order.order_items.forEach(item => {
+        const remaining = item.quantity - item.produced_quantity;
+        const itemEstimate = calculateEstimatedCompletion(item.item_id, remaining);
+        
+        if (itemEstimate && (!latestDate || itemEstimate > latestDate)) {
+          latestDate = itemEstimate;
+        }
+      });
+      
+      estimates.set(order.id, latestDate);
+    });
+    
+    return estimates;
+  }, [orders, productionRates, activeAssignments]);
+
   if (isLoading) {
     return (
       <Card>
@@ -108,35 +204,83 @@ export const OrdersList = () => {
           </Card>
         )}
         
-        {orders?.map((order) => (
-          <Card key={order.id} className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={selectedOrderIds.includes(order.id)}
-                    onCheckedChange={() => toggleOrderSelection(order.id)}
-                  />
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <ClipboardList className="h-5 w-5" />
-                      {order.order_number}
-                    </CardTitle>
-                  <CardDescription>
-                    Customer: {order.customers?.customer_name || 'Unknown Customer'}
-                  </CardDescription>
+        {orders?.map((order) => {
+          const estimatedCompletion = orderCompletionEstimates.get(order.id);
+          const totalQuantity = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
+          const totalProduced = order.order_items.reduce((sum, item) => sum + item.produced_quantity, 0);
+          const overallProgress = Math.round((totalProduced / totalQuantity) * 100);
+          
+          return (
+            <Card key={order.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={selectedOrderIds.includes(order.id)}
+                      onCheckedChange={() => toggleOrderSelection(order.id)}
+                    />
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <ClipboardList className="h-5 w-5" />
+                        {order.order_number}
+                      </CardTitle>
+                      <CardDescription>
+                        Customer: {order.customers?.customer_name || 'Unknown Customer'}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      {order.status}
+                    </Badge>
+                    {estimatedCompletion && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>Est: {format(estimatedCompletion, 'MMM dd, yyyy')}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                  {order.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="text-sm text-muted-foreground">
-                  Order Date: {new Date(order.created_at).toLocaleDateString()}
+                
+                {/* Order-level Progress */}
+                <div className="mt-3 pt-3 border-t">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">Overall Progress</span>
+                    <span className="font-semibold">{totalProduced} / {totalQuantity} units</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${overallProgress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium min-w-[40px] text-right">{overallProgress}%</span>
+                  </div>
+                  {estimatedCompletion && (
+                    <div className="flex items-center gap-1 mt-2 text-xs">
+                      <TrendingUp className="h-3 w-3 text-primary" />
+                      <span className="text-muted-foreground">
+                        {overallProgress === 100 
+                          ? 'Completed' 
+                          : `Expected completion: ${format(estimatedCompletion, 'EEEE, MMMM dd, yyyy')}`
+                        }
+                      </span>
+                    </div>
+                  )}
+                  {!estimatedCompletion && overallProgress < 100 && (
+                    <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                      <TrendingUp className="h-3 w-3" />
+                      <span>No production history available for estimation</span>
+                    </div>
+                  )}
                 </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">
+                    Order Date: {new Date(order.created_at).toLocaleDateString()}
+                  </div>
                 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-medium">
@@ -189,7 +333,8 @@ export const OrdersList = () => {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
 
         {orders?.length === 0 && (
           <Card>
