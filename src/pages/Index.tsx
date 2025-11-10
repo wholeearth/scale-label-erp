@@ -24,6 +24,9 @@ const Index = () => {
       } else if (profile.roles.includes('production_manager')) {
         console.log('Redirecting to /production-manager');
         navigate('/production-manager');
+      } else if (profile.roles.includes('customer')) {
+        console.log('Redirecting to /customer');
+        navigate('/customer');
       }
     } else if (!loading && !user) {
       console.log('No user, staying on landing page');
