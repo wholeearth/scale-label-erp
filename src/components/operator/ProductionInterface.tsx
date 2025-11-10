@@ -61,7 +61,7 @@ const ProductionInterface = () => {
   const qrcodeCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Fetch assignments
-  const { data: assignments } = useQuery({
+  const { data: assignments, refetch: refetchAssignments } = useQuery({
     queryKey: ['operator-assignments', profile?.id],
     queryFn: async () => {
       if (!profile) return [];
@@ -74,7 +74,34 @@ const ProductionInterface = () => {
       return data as Assignment[];
     },
     enabled: !!profile,
+    refetchInterval: 5000, // Auto-refetch every 5 seconds for live updates
   });
+
+  // Set up real-time subscription for assignment updates
+  useEffect(() => {
+    if (!profile) return;
+
+    const channel = supabase
+      .channel('assignment-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'operator_assignments',
+          filter: `operator_id=eq.${profile.id}`,
+        },
+        (payload) => {
+          console.log('Assignment updated:', payload);
+          refetchAssignments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile, refetchAssignments]);
 
   // Fetch machines
   const { data: machines } = useQuery({
@@ -288,7 +315,20 @@ const ProductionInterface = () => {
       // Generate and print label
       await generateLabel(serialNumber, barcodeData);
       
-      queryClient.invalidateQueries({ queryKey: ['operator-assignments'] });
+      // Invalidate with exact query key including profile ID
+      queryClient.invalidateQueries({ queryKey: ['operator-assignments', profile?.id] });
+      
+      // Force refetch assignments to update the UI immediately
+      await refetchAssignments();
+      
+      // Update selected item state with new produced quantity
+      if (selectedItem) {
+        const newProducedQty = (selectedItem.quantity_produced || 0) + 1;
+        setSelectedItem({
+          ...selectedItem,
+          quantity_produced: newProducedQty,
+        });
+      }
       
       toast({
         title: 'Success',
