@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2, Package } from 'lucide-react';
+import { Pencil, Trash2, Package, UserCheck, AlertCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -14,7 +14,6 @@ import type { Tables } from '@/integrations/supabase/types';
 type Customer = Tables<'customers'>;
 
 const CustomerManagement = () => {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
   const [productsCustomerId, setProductsCustomerId] = useState<string | null>(null);
@@ -59,15 +58,14 @@ const CustomerManagement = () => {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Customer Management</CardTitle>
-              <CardDescription>Manage customer accounts and product assignments</CardDescription>
-            </div>
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Customer
-            </Button>
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Customer Management
+            </CardTitle>
+            <CardDescription>
+              Manage customer product assignments and details. Create new customers in the Users tab.
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -124,17 +122,16 @@ const CustomerManagement = () => {
               </Table>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No customers found. Click "Add Customer" to create your first customer.
+            <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-3">
+              <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
+              <div>
+                <p className="text-lg font-medium">No customers found</p>
+                <p className="text-sm">Create customers with the "customer" role in the Users tab</p>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
-
-      <CustomerDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-      />
 
       <CustomerDialog
         open={!!editingCustomer}
