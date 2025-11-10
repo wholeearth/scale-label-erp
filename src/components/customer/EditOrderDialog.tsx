@@ -251,7 +251,16 @@ export const EditOrderDialog = ({ open, onOpenChange, orderId }: EditOrderDialog
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Product</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          const selectedProduct = customerProducts?.find(p => p.item_id === value);
+                          if (selectedProduct) {
+                            form.setValue('unit_price', selectedProduct.price.toString());
+                          }
+                        }}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a product" />
@@ -261,7 +270,7 @@ export const EditOrderDialog = ({ open, onOpenChange, orderId }: EditOrderDialog
                           {customerProducts?.map((product) => (
                             <SelectItem key={product.item_id} value={product.item_id}>
                               {product.items.product_code} - {product.items.product_name}
-                              {product.items.color && ` (${product.items.color})`}
+                              {product.items.color && ` (${product.items.color})`} - ${parseFloat(String(product.price)).toFixed(2)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -294,21 +303,11 @@ export const EditOrderDialog = ({ open, onOpenChange, orderId }: EditOrderDialog
                         <FormLabel>Unit Price ($)</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
+                            type="text"
+                            placeholder="Select product first"
                             {...field}
-                            onChange={(e) => {
-                              const selectedProduct = customerProducts?.find(
-                                p => p.item_id === form.getValues('item_id')
-                              );
-                              if (!field.value && selectedProduct) {
-                                field.onChange(selectedProduct.price.toString());
-                              } else {
-                                field.onChange(e.target.value);
-                              }
-                            }}
+                            disabled
+                            className="bg-muted"
                           />
                         </FormControl>
                         <FormMessage />
