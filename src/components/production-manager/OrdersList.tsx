@@ -143,30 +143,40 @@ export const OrdersList = () => {
                     <Package className="h-4 w-4" />
                     Order Items:
                   </div>
-                  {order.order_items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div>
-                        <div className="font-medium">
-                          {item.items.product_code} - {item.items.product_name}
-                        </div>
-                        {item.items.color && (
-                          <div className="text-sm text-muted-foreground">
-                            Color: {item.items.color}
+                  {order.order_items.map((item) => {
+                    const progress = Math.round((item.produced_quantity / item.quantity) * 100);
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium">
+                            {item.items.product_code} - {item.items.product_name}
                           </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm">
-                          <span className="font-semibold">{item.produced_quantity}</span>
-                          <span className="text-muted-foreground"> / {item.quantity}</span>
+                          {item.items.color && (
+                            <div className="text-sm text-muted-foreground">
+                              Color: {item.items.color}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-xs text-muted-foreground">produced</div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="text-lg font-semibold">
+                              {item.produced_quantity} / {item.quantity}
+                            </div>
+                            <div className="text-xs text-muted-foreground">units</div>
+                          </div>
+                          <Badge 
+                            variant={progress === 100 ? "default" : progress > 0 ? "secondary" : "outline"}
+                            className="min-w-[60px] justify-center"
+                          >
+                            {progress}%
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <Button
