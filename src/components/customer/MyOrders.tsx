@@ -1,9 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Package, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Package, Clock, CheckCircle, XCircle, AlertCircle, Pencil, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { EditOrderDialog } from './EditOrderDialog';
 
 interface OrderItem {
   id: string;
@@ -36,6 +41,10 @@ const statusConfig = {
 
 export const MyOrders = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['customer-orders', user?.id],
@@ -75,6 +84,31 @@ export const MyOrders = () => {
       return data as Order[];
     },
     enabled: !!user?.id,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-orders'] });
+      toast({
+        title: 'Order deleted',
+        description: 'Your order has been successfully deleted.',
+      });
+      setDeletingOrderId(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
   });
 
   if (isLoading) {
@@ -146,15 +180,62 @@ export const MyOrders = () => {
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t">
-                <span className="font-semibold">Total Amount:</span>
-                <span className="text-xl font-bold">
-                  ${parseFloat(String(order.total_amount)).toFixed(2)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">Total Amount:</span>
+                  <span className="text-xl font-bold">
+                    ${parseFloat(String(order.total_amount)).toFixed(2)}
+                  </span>
+                </div>
+                {order.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingOrderId(order.id)}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setDeletingOrderId(order.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         );
       })}
+
+      <EditOrderDialog
+        open={!!editingOrderId}
+        onOpenChange={(open) => !open && setEditingOrderId(null)}
+        orderId={editingOrderId}
+      />
+
+      <AlertDialog open={!!deletingOrderId} onOpenChange={(open) => !open && setDeletingOrderId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your order.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingOrderId && deleteMutation.mutate(deletingOrderId)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {orders?.length === 0 && (
         <Card>
