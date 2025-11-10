@@ -10,12 +10,16 @@ import {
   Settings, 
   Activity,
   LogOut,
-  Ruler
+  Ruler,
+  UserCheck,
+  ShoppingCart
 } from 'lucide-react';
 import LiveProductionDashboard from '@/components/admin/LiveProductionDashboard';
 import UserManagement from '@/components/admin/UserManagement';
 import ItemManagement from '@/components/admin/ItemManagement';
 import UnitsManagement from '@/components/admin/UnitsManagement';
+import CustomerManagement from '@/components/admin/CustomerManagement';
+import OrderManagement from '@/components/admin/OrderManagement';
 import SystemSettings from '@/components/admin/SystemSettings';
 
 const AdminDashboard = () => {
@@ -52,10 +56,18 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
             <TabsTrigger value="live-dashboard">
               <Activity className="h-4 w-4 mr-2" />
-              Live Dashboard
+              Live
+            </TabsTrigger>
+            <TabsTrigger value="orders">
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Orders
+            </TabsTrigger>
+            <TabsTrigger value="customers">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Customers
             </TabsTrigger>
             <TabsTrigger value="users">
               <Users className="h-4 w-4 mr-2" />
@@ -81,6 +93,14 @@ const AdminDashboard = () => {
 
           <TabsContent value="live-dashboard" className="space-y-6">
             <LiveProductionDashboard />
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-6">
+            <OrderManagement />
+          </TabsContent>
+
+          <TabsContent value="customers" className="space-y-6">
+            <CustomerManagement />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-6">
