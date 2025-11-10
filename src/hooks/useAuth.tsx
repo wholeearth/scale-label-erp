@@ -23,6 +23,7 @@ export const useAuth = () => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, 'User ID:', session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -30,25 +31,35 @@ export const useAuth = () => {
           // Fetch user profile and roles
           setTimeout(async () => {
             try {
+              console.log('Fetching profile for user:', session.user.id);
               const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
                 .single();
 
-              if (profileError) throw profileError;
+              if (profileError) {
+                console.error('Profile error:', profileError);
+                throw profileError;
+              }
+              console.log('Profile data:', profileData);
 
               const { data: rolesData, error: rolesError } = await supabase
                 .from('user_roles')
                 .select('role')
                 .eq('user_id', session.user.id);
 
-              if (rolesError) throw rolesError;
+              if (rolesError) {
+                console.error('Roles error:', rolesError);
+                throw rolesError;
+              }
+              console.log('Roles data:', rolesData);
 
               setProfile({
                 ...profileData,
                 roles: rolesData.map(r => r.role as UserRole)
               });
+              console.log('Profile set with roles:', rolesData.map(r => r.role));
             } catch (error) {
               console.error('Error fetching profile:', error);
             } finally {
@@ -64,6 +75,7 @@ export const useAuth = () => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       if (!session) {

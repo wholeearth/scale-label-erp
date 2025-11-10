@@ -10,15 +10,23 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Index - Auth state:', { user: !!user, profile, loading, roles: profile?.roles });
+    
     if (!loading && user && profile) {
       // Redirect based on role
+      console.log('Redirecting based on roles:', profile.roles);
       if (profile.roles.includes('admin')) {
+        console.log('Redirecting to /admin');
         navigate('/admin');
       } else if (profile.roles.includes('operator')) {
+        console.log('Redirecting to /operator');
         navigate('/operator');
       } else if (profile.roles.includes('production_manager')) {
+        console.log('Redirecting to /production-manager');
         navigate('/production-manager');
       }
+    } else if (!loading && !user) {
+      console.log('No user, staying on landing page');
     }
   }, [user, profile, loading, navigate]);
 
