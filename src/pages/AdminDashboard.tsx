@@ -54,6 +54,54 @@ const AdminDashboard = () => {
         </div>
       </header>
 
+      {/* Auth Status Banner */}
+      <div className="bg-primary/5 border-b border-border">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                <span className="text-sm font-medium">Logged in as</span>
+                <span className="text-sm font-semibold text-primary">{profile?.full_name}</span>
+                {profile?.employee_code && (
+                  <span className="text-xs text-muted-foreground">({profile.employee_code})</span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground mr-2">Quick Access:</span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setActiveTab('users')}
+                className="h-8"
+              >
+                <Users className="h-3 w-3 mr-1" />
+                Manage Users
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setActiveTab('orders')}
+                className="h-8"
+              >
+                <ShoppingCart className="h-3 w-3 mr-1" />
+                View Orders
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setActiveTab('items')}
+                className="h-8"
+              >
+                <Package className="h-3 w-3 mr-1" />
+                Manage Items
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
