@@ -9,11 +9,13 @@ import {
   Package, 
   Settings, 
   Activity,
-  LogOut
+  LogOut,
+  Ruler
 } from 'lucide-react';
 import LiveProductionDashboard from '@/components/admin/LiveProductionDashboard';
 import UserManagement from '@/components/admin/UserManagement';
 import ItemManagement from '@/components/admin/ItemManagement';
+import UnitsManagement from '@/components/admin/UnitsManagement';
 import SystemSettings from '@/components/admin/SystemSettings';
 
 const AdminDashboard = () => {
@@ -50,7 +52,7 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="live-dashboard">
               <Activity className="h-4 w-4 mr-2" />
               Live Dashboard
@@ -62,6 +64,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="items">
               <Package className="h-4 w-4 mr-2" />
               Items
+            </TabsTrigger>
+            <TabsTrigger value="units">
+              <Ruler className="h-4 w-4 mr-2" />
+              Units
             </TabsTrigger>
             <TabsTrigger value="settings">
               <Settings className="h-4 w-4 mr-2" />
@@ -83,6 +89,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="items" className="space-y-6">
             <ItemManagement />
+          </TabsContent>
+
+          <TabsContent value="units" className="space-y-6">
+            <UnitsManagement />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
