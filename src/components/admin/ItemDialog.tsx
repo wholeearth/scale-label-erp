@@ -18,7 +18,7 @@ type Unit = Tables<'units'>;
 const itemSchema = z.object({
   product_code: z.string().min(1, 'Product code is required').max(50),
   product_name: z.string().min(1, 'Product name is required').max(200),
-  item_type: z.enum(['finished_goods', 'raw_material']),
+  item_type: z.enum(['finished_good', 'raw_material']),
   color: z.string().max(50).optional(),
   length_yards: z.string().optional(),
   width_inches: z.string().optional(),
@@ -43,7 +43,7 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
     defaultValues: {
       product_code: '',
       product_name: '',
-      item_type: 'finished_goods',
+      item_type: 'finished_good',
       color: '',
       length_yards: '',
       width_inches: '',
@@ -56,7 +56,7 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
       form.reset({
         product_code: item.product_code,
         product_name: item.product_name,
-        item_type: item.item_type as 'finished_goods' | 'raw_material',
+        item_type: item.item_type as 'finished_good' | 'raw_material',
         color: item.color || '',
         length_yards: item.length_yards?.toString() || '',
         width_inches: item.width_inches?.toString() || '',
@@ -66,7 +66,7 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
       form.reset({
         product_code: '',
         product_name: '',
-        item_type: 'finished_goods',
+        item_type: 'finished_good',
         color: '',
         length_yards: '',
         width_inches: '',
@@ -158,7 +158,7 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="finished_goods">Finished Goods</SelectItem>
+                        <SelectItem value="finished_good">Finished Good</SelectItem>
                         <SelectItem value="raw_material">Raw Material</SelectItem>
                       </SelectContent>
                     </Select>
