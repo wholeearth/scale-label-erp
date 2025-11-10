@@ -23,6 +23,8 @@ interface Assignment {
     length_yards: number | null;
     width_inches: number | null;
     color: string | null;
+    use_predefined_weight: boolean | null;
+    predefined_weight_kg: number | null;
   };
 }
 
@@ -73,13 +75,19 @@ const ProductionInterface = () => {
     },
   });
 
-  // Auto-capture weight when item is selected
+  // Auto-capture weight when item is selected (only if not using predefined weight)
   useEffect(() => {
-    if (selectedItem && autoWeight) {
-      const interval = setInterval(() => {
-        captureWeight();
-      }, 2000); // Poll every 2 seconds
-      return () => clearInterval(interval);
+    if (selectedItem) {
+      // If item uses predefined weight, set it immediately and disable scale
+      if (selectedItem.items.use_predefined_weight && selectedItem.items.predefined_weight_kg) {
+        setCurrentWeight(selectedItem.items.predefined_weight_kg);
+        setAutoWeight(false);
+      } else if (autoWeight) {
+        const interval = setInterval(() => {
+          captureWeight();
+        }, 2000); // Poll every 2 seconds
+        return () => clearInterval(interval);
+      }
     }
   }, [selectedItem, autoWeight]);
 
@@ -400,7 +408,12 @@ const ProductionInterface = () => {
 
   const handleSelectItem = (assignment: Assignment) => {
     setSelectedItem(assignment);
-    setCurrentWeight(0);
+    // Reset weight unless item uses predefined weight
+    if (assignment.items.use_predefined_weight && assignment.items.predefined_weight_kg) {
+      setCurrentWeight(assignment.items.predefined_weight_kg);
+    } else {
+      setCurrentWeight(0);
+    }
   };
 
   if (!selectedItem) {
@@ -542,22 +555,29 @@ const ProductionInterface = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Current Weight</p>
+                    <p className="text-sm text-muted-foreground">
+                      Current Weight {selectedItem.items.use_predefined_weight && <span className="text-xs">(Predefined)</span>}
+                    </p>
                     <p className="text-3xl font-bold text-primary">{currentWeight.toFixed(2)}</p>
                     <p className="text-xs text-muted-foreground">kg</p>
                   </div>
                   <Weight className="h-10 w-10 text-primary" />
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full mt-3"
-                  onClick={captureWeight}
-                  disabled={isCapturingWeight}
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isCapturingWeight ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+                {!selectedItem.items.use_predefined_weight && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full mt-3"
+                    onClick={captureWeight}
+                    disabled={isCapturingWeight}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isCapturingWeight ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                )}
+                {selectedItem.items.use_predefined_weight && (
+                  <p className="text-xs text-center mt-3 text-muted-foreground">Scale disabled for this item</p>
+                )}
               </CardContent>
             </Card>
 
