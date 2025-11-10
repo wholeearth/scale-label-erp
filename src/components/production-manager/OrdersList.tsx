@@ -26,7 +26,7 @@ interface Order {
   created_at: string;
   customers: {
     customer_name: string;
-  };
+  } | null;
   order_items: OrderItem[];
 }
 
@@ -91,7 +91,7 @@ export const OrdersList = () => {
                     {order.order_number}
                   </CardTitle>
                   <CardDescription>
-                    Customer: {order.customers.customer_name}
+                    Customer: {order.customers?.customer_name || 'Unknown Customer'}
                   </CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
