@@ -57,15 +57,19 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
   const { data: operators } = useQuery({
     queryKey: ['operators'],
     queryFn: async () => {
+      const { data: roleRows, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'operator');
+
+      if (rolesError) throw rolesError;
+      const ids = roleRows?.map(r => r.user_id) || [];
+      if (ids.length === 0) return [] as Operator[];
+
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
-          id,
-          full_name,
-          employee_code,
-          user_roles!inner(role)
-        `)
-        .eq('user_roles.role', 'operator');
+        .select('id, full_name, employee_code')
+        .in('id', ids);
 
       if (error) throw error;
       return data as Operator[];
@@ -163,7 +167,7 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
               <SelectTrigger id="operator">
                 <SelectValue placeholder="Choose an operator" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-50 bg-popover">
                 {operators?.map((operator) => (
                   <SelectItem key={operator.id} value={operator.id}>
                     {operator.full_name}
