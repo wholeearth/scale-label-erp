@@ -1,9 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Factory, LogOut, ClipboardList, Users } from 'lucide-react';
+import { Factory, LogOut, ClipboardList, Users, TrendingUp } from 'lucide-react';
 import { OrdersList } from '@/components/production-manager/OrdersList';
 import { ActiveAssignments } from '@/components/production-manager/ActiveAssignments';
+import { EfficiencyMetrics } from '@/components/production-manager/EfficiencyMetrics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ProductionManagerDashboard = () => {
@@ -47,7 +48,7 @@ const ProductionManagerDashboard = () => {
         </Card>
 
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" />
               Approved Orders
@@ -55,6 +56,10 @@ const ProductionManagerDashboard = () => {
             <TabsTrigger value="assignments" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Active Assignments
+            </TabsTrigger>
+            <TabsTrigger value="metrics" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Efficiency Metrics
             </TabsTrigger>
           </TabsList>
 
@@ -64,6 +69,10 @@ const ProductionManagerDashboard = () => {
 
           <TabsContent value="assignments" className="space-y-4">
             <ActiveAssignments />
+          </TabsContent>
+
+          <TabsContent value="metrics" className="space-y-4">
+            <EfficiencyMetrics />
           </TabsContent>
         </Tabs>
       </main>

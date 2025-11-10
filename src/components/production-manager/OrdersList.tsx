@@ -120,34 +120,53 @@ export const OrdersList = () => {
     };
   }, [refetchOrders]);
 
-  // Fetch production rates for the last 7 days
+  // Fetch production rates and detailed metrics for the last 30 days
   const { data: productionRates } = useQuery({
-    queryKey: ['production-rates'],
+    queryKey: ['production-rates-detailed'],
     queryFn: async () => {
-      const sevenDaysAgo = subDays(new Date(), 7).toISOString().split('T')[0];
+      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
       
       const { data, error } = await supabase
         .from('production_records')
-        .select('item_id, production_date')
-        .gte('production_date', sevenDaysAgo);
+        .select('item_id, production_date, created_at')
+        .gte('created_at', thirtyDaysAgo)
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      // Calculate production rate per item (items per day)
-      const rateMap = new Map<string, { count: number; days: Set<string> }>();
+      // Calculate production rate per item (items per day) with time-based analysis
+      const rateMap = new Map<string, { 
+        count: number; 
+        days: Set<string>;
+        firstRecord: Date;
+        lastRecord: Date;
+      }>();
       
       data.forEach((record) => {
-        const existing = rateMap.get(record.item_id) || { count: 0, days: new Set<string>() };
-        existing.count += 1;
-        existing.days.add(record.production_date);
-        rateMap.set(record.item_id, existing);
+        const recordDate = new Date(record.created_at);
+        const existing = rateMap.get(record.item_id);
+        
+        if (!existing) {
+          rateMap.set(record.item_id, { 
+            count: 1, 
+            days: new Set([record.production_date]),
+            firstRecord: recordDate,
+            lastRecord: recordDate,
+          });
+        } else {
+          existing.count += 1;
+          existing.days.add(record.production_date);
+          if (recordDate > existing.lastRecord) existing.lastRecord = recordDate;
+        }
       });
 
-      // Convert to items per day
+      // Convert to items per day with improved calculation
       const rates = new Map<string, number>();
       rateMap.forEach((value, itemId) => {
-        const daysActive = value.days.size;
-        rates.set(itemId, daysActive > 0 ? value.count / daysActive : 0);
+        // Use actual time span for more accurate rate calculation
+        const hourSpan = Math.max(1, (value.lastRecord.getTime() - value.firstRecord.getTime()) / (1000 * 60 * 60));
+        const daySpan = Math.max(1, hourSpan / 24);
+        rates.set(itemId, value.count / daySpan);
       });
 
       return rates;
