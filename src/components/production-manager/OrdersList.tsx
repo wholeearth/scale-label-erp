@@ -3,9 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ClipboardList, Package } from 'lucide-react';
 import { useState } from 'react';
 import { AssignOrderDialog } from './AssignOrderDialog';
+import { BulkAssignDialog } from './BulkAssignDialog';
 
 interface OrderItem {
   id: string;
@@ -32,6 +34,16 @@ interface Order {
 
 export const OrdersList = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrderIds(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['approved-orders'],
@@ -81,18 +93,39 @@ export const OrdersList = () => {
   return (
     <>
       <div className="space-y-4">
+        {selectedOrderIds.length > 0 && (
+          <Card className="bg-primary/5">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="text-sm">
+                  <span className="font-semibold">{selectedOrderIds.length}</span> order(s) selected
+                </div>
+                <Button onClick={() => setShowBulkAssign(true)}>
+                  Assign Selected Orders
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         {orders?.map((order) => (
           <Card key={order.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <ClipboardList className="h-5 w-5" />
-                    {order.order_number}
-                  </CardTitle>
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    checked={selectedOrderIds.includes(order.id)}
+                    onCheckedChange={() => toggleOrderSelection(order.id)}
+                  />
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5" />
+                      {order.order_number}
+                    </CardTitle>
                   <CardDescription>
                     Customer: {order.customers?.customer_name || 'Unknown Customer'}
                   </CardDescription>
+                  </div>
                 </div>
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                   {order.status}
@@ -164,6 +197,17 @@ export const OrdersList = () => {
           order={selectedOrder}
           open={!!selectedOrder}
           onOpenChange={(open) => !open && setSelectedOrder(null)}
+        />
+      )}
+
+      {showBulkAssign && (
+        <BulkAssignDialog
+          orders={orders?.filter(o => selectedOrderIds.includes(o.id)) || []}
+          open={showBulkAssign}
+          onOpenChange={(open) => {
+            setShowBulkAssign(open);
+            if (!open) setSelectedOrderIds([]);
+          }}
         />
       )}
     </>
