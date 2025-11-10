@@ -172,10 +172,12 @@ export type Database = {
           id: string
           item_type: string
           length_yards: number | null
+          predefined_weight_kg: number | null
           product_code: string
           product_name: string
           unit_id: string | null
           updated_at: string | null
+          use_predefined_weight: boolean | null
           width_inches: number | null
         }
         Insert: {
@@ -184,10 +186,12 @@ export type Database = {
           id?: string
           item_type: string
           length_yards?: number | null
+          predefined_weight_kg?: number | null
           product_code: string
           product_name: string
           unit_id?: string | null
           updated_at?: string | null
+          use_predefined_weight?: boolean | null
           width_inches?: number | null
         }
         Update: {
@@ -196,10 +200,12 @@ export type Database = {
           id?: string
           item_type?: string
           length_yards?: number | null
+          predefined_weight_kg?: number | null
           product_code?: string
           product_name?: string
           unit_id?: string | null
           updated_at?: string | null
+          use_predefined_weight?: boolean | null
           width_inches?: number | null
         }
         Relationships: [

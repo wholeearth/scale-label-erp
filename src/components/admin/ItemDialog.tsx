@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -23,6 +24,8 @@ const itemSchema = z.object({
   length_yards: z.string().optional(),
   width_inches: z.string().optional(),
   unit_id: z.string().optional(),
+  predefined_weight_kg: z.string().optional(),
+  use_predefined_weight: z.boolean().default(false),
 });
 
 type ItemFormData = z.infer<typeof itemSchema>;
@@ -48,6 +51,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
       length_yards: '',
       width_inches: '',
       unit_id: '',
+      predefined_weight_kg: '',
+      use_predefined_weight: false,
     },
   });
 
@@ -61,6 +66,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         length_yards: item.length_yards?.toString() || '',
         width_inches: item.width_inches?.toString() || '',
         unit_id: item.unit_id || '',
+        predefined_weight_kg: item.predefined_weight_kg?.toString() || '',
+        use_predefined_weight: item.use_predefined_weight || false,
       });
     } else {
       form.reset({
@@ -71,6 +78,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         length_yards: '',
         width_inches: '',
         unit_id: '',
+        predefined_weight_kg: '',
+        use_predefined_weight: false,
       });
     }
   }, [item, form]);
@@ -85,6 +94,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         length_yards: data.length_yards ? parseFloat(data.length_yards) : null,
         width_inches: data.width_inches ? parseFloat(data.width_inches) : null,
         unit_id: data.unit_id || null,
+        predefined_weight_kg: data.predefined_weight_kg ? parseFloat(data.predefined_weight_kg) : null,
+        use_predefined_weight: data.use_predefined_weight,
       };
 
       if (item) {
@@ -246,6 +257,39 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
                       <Input type="number" step="0.01" placeholder="e.g., 60" {...field} />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="predefined_weight_kg"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Predefined Weight (kg)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="e.g., 25.5" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="use_predefined_weight"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-start gap-3 space-y-0 pt-8">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">
+                      Use predefined weight for printing
+                    </FormLabel>
                   </FormItem>
                 )}
               />
