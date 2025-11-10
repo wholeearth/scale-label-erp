@@ -106,8 +106,8 @@ const ItemManagement = () => {
                       <TableCell className="font-medium">{item.product_code}</TableCell>
                       <TableCell>{item.product_name}</TableCell>
                       <TableCell>
-                        <Badge variant={item.item_type === 'finished_goods' ? 'default' : 'secondary'}>
-                          {item.item_type === 'finished_goods' ? 'Finished Good' : 'Raw Material'}
+                        <Badge variant={item.item_type === 'finished_good' ? 'default' : 'secondary'}>
+                          {item.item_type === 'finished_good' ? 'Finished Good' : 'Raw Material'}
                         </Badge>
                       </TableCell>
                       <TableCell>{item.color || '-'}</TableCell>
