@@ -43,19 +43,8 @@ export const useAuth = () => {
                 // continue; we'll try to ensure profile
               }
 
-              if (!profileData) {
-                try {
-                  await supabase.functions.invoke('ensure-profile');
-                  const { data: createdProfile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .maybeSingle();
-                  profileData = createdProfile ?? null;
-                } catch (e) {
-                  console.error('ensure-profile error:', e);
-                }
-              }
+              // Profile will be created by admin via create-user function
+              // Fallback to user_metadata if no profile exists
               console.log('Profile data:', profileData);
 
               const { data: rolesData, error: rolesError } = await supabase
