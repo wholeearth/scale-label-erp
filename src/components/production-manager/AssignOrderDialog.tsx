@@ -20,6 +20,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Package } from 'lucide-react';
+import { z } from 'zod';
+
+const assignmentSchema = z.object({
+  itemId: z.string().min(1, 'Please select an item'),
+  operatorId: z.string().min(1, 'Please select an operator'),
+  quantity: z.number()
+    .min(1, 'Quantity must be at least 1')
+    .int('Quantity must be a whole number'),
+});
 
 interface AssignOrderDialogProps {
   order: {
@@ -51,6 +60,7 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [selectedOperatorId, setSelectedOperatorId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
+  const [errors, setErrors] = useState<{ itemId?: string; operatorId?: string; quantity?: string }>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -79,8 +89,30 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedItemId || !selectedOperatorId || !quantity) {
-        throw new Error('Please fill all fields');
+      // Clear previous errors
+      setErrors({});
+
+      // Validate with zod
+      const validation = assignmentSchema.safeParse({
+        itemId: selectedItemId,
+        operatorId: selectedOperatorId,
+        quantity: quantity,
+      });
+
+      if (!validation.success) {
+        const fieldErrors: { itemId?: string; operatorId?: string; quantity?: string } = {};
+        validation.error.errors.forEach((err) => {
+          const field = err.path[0] as 'itemId' | 'operatorId' | 'quantity';
+          fieldErrors[field] = err.message;
+        });
+        setErrors(fieldErrors);
+        throw new Error('Validation failed');
+      }
+
+      // Additional validation: check quantity doesn't exceed remaining
+      if (quantity > remainingQuantity) {
+        setErrors({ quantity: `Quantity exceeds remaining units (${remainingQuantity})` });
+        throw new Error('Quantity exceeds remaining units');
       }
 
       const { error } = await supabase
@@ -104,14 +136,17 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
       setSelectedItemId('');
       setSelectedOperatorId('');
       setQuantity(1);
+      setErrors({});
       onOpenChange(false);
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Assignment Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error.message !== 'Validation failed') {
+        toast({
+          title: 'Assignment Failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     },
   });
 
@@ -136,11 +171,17 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
               <Package className="inline h-4 w-4 mr-2" />
               Select Item
             </Label>
-            <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-              <SelectTrigger id="item">
+            <Select 
+              value={selectedItemId} 
+              onValueChange={(value) => {
+                setSelectedItemId(value);
+                setErrors(prev => ({ ...prev, itemId: undefined }));
+              }}
+            >
+              <SelectTrigger id="item" className={errors.itemId ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Choose an item from the order" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-50 bg-popover">
                 {order.order_items.map((item) => (
                   <SelectItem key={item.id} value={item.item_id}>
                     {item.items.product_code} - {item.items.product_name}
@@ -151,6 +192,9 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
                 ))}
               </SelectContent>
             </Select>
+            {errors.itemId && (
+              <p className="text-sm text-destructive">{errors.itemId}</p>
+            )}
             {selectedItem && (
               <div className="text-sm text-muted-foreground">
                 Remaining to produce: {remainingQuantity} units
@@ -163,8 +207,14 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
               <Users className="inline h-4 w-4 mr-2" />
               Select Operator
             </Label>
-            <Select value={selectedOperatorId} onValueChange={setSelectedOperatorId}>
-              <SelectTrigger id="operator">
+            <Select 
+              value={selectedOperatorId} 
+              onValueChange={(value) => {
+                setSelectedOperatorId(value);
+                setErrors(prev => ({ ...prev, operatorId: undefined }));
+              }}
+            >
+              <SelectTrigger id="operator" className={errors.operatorId ? 'border-destructive' : ''}>
                 <SelectValue placeholder="Choose an operator" />
               </SelectTrigger>
               <SelectContent className="z-50 bg-popover">
@@ -176,6 +226,9 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
                 ))}
               </SelectContent>
             </Select>
+            {errors.operatorId && (
+              <p className="text-sm text-destructive">{errors.operatorId}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -186,13 +239,16 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
               min={1}
               max={remainingQuantity}
               value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 1;
+                setQuantity(value);
+                setErrors(prev => ({ ...prev, quantity: undefined }));
+              }}
               disabled={!selectedItemId}
+              className={errors.quantity ? 'border-destructive' : ''}
             />
-            {selectedItemId && quantity > remainingQuantity && (
-              <div className="text-sm text-destructive">
-                Quantity exceeds remaining units
-              </div>
+            {errors.quantity && (
+              <p className="text-sm text-destructive">{errors.quantity}</p>
             )}
           </div>
         </div>
@@ -207,13 +263,7 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
           </Button>
           <Button
             onClick={() => assignMutation.mutate()}
-            disabled={
-              !selectedItemId || 
-              !selectedOperatorId || 
-              !quantity || 
-              quantity > remainingQuantity ||
-              assignMutation.isPending
-            }
+            disabled={assignMutation.isPending}
             className="flex-1"
           >
             {assignMutation.isPending ? 'Assigning...' : 'Assign to Operator'}
