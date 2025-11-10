@@ -5,12 +5,29 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, XCircle, Eye } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import OrderDetailsDialog from './OrderDetailsDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const OrderManagement = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -49,6 +66,31 @@ const OrderManagement = () => {
         title: 'Order updated',
         description: 'The order status has been updated successfully.',
       });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({
+        title: 'Order deleted',
+        description: 'The order has been deleted successfully.',
+      });
+      setDeletingOrderId(null);
     },
     onError: (error: Error) => {
       toast({
@@ -120,30 +162,46 @@ const OrderManagement = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {order.status === 'pending' && (
-                            <>
-                              <Button
-                                variant="default"
-                                size="sm"
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
                                 onClick={() => updateStatusMutation.mutate({ 
                                   orderId: order.id, 
                                   status: 'approved' 
                                 })}
                               >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Approve Order
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setSelectedOrderId(order.id)}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit Order
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onClick={() => updateStatusMutation.mutate({ 
                                   orderId: order.id, 
                                   status: 'rejected' 
                                 })}
                               >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Reject Order
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeletingOrderId(order.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Order
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -164,6 +222,25 @@ const OrderManagement = () => {
         onOpenChange={(open) => !open && setSelectedOrderId(null)}
         orderId={selectedOrderId}
       />
+
+      <AlertDialog open={!!deletingOrderId} onOpenChange={(open) => !open && setDeletingOrderId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the order and all its items.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingOrderId && deleteMutation.mutate(deletingOrderId)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
