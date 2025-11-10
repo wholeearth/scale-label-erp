@@ -172,7 +172,7 @@ const ProductionInterface = () => {
       const barcodeData = `${globalSerialStr}:${selectedItem.items.product_code}:${itemSerialStr}:${currentWeight.toFixed(2)}`;
 
       // Insert production record
-      const { error: insertError } = await supabase
+      const { data: productionRecord, error: insertError } = await supabase
         .from('production_records')
         .insert({
           serial_number: serialNumber,
@@ -186,7 +186,9 @@ const ProductionInterface = () => {
           operator_sequence: operatorSequence,
           production_date: now.toISOString().split('T')[0],
           production_time: now.toTimeString().slice(0, 8),
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
@@ -220,14 +222,20 @@ const ProductionInterface = () => {
         .eq('id', selectedItem.id);
 
       // Add to inventory
-      await supabase
+      const { error: inventoryError } = await supabase
         .from('inventory')
         .insert({
           item_id: selectedItem.item_id,
+          production_record_id: productionRecord?.id,
           transaction_type: 'production',
           quantity: 1,
           weight_kg: currentWeight,
         });
+
+      if (inventoryError) {
+        console.error('Inventory insert error:', inventoryError);
+        throw new Error('Failed to update inventory');
+      }
 
       return { serialNumber, barcodeData };
     },

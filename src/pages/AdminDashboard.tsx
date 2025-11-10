@@ -23,6 +23,7 @@ import CustomerManagement from '@/components/admin/CustomerManagement';
 import OrderManagement from '@/components/admin/OrderManagement';
 import SystemSettings from '@/components/admin/SystemSettings';
 import MachineManagement from '@/components/admin/MachineManagement';
+import InventoryManagement from '@/components/admin/InventoryManagement';
 
 const AdminDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -99,6 +100,15 @@ const AdminDashboard = () => {
                 <Package className="h-3 w-3 mr-1" />
                 Manage Items
               </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setActiveTab('inventory')}
+                className="h-8"
+              >
+                <Package className="h-3 w-3 mr-1" />
+                View Inventory
+              </Button>
             </div>
           </div>
         </div>
@@ -106,7 +116,7 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10">
             <TabsTrigger value="live-dashboard">
               <Activity className="h-4 w-4 mr-2" />
               Live
@@ -126,6 +136,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="items">
               <Package className="h-4 w-4 mr-2" />
               Items
+            </TabsTrigger>
+            <TabsTrigger value="inventory">
+              <Package className="h-4 w-4 mr-2" />
+              Inventory
             </TabsTrigger>
             <TabsTrigger value="units">
               <Ruler className="h-4 w-4 mr-2" />
@@ -163,6 +177,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="items" className="space-y-6">
             <ItemManagement />
+          </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-6">
+            <InventoryManagement />
           </TabsContent>
 
           <TabsContent value="units" className="space-y-6">
