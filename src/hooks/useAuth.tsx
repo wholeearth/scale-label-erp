@@ -32,15 +32,29 @@ export const useAuth = () => {
           setTimeout(async () => {
             try {
               console.log('Fetching profile for user:', session.user.id);
-              const { data: profileData, error: profileError } = await supabase
+              let { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
-                .single();
+                .maybeSingle();
 
               if (profileError) {
                 console.error('Profile error:', profileError);
-                throw profileError;
+                // continue; we'll try to ensure profile
+              }
+
+              if (!profileData) {
+                try {
+                  await supabase.functions.invoke('ensure-profile');
+                  const { data: createdProfile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+                  profileData = createdProfile ?? null;
+                } catch (e) {
+                  console.error('ensure-profile error:', e);
+                }
               }
               console.log('Profile data:', profileData);
 
@@ -55,11 +69,16 @@ export const useAuth = () => {
               }
               console.log('Roles data:', rolesData);
 
+              const fallbackName = (session.user.user_metadata as any)?.full_name || session.user.email || 'User';
+              const fallbackCode = (session.user.user_metadata as any)?.employee_code || null;
+
               setProfile({
-                ...profileData,
-                roles: rolesData.map(r => r.role as UserRole)
+                id: session.user.id,
+                full_name: profileData?.full_name ?? fallbackName,
+                employee_code: profileData?.employee_code ?? fallbackCode,
+                roles: (rolesData || []).map(r => r.role as UserRole)
               });
-              console.log('Profile set with roles:', rolesData.map(r => r.role));
+              console.log('Profile set with roles:', (rolesData || []).map(r => r.role));
             } catch (error) {
               console.error('Error fetching profile:', error);
             } finally {
