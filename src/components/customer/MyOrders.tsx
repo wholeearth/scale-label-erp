@@ -186,7 +186,7 @@ export const MyOrders = () => {
                     ${parseFloat(String(order.total_amount)).toFixed(2)}
                   </span>
                 </div>
-                {order.status === 'pending' && (
+                {(order.status === 'pending' || order.status === 'approved') && (
                   <div className="flex gap-2">
                     <Button
                       variant="outline"

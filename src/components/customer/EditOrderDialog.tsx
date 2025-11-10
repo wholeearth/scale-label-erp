@@ -150,11 +150,14 @@ export const EditOrderDialog = ({ open, onOpenChange, orderId }: EditOrderDialog
         }
       }
 
-      // Update order total
+      // Update order total and reset status to pending
       const total = orderItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
       const { error } = await supabase
         .from('orders')
-        .update({ total_amount: total })
+        .update({ 
+          total_amount: total,
+          status: 'pending'
+        })
         .eq('id', orderId);
       if (error) throw error;
     },
@@ -201,7 +204,7 @@ export const EditOrderDialog = ({ open, onOpenChange, orderId }: EditOrderDialog
         <DialogHeader>
           <DialogTitle>Edit Order</DialogTitle>
           <DialogDescription>
-            Modify order items and quantities. Only pending orders can be edited.
+            Modify order items and quantities. Edited orders will require admin approval again.
           </DialogDescription>
         </DialogHeader>
 
