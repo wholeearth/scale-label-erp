@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, XCircle, Eye, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import OrderDetailsDialog from './OrderDetailsDialog';
+import { AdminEditOrderDialog } from './AdminEditOrderDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,7 @@ import {
 
 const OrderManagement = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -179,7 +181,7 @@ const OrderManagement = () => {
                                 Approve Order
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => setSelectedOrderId(order.id)}
+                                onClick={() => setEditingOrderId(order.id)}
                               >
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Edit Order
@@ -221,6 +223,12 @@ const OrderManagement = () => {
         open={!!selectedOrderId}
         onOpenChange={(open) => !open && setSelectedOrderId(null)}
         orderId={selectedOrderId}
+      />
+
+      <AdminEditOrderDialog
+        open={!!editingOrderId}
+        onOpenChange={(open) => !open && setEditingOrderId(null)}
+        orderId={editingOrderId}
       />
 
       <AlertDialog open={!!deletingOrderId} onOpenChange={(open) => !open && setDeletingOrderId(null)}>
