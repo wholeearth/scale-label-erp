@@ -266,6 +266,7 @@ const UserDialog = ({ open, onOpenChange, user }: UserDialogProps) => {
                       <SelectItem value="sales">Sales</SelectItem>
                       <SelectItem value="customer">Customer</SelectItem>
                       <SelectItem value="accountant">Accountant</SelectItem>
+                      <SelectItem value="commission_agent">Commission Agent</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
