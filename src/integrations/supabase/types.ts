@@ -769,6 +769,79 @@ export type Database = {
           },
         ]
       }
+      sales_returns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          item_id: string
+          notes: string | null
+          order_id: string | null
+          quantity: number
+          reason: string | null
+          refund_amount: number | null
+          return_date: string
+          return_number: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          item_id: string
+          notes?: string | null
+          order_id?: string | null
+          quantity: number
+          reason?: string | null
+          refund_amount?: number | null
+          return_date?: string
+          return_number: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          item_id?: string
+          notes?: string | null
+          order_id?: string | null
+          quantity?: number
+          reason?: string | null
+          refund_amount?: number | null
+          return_date?: string
+          return_number?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_returns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_returns_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_returns_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scale_config: {
         Row: {
           id: string
@@ -847,6 +920,7 @@ export type Database = {
     Functions: {
       generate_journal_entry_number: { Args: never; Returns: string }
       generate_purchase_number: { Args: never; Returns: string }
+      generate_return_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

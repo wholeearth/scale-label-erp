@@ -12,7 +12,10 @@ import {
   TrendingUp,
   DollarSign,
   Receipt,
-  Users
+  Users,
+  Warehouse,
+  ShoppingCart,
+  PackageX
 } from 'lucide-react';
 import ChartOfAccountsManagement from '@/components/accountant/ChartOfAccountsManagement';
 import JournalEntryForm from '@/components/accountant/JournalEntryForm';
@@ -20,6 +23,9 @@ import GeneralLedger from '@/components/accountant/GeneralLedger';
 import AccountingDashboardOverview from '@/components/accountant/AccountingDashboardOverview';
 import SalesInvoices from '@/components/accountant/SalesInvoices';
 import AccountsReceivable from '@/components/accountant/AccountsReceivable';
+import { InventoryValuation } from '@/components/accountant/InventoryValuation';
+import { StockConsumption } from '@/components/accountant/StockConsumption';
+import { ProductReturns } from '@/components/accountant/ProductReturns';
 
 const AccountantDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -55,7 +61,7 @@ const AccountantDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
             <TabsTrigger value="overview">
               <BarChart3 className="h-4 w-4 mr-2" />
               Overview
@@ -79,6 +85,18 @@ const AccountantDashboard = () => {
             <TabsTrigger value="accounts-receivable">
               <Users className="h-4 w-4 mr-2" />
               A/R
+            </TabsTrigger>
+            <TabsTrigger value="inventory">
+              <Warehouse className="h-4 w-4 mr-2" />
+              Inventory
+            </TabsTrigger>
+            <TabsTrigger value="consumption">
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Consumption
+            </TabsTrigger>
+            <TabsTrigger value="returns">
+              <PackageX className="h-4 w-4 mr-2" />
+              Returns
             </TabsTrigger>
           </TabsList>
 
@@ -104,6 +122,18 @@ const AccountantDashboard = () => {
 
           <TabsContent value="accounts-receivable" className="space-y-6">
             <AccountsReceivable />
+          </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-6">
+            <InventoryValuation />
+          </TabsContent>
+
+          <TabsContent value="consumption" className="space-y-6">
+            <StockConsumption />
+          </TabsContent>
+
+          <TabsContent value="returns" className="space-y-6">
+            <ProductReturns />
           </TabsContent>
         </Tabs>
       </main>
