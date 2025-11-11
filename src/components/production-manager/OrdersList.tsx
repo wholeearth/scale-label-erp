@@ -173,6 +173,24 @@ export const OrdersList = () => {
     },
   });
 
+  // Fetch production counts per item (last 30 days) to drive progress allocation
+  const { data: productionCounts } = useQuery({
+    queryKey: ['production-counts-last30'],
+    queryFn: async () => {
+      const since = subDays(new Date(), 30).toISOString();
+      const { data, error } = await supabase
+        .from('production_records')
+        .select('item_id')
+        .gte('created_at', since);
+      if (error) throw error;
+      const counts = new Map<string, number>();
+      data.forEach((rec) => {
+        counts.set(rec.item_id, (counts.get(rec.item_id) || 0) + 1);
+      });
+      return counts;
+    },
+  });
+
   // Fetch active assignments to factor in current capacity
   const { data: activeAssignments } = useQuery({
     queryKey: ['active-assignments-for-estimates'],
@@ -186,6 +204,35 @@ export const OrdersList = () => {
       return data;
     },
   });
+  // Allocate produced units to orders per item (FIFO by order date)
+  const producedAllocation = useMemo(() => {
+    const map = new Map<string, number>(); // order_item.id -> produced count
+    if (!orders || !productionCounts) return map;
+
+    const ordersAsc = [...orders].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    const availableByItem = new Map<string, number>(productionCounts);
+
+    ordersAsc.forEach((order) => {
+      order.order_items.forEach((item) => {
+        const available = availableByItem.get(item.item_id) || 0;
+        const producedForThis = Math.max(0, Math.min(available, item.quantity));
+        map.set(item.id, producedForThis);
+        if (available > 0) {
+          availableByItem.set(item.item_id, available - producedForThis);
+        }
+      });
+    });
+
+    return map;
+  }, [orders, productionCounts]);
+
+  const getProducedForItem = (item: OrderItem) => {
+    const allocated = producedAllocation.get(item.id);
+    return typeof allocated === 'number' ? allocated : (item.produced_quantity || 0);
+  };
 
   // Calculate estimated completion date for an order item
   const calculateEstimatedCompletion = (itemId: string, remainingQuantity: number): Date | null => {
@@ -216,20 +263,21 @@ export const OrdersList = () => {
     
     const estimates = new Map<string, Date | null>();
     
-    orders.forEach(order => {
-      let latestDate: Date | null = null;
-      
-      order.order_items.forEach(item => {
-        const remaining = item.quantity - item.produced_quantity;
-        const itemEstimate = calculateEstimatedCompletion(item.item_id, remaining);
+      orders.forEach(order => {
+        let latestDate: Date | null = null;
         
-        if (itemEstimate && (!latestDate || itemEstimate > latestDate)) {
-          latestDate = itemEstimate;
-        }
+        order.order_items.forEach(item => {
+          const produced = getProducedForItem(item);
+          const remaining = Math.max(0, item.quantity - produced);
+          const itemEstimate = calculateEstimatedCompletion(item.item_id, remaining);
+          
+          if (itemEstimate && (!latestDate || itemEstimate > latestDate)) {
+            latestDate = itemEstimate;
+          }
+        });
+        
+        estimates.set(order.id, latestDate);
       });
-      
-      estimates.set(order.id, latestDate);
-    });
     
     return estimates;
   }, [orders, productionRates, activeAssignments]);
@@ -267,8 +315,8 @@ export const OrdersList = () => {
         {orders?.map((order) => {
           const estimatedCompletion = orderCompletionEstimates.get(order.id);
           const totalQuantity = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
-          const totalProduced = order.order_items.reduce((sum, item) => sum + item.produced_quantity, 0);
-          const overallProgress = Math.round((totalProduced / totalQuantity) * 100);
+          const totalProduced = order.order_items.reduce((sum, item) => sum + getProducedForItem(item), 0);
+          const overallProgress = totalQuantity > 0 ? Math.round((totalProduced / totalQuantity) * 100) : 0;
           
           return (
             <Card key={order.id} className="hover:shadow-md transition-shadow">
@@ -348,7 +396,8 @@ export const OrdersList = () => {
                     Order Items:
                   </div>
                   {order.order_items.map((item) => {
-                    const progress = Math.round((item.produced_quantity / item.quantity) * 100);
+                     const produced = getProducedForItem(item);
+                     const progress = Math.round((produced / item.quantity) * 100);
                     return (
                       <div
                         key={item.id}
@@ -366,9 +415,9 @@ export const OrdersList = () => {
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="text-right">
-                            <div className="text-lg font-semibold">
-                              {item.produced_quantity} / {item.quantity}
-                            </div>
+                              <div className="text-lg font-semibold">
+                                {produced} / {item.quantity}
+                              </div>
                             <div className="text-xs text-muted-foreground">units</div>
                           </div>
                           <Badge 
