@@ -1,13 +1,10 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -18,7 +15,6 @@ import {
 
 interface JournalLine {
   account_id: string;
-  description: string;
   debit_amount: string;
   credit_amount: string;
 }
@@ -28,11 +24,13 @@ const JournalEntryForm = () => {
   const queryClient = useQueryClient();
   
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
-  const [description, setDescription] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
+  const [narration, setNarration] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
+  const [journalNumber, setJournalNumber] = useState('');
   const [lines, setLines] = useState<JournalLine[]>([
-    { account_id: '', description: '', debit_amount: '', credit_amount: '' },
-    { account_id: '', description: '', debit_amount: '', credit_amount: '' },
+    { account_id: '', debit_amount: '', credit_amount: '' },
+    { account_id: '', debit_amount: '', credit_amount: '' },
   ]);
 
   const { data: accounts } = useQuery({
@@ -67,7 +65,7 @@ const JournalEntryForm = () => {
         .insert({
           entry_number: entryNumber,
           entry_date: entryDate,
-          description,
+          description: narration || 'Journal Entry',
           reference_number: referenceNumber || null,
           total_debit: totalDebit,
           total_credit: totalCredit,
@@ -83,7 +81,7 @@ const JournalEntryForm = () => {
         .map(line => ({
           journal_entry_id: entry.id,
           account_id: line.account_id,
-          description: line.description || null,
+          description: narration || null,
           debit_amount: parseFloat(line.debit_amount || '0'),
           credit_amount: parseFloat(line.credit_amount || '0'),
         }));
@@ -108,16 +106,18 @@ const JournalEntryForm = () => {
 
   const resetForm = () => {
     setEntryDate(new Date().toISOString().split('T')[0]);
-    setDescription('');
+    setEffectiveDate(new Date().toISOString().split('T')[0]);
+    setNarration('');
     setReferenceNumber('');
+    setJournalNumber('');
     setLines([
-      { account_id: '', description: '', debit_amount: '', credit_amount: '' },
-      { account_id: '', description: '', debit_amount: '', credit_amount: '' },
+      { account_id: '', debit_amount: '', credit_amount: '' },
+      { account_id: '', debit_amount: '', credit_amount: '' },
     ]);
   };
 
   const addLine = () => {
-    setLines([...lines, { account_id: '', description: '', debit_amount: '', credit_amount: '' }]);
+    setLines([...lines, { account_id: '', debit_amount: '', credit_amount: '' }]);
   };
 
   const removeLine = (index: number) => {
@@ -161,153 +161,278 @@ const JournalEntryForm = () => {
     createJournalEntryMutation.mutate();
   };
 
+  const getAccountDisplay = (accountId: string) => {
+    const account = accounts?.find(a => a.id === accountId);
+    if (!account) return null;
+    
+    const balanceType = account.current_balance >= 0 ? 'Dr' : 'Cr';
+    const balanceAmount = Math.abs(account.current_balance).toFixed(2);
+    
+    return {
+      name: `${account.account_code} ${account.account_name}`,
+      balance: `Cur Bal: ${balanceAmount} ${balanceType}`,
+    };
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create Journal Entry</CardTitle>
-        <CardDescription>Record double-entry accounting transactions</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="entry-date">Entry Date *</Label>
-              <Input
-                id="entry-date"
-                type="date"
-                value={entryDate}
-                onChange={(e) => setEntryDate(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reference">Reference Number</Label>
-              <Input
-                id="reference"
-                value={referenceNumber}
-                onChange={(e) => setReferenceNumber(e.target.value)}
-                placeholder="Optional reference"
-              />
-            </div>
-          </div>
+    <div className="min-h-screen bg-background">
+      {/* Header Bar - Tally Style */}
+      <div className="bg-[hsl(210,100%,40%)] text-white px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <span className="font-bold text-lg">Tally GOLD Prime</span>
+          <span className="text-sm">Company</span>
+        </div>
+        <div className="flex items-center gap-4 text-sm">
+          <span>Accounting Voucher Creation</span>
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe this journal entry"
-              required
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-4">
+      {/* Journal Entry Form */}
+      <div className="p-6">
+        <form onSubmit={handleSubmit}>
+          {/* Top Section - Journal No and Dates */}
+          <div className="bg-card border-b border-border px-4 py-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Journal Entry Lines</h3>
-              <Button type="button" size="sm" onClick={addLine}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Line
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Journal</span>
+                  <span className="text-sm">No.</span>
+                  <Input
+                    value={journalNumber}
+                    onChange={(e) => setJournalNumber(e.target.value)}
+                    className="w-32 h-7 text-sm"
+                    placeholder="Auto"
+                    disabled
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Reference No</span>
+                  <Input
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    className="w-32 h-7 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Monday</span>
+                  <Input
+                    type="date"
+                    value={entryDate}
+                    onChange={(e) => setEntryDate(e.target.value)}
+                    className="w-36 h-7 text-sm"
+                    required
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Effective Date</span>
+                  <Input
+                    type="date"
+                    value={effectiveDate}
+                    onChange={(e) => setEffectiveDate(e.target.value)}
+                    className="w-36 h-7 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Table */}
+          <div className="border-x border-b border-border">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 bg-muted border-b border-border">
+              <div className="col-span-7 px-4 py-2 text-sm font-semibold border-r border-border">
+                Particulars
+              </div>
+              <div className="col-span-2 px-4 py-2 text-sm font-semibold text-right border-r border-border">
+                Debit
+              </div>
+              <div className="col-span-3 px-4 py-2 text-sm font-semibold text-right">
+                Credit
+              </div>
+            </div>
+
+            {/* Journal Lines */}
+            <div className="min-h-[400px]">
+              {lines.map((line, index) => {
+                const accountDisplay = line.account_id ? getAccountDisplay(line.account_id) : null;
+                const isDr = !!line.debit_amount;
+                const isCr = !!line.credit_amount;
+
+                return (
+                  <div
+                    key={index}
+                    className={`grid grid-cols-12 border-b border-border hover:bg-accent/50 ${
+                      index % 2 === 1 ? 'bg-accent/20' : ''
+                    }`}
+                  >
+                    {/* Particulars Column */}
+                    <div className="col-span-7 px-4 py-2 border-r border-border">
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm font-medium min-w-[20px]">
+                          {isDr ? 'Dr' : isCr ? 'Cr' : ''}
+                        </span>
+                        <div className="flex-1">
+                          <Select
+                            value={line.account_id}
+                            onValueChange={(value) => updateLine(index, 'account_id', value)}
+                          >
+                            <SelectTrigger className="h-7 text-sm border-0 shadow-none px-0 focus:ring-0">
+                              <SelectValue placeholder="Select account..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {accounts?.map((account) => (
+                                <SelectItem key={account.id} value={account.id}>
+                                  {account.account_code} {account.account_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {accountDisplay && (
+                            <div className="text-xs italic text-muted-foreground mt-1">
+                              {accountDisplay.balance}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Debit Column */}
+                    <div className="col-span-2 px-4 py-2 border-r border-border">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={line.debit_amount}
+                        onChange={(e) => updateLine(index, 'debit_amount', e.target.value)}
+                        className="h-7 text-sm text-right border-0 shadow-none focus:ring-0"
+                        placeholder=""
+                      />
+                    </div>
+
+                    {/* Credit Column */}
+                    <div className="col-span-3 px-4 py-2 flex items-center justify-between">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={line.credit_amount}
+                        onChange={(e) => updateLine(index, 'credit_amount', e.target.value)}
+                        className="h-7 text-sm text-right border-0 shadow-none focus:ring-0 flex-1"
+                        placeholder=""
+                      />
+                      {lines.length > 2 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeLine(index)}
+                          className="h-6 w-6 ml-2"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Add Line Button Row */}
+              <div className="px-4 py-2 border-b border-border">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={addLine}
+                  className="text-sm text-primary h-7 px-0"
+                >
+                  + Add Line
+                </Button>
+              </div>
+            </div>
+
+            {/* Narration */}
+            <div className="border-t-2 border-border px-4 py-3">
+              <div className="flex items-start gap-2">
+                <span className="text-sm font-medium min-w-[80px]">Narration:</span>
+                <Input
+                  value={narration}
+                  onChange={(e) => setNarration(e.target.value)}
+                  className="flex-1 h-8 text-sm border-0 shadow-none focus:ring-0"
+                  placeholder="Enter narration..."
+                />
+              </div>
+            </div>
+
+            {/* Totals */}
+            <div className="border-t-2 border-border bg-muted/50 px-4 py-2 flex justify-end gap-12">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">{totals.debit.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">{totals.credit.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Action Bar - Tally Style */}
+          <div className="mt-4 bg-muted border border-border rounded px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetForm}
+                className="text-sm h-8"
+              >
+                <span className="font-semibold">Q:</span>&nbsp;Quit
+              </Button>
+              <Button
+                type="submit"
+                variant="ghost"
+                size="sm"
+                disabled={!isBalanced || createJournalEntryMutation.isPending}
+                className="text-sm h-8"
+              >
+                <span className="font-semibold">A:</span>&nbsp;
+                {createJournalEntryMutation.isPending ? 'Saving...' : 'Accept'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-sm h-8"
+              >
+                <span className="font-semibold">D:</span>&nbsp;Delete
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetForm}
+                className="text-sm h-8"
+              >
+                <span className="font-semibold">X:</span>&nbsp;Cancel Vch
               </Button>
             </div>
-
-            <div className="space-y-3">
-              {lines.map((line, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 bg-muted/50 rounded-lg">
-                  <div className="col-span-4">
-                    <Label className="text-xs">Account</Label>
-                    <Select
-                      value={line.account_id}
-                      onValueChange={(value) => updateLine(index, 'account_id', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select account" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {accounts?.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.account_code} - {account.account_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-3">
-                    <Label className="text-xs">Description</Label>
-                    <Input
-                      value={line.description}
-                      onChange={(e) => updateLine(index, 'description', e.target.value)}
-                      placeholder="Line description"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs">Debit</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={line.debit_amount}
-                      onChange={(e) => updateLine(index, 'debit_amount', e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs">Credit</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={line.credit_amount}
-                      onChange={(e) => updateLine(index, 'credit_amount', e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeLine(index)}
-                      disabled={lines.length <= 2}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center gap-4">
+              <div className={`text-sm ${isBalanced ? 'text-green-600' : 'text-red-600'} font-semibold`}>
+                {isBalanced ? '✓ Balanced' : `⚠ Difference: ${Math.abs(totals.debit - totals.credit).toFixed(2)}`}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-sm h-8"
+              >
+                <span className="font-semibold">F12:</span>&nbsp;Configure
+              </Button>
             </div>
-
-            <div className="flex justify-end gap-8 pt-4 border-t">
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total Debit</p>
-                <p className="text-2xl font-bold">${totals.debit.toFixed(2)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total Credit</p>
-                <p className="text-2xl font-bold">${totals.credit.toFixed(2)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Difference</p>
-                <p className={`text-2xl font-bold ${isBalanced ? 'text-green-600' : 'text-red-600'}`}>
-                  ${Math.abs(totals.debit - totals.credit).toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={resetForm}>
-              Clear
-            </Button>
-            <Button type="submit" disabled={!isBalanced || createJournalEntryMutation.isPending}>
-              <Save className="h-4 w-4 mr-2" />
-              {createJournalEntryMutation.isPending ? 'Saving...' : 'Save as Draft'}
-            </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
