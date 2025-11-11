@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_receipts: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          notes: string | null
+          order_id: string | null
+          payment_method: string
+          receipt_date: string
+          receipt_number: string
+          reference_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_method: string
+          receipt_date?: string
+          receipt_number: string
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_method?: string
+          receipt_date?: string
+          receipt_number?: string
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_receipts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_receipts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_code: string
@@ -140,6 +203,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          expense_date: string
+          expense_number: string
+          expense_type: string
+          id: string
+          payment_method: string
+          receipt_attached: boolean | null
+          reference_number: string | null
+          status: string
+          updated_at: string
+          vendor_name: string | null
+        }
+        Insert: {
+          amount: number
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          expense_date?: string
+          expense_number: string
+          expense_type: string
+          id?: string
+          payment_method: string
+          receipt_attached?: boolean | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          expense_date?: string
+          expense_number?: string
+          expense_type?: string
+          id?: string
+          payment_method?: string
+          receipt_attached?: boolean | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Relationships: []
       }
       inventory: {
         Row: {
@@ -863,6 +980,65 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          payment_number: string
+          purchase_id: string | null
+          reference_number: string | null
+          status: string
+          supplier_contact: string | null
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method: string
+          payment_number: string
+          purchase_id?: string | null
+          reference_number?: string | null
+          status?: string
+          supplier_contact?: string | null
+          supplier_name: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          payment_number?: string
+          purchase_id?: string | null
+          reference_number?: string | null
+          status?: string
+          supplier_contact?: string | null
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       units: {
         Row: {
           abbreviation: string
@@ -918,8 +1094,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_expense_number: { Args: never; Returns: string }
       generate_journal_entry_number: { Args: never; Returns: string }
+      generate_payment_number: { Args: never; Returns: string }
       generate_purchase_number: { Args: never; Returns: string }
+      generate_receipt_number: { Args: never; Returns: string }
       generate_return_number: { Args: never; Returns: string }
       has_role: {
         Args: {

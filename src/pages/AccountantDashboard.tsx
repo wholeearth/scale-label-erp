@@ -15,7 +15,10 @@ import {
   Users,
   Warehouse,
   ShoppingCart,
-  PackageX
+  PackageX,
+  Banknote,
+  CreditCard,
+  FileStack
 } from 'lucide-react';
 import ChartOfAccountsManagement from '@/components/accountant/ChartOfAccountsManagement';
 import JournalEntryForm from '@/components/accountant/JournalEntryForm';
@@ -26,6 +29,9 @@ import AccountsReceivable from '@/components/accountant/AccountsReceivable';
 import { InventoryValuation } from '@/components/accountant/InventoryValuation';
 import { StockConsumption } from '@/components/accountant/StockConsumption';
 import { ProductReturns } from '@/components/accountant/ProductReturns';
+import { CashReceipts } from '@/components/accountant/CashReceipts';
+import { SupplierPayments } from '@/components/accountant/SupplierPayments';
+import { ExpenseTracking } from '@/components/accountant/ExpenseTracking';
 
 const AccountantDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -61,7 +67,7 @@ const AccountantDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-2">
             <TabsTrigger value="overview">
               <BarChart3 className="h-4 w-4 mr-2" />
               Overview
@@ -97,6 +103,18 @@ const AccountantDashboard = () => {
             <TabsTrigger value="returns">
               <PackageX className="h-4 w-4 mr-2" />
               Returns
+            </TabsTrigger>
+            <TabsTrigger value="cash-receipts">
+              <Banknote className="h-4 w-4 mr-2" />
+              Receipts
+            </TabsTrigger>
+            <TabsTrigger value="supplier-payments">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Payments
+            </TabsTrigger>
+            <TabsTrigger value="expenses">
+              <FileStack className="h-4 w-4 mr-2" />
+              Expenses
             </TabsTrigger>
           </TabsList>
 
@@ -134,6 +152,18 @@ const AccountantDashboard = () => {
 
           <TabsContent value="returns" className="space-y-6">
             <ProductReturns />
+          </TabsContent>
+
+          <TabsContent value="cash-receipts" className="space-y-6">
+            <CashReceipts />
+          </TabsContent>
+
+          <TabsContent value="supplier-payments" className="space-y-6">
+            <SupplierPayments />
+          </TabsContent>
+
+          <TabsContent value="expenses" className="space-y-6">
+            <ExpenseTracking />
           </TabsContent>
         </Tabs>
       </main>
