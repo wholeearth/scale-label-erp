@@ -24,7 +24,7 @@ const userSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   full_name: z.string().min(1, 'Full name is required').max(200),
   employee_code: z.string().max(50).optional(),
-  role: z.enum(['admin', 'operator', 'production_manager', 'sales', 'customer', 'accountant']),
+  role: z.enum(['admin', 'operator', 'production_manager', 'sales', 'customer', 'accountant', 'commission_agent']),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
