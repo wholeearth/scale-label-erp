@@ -1287,6 +1287,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_customer_of_current_agent: {
+        Args: { cust_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       account_type: "asset" | "liability" | "equity" | "revenue" | "expense"
