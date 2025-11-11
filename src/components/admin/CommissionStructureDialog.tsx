@@ -18,7 +18,7 @@ interface CommissionStructureDialogProps {
 export const CommissionStructureDialog = ({ agentId, onClose }: CommissionStructureDialogProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [itemId, setItemId] = useState('');
+  const [itemId, setItemId] = useState('none');
   const [commissionType, setCommissionType] = useState('');
   const [commissionRate, setCommissionRate] = useState('');
 
@@ -52,7 +52,7 @@ export const CommissionStructureDialog = ({ agentId, onClose }: CommissionStruct
         .from('commission_structures')
         .insert({
           agent_id: agentId,
-          item_id: itemId || null,
+          item_id: itemId === 'none' ? null : itemId || null,
           commission_type: commissionType,
           commission_rate: Number(commissionRate),
         });
@@ -61,7 +61,7 @@ export const CommissionStructureDialog = ({ agentId, onClose }: CommissionStruct
     onSuccess: () => {
       toast({ title: 'Commission structure added' });
       queryClient.invalidateQueries({ queryKey: ['commission-structures', agentId] });
-      setItemId('');
+      setItemId('none');
       setCommissionType('');
       setCommissionRate('');
     },
@@ -104,7 +104,7 @@ export const CommissionStructureDialog = ({ agentId, onClose }: CommissionStruct
                   <SelectValue placeholder="All items" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All items</SelectItem>
+                  <SelectItem value="none">All items</SelectItem>
                   {items?.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.product_name}

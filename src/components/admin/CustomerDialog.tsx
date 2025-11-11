@@ -54,7 +54,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
       contact_email: '',
       contact_phone: '',
       address: '',
-      commission_agent_id: '',
+      commission_agent_id: 'none',
     },
   });
 
@@ -65,7 +65,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
         contact_email: customer.contact_email || '',
         contact_phone: customer.contact_phone || '',
         address: customer.address || '',
-        commission_agent_id: customer.commission_agent_id || '',
+        commission_agent_id: customer.commission_agent_id || 'none',
       });
     } else {
       form.reset({
@@ -73,7 +73,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
         contact_email: '',
         contact_phone: '',
         address: '',
-        commission_agent_id: '',
+        commission_agent_id: 'none',
       });
     }
   }, [customer, form]);
@@ -85,7 +85,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
         contact_email: data.contact_email || null,
         contact_phone: data.contact_phone || null,
         address: data.address || null,
-        commission_agent_id: data.commission_agent_id || null,
+        commission_agent_id: data.commission_agent_id === 'none' ? null : data.commission_agent_id || null,
       };
 
       if (customer) {
@@ -203,7 +203,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {agents?.map((agent) => (
                         <SelectItem key={agent.id} value={agent.id}>
                           {agent.agent_name} ({agent.agent_code})
