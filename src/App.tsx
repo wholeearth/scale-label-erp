@@ -9,6 +9,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import OperatorDashboard from "./pages/OperatorDashboard";
 import ProductionManagerDashboard from "./pages/ProductionManagerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
+import AccountantDashboard from "./pages/AccountantDashboard";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -52,6 +53,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['customer']}>
                 <CustomerDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/accountant" 
+            element={
+              <ProtectedRoute allowedRoles={['accountant']}>
+                <AccountantDashboard />
               </ProtectedRoute>
             } 
           />
