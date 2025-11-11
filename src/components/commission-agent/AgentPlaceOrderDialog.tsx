@@ -77,12 +77,16 @@ export const AgentPlaceOrderDialog = ({ customerId, onClose }: AgentPlaceOrderDi
       queryClient.invalidateQueries({ queryKey: ['agent-invoices'] });
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const details = [error?.message, error?.code, error?.hint, error?.details]
+        .filter(Boolean)
+        .join(' | ');
       toast({
         title: 'Error placing order',
-        description: error.message,
+        description: details || 'Something went wrong while creating the order.',
         variant: 'destructive',
       });
+      console.error('Order create error:', error);
     },
   });
 
