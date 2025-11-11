@@ -24,7 +24,7 @@ const userSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   full_name: z.string().min(1, 'Full name is required').max(200),
   employee_code: z.string().max(50).optional(),
-  role: z.enum(['admin', 'operator', 'production_manager', 'sales', 'customer']),
+  role: z.enum(['admin', 'operator', 'production_manager', 'sales', 'customer', 'accountant']),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -58,7 +58,7 @@ const UserDialog = ({ open, onOpenChange, user }: UserDialogProps) => {
         full_name: user.full_name,
         employee_code: user.employee_code || '',
         role: user.user_roles && user.user_roles.length > 0 
-          ? user.user_roles[0].role as 'admin' | 'operator' | 'production_manager' | 'sales' | 'customer'
+          ? user.user_roles[0].role as 'admin' | 'operator' | 'production_manager' | 'sales' | 'customer' | 'accountant'
           : 'operator',
       });
     } else {
@@ -265,6 +265,7 @@ const UserDialog = ({ open, onOpenChange, user }: UserDialogProps) => {
                       <SelectItem value="operator">Operator</SelectItem>
                       <SelectItem value="sales">Sales</SelectItem>
                       <SelectItem value="customer">Customer</SelectItem>
+                      <SelectItem value="accountant">Accountant</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
