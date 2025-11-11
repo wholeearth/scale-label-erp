@@ -18,9 +18,11 @@ import {
   PackageX,
   Banknote,
   CreditCard,
-  FileStack
+  FileStack,
+  FilePlus
 } from 'lucide-react';
 import ChartOfAccountsManagement from '@/components/accountant/ChartOfAccountsManagement';
+import CreateSalesInvoice from '@/components/accountant/CreateSalesInvoice';
 import JournalEntryForm from '@/components/accountant/JournalEntryForm';
 import GeneralLedger from '@/components/accountant/GeneralLedger';
 import AccountingDashboardOverview from '@/components/accountant/AccountingDashboardOverview';
@@ -67,7 +69,7 @@ const AccountantDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2">
             <TabsTrigger value="overview">
               <BarChart3 className="h-4 w-4 mr-2" />
               Overview
@@ -87,6 +89,10 @@ const AccountantDashboard = () => {
             <TabsTrigger value="sales-invoices">
               <Receipt className="h-4 w-4 mr-2" />
               Sales
+            </TabsTrigger>
+            <TabsTrigger value="create-sales">
+              <FilePlus className="h-4 w-4 mr-2" />
+              New Sale
             </TabsTrigger>
             <TabsTrigger value="accounts-receivable">
               <Users className="h-4 w-4 mr-2" />
@@ -136,6 +142,10 @@ const AccountantDashboard = () => {
 
           <TabsContent value="sales-invoices" className="space-y-6">
             <SalesInvoices />
+          </TabsContent>
+
+          <TabsContent value="create-sales" className="space-y-6">
+            <CreateSalesInvoice />
           </TabsContent>
 
           <TabsContent value="accounts-receivable" className="space-y-6">
