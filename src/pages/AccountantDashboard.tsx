@@ -19,7 +19,8 @@ import {
   Banknote,
   CreditCard,
   FileStack,
-  FilePlus
+  FilePlus,
+  HandCoins
 } from 'lucide-react';
 import ChartOfAccountsManagement from '@/components/accountant/ChartOfAccountsManagement';
 import CreateSalesInvoice from '@/components/accountant/CreateSalesInvoice';
@@ -34,6 +35,7 @@ import { ProductReturns } from '@/components/accountant/ProductReturns';
 import { CashReceipts } from '@/components/accountant/CashReceipts';
 import { SupplierPayments } from '@/components/accountant/SupplierPayments';
 import { ExpenseTracking } from '@/components/accountant/ExpenseTracking';
+import { CommissionPayments } from '@/components/accountant/CommissionPayments';
 
 const AccountantDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -122,6 +124,10 @@ const AccountantDashboard = () => {
               <FileStack className="h-4 w-4 mr-2" />
               Expenses
             </TabsTrigger>
+            <TabsTrigger value="commission-payments">
+              <HandCoins className="h-4 w-4 mr-2" />
+              Commissions
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -174,6 +180,10 @@ const AccountantDashboard = () => {
 
           <TabsContent value="expenses" className="space-y-6">
             <ExpenseTracking />
+          </TabsContent>
+
+          <TabsContent value="commission-payments" className="space-y-6">
+            <CommissionPayments />
           </TabsContent>
         </Tabs>
       </main>
