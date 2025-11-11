@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -114,6 +114,9 @@ export const AgentPlaceOrderDialog = ({ customerId, onClose }: AgentPlaceOrderDi
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Place Order</DialogTitle>
+          <DialogDescription>
+            Choose products and quantities to create a pending order for this customer.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -184,8 +187,8 @@ export const AgentPlaceOrderDialog = ({ customerId, onClose }: AgentPlaceOrderDi
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={() => createOrderMutation.mutate()} disabled={orderItems.length === 0}>
-              Place Order
+            <Button onClick={() => createOrderMutation.mutate()} disabled={orderItems.length === 0 || createOrderMutation.isPending}>
+              {createOrderMutation.isPending ? 'Placing…' : 'Place Order'}
             </Button>
           </div>
         </div>
