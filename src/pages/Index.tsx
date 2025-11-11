@@ -27,6 +27,12 @@ const Index = () => {
       } else if (profile.roles.includes('customer')) {
         console.log('Redirecting to /customer');
         navigate('/customer');
+      } else if (profile.roles.includes('accountant')) {
+        console.log('Redirecting to /accountant');
+        navigate('/accountant');
+      } else if (profile.roles.includes('commission_agent')) {
+        console.log('Redirecting to /commission-agent');
+        navigate('/commission-agent');
       }
     } else if (!loading && !user) {
       console.log('No user, staying on landing page');

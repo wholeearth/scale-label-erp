@@ -10,6 +10,7 @@ import OperatorDashboard from "./pages/OperatorDashboard";
 import ProductionManagerDashboard from "./pages/ProductionManagerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import AccountantDashboard from "./pages/AccountantDashboard";
+import CommissionAgentDashboard from "./pages/CommissionAgentDashboard";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -61,6 +62,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['accountant']}>
                 <AccountantDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/commission-agent" 
+            element={
+              <ProtectedRoute allowedRoles={['commission_agent']}>
+                <CommissionAgentDashboard />
               </ProtectedRoute>
             } 
           />

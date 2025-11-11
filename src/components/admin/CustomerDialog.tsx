@@ -2,13 +2,14 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -19,6 +20,7 @@ const customerSchema = z.object({
   contact_email: z.string().email('Invalid email').optional().or(z.literal('')),
   contact_phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
+  commission_agent_id: z.string().optional(),
 });
 
 type CustomerFormData = z.infer<typeof customerSchema>;
@@ -33,6 +35,18 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: agents } = useQuery({
+    queryKey: ['commission-agents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('commission_agents')
+        .select('*')
+        .order('agent_name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
@@ -40,6 +54,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
       contact_email: '',
       contact_phone: '',
       address: '',
+      commission_agent_id: '',
     },
   });
 
@@ -50,6 +65,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
         contact_email: customer.contact_email || '',
         contact_phone: customer.contact_phone || '',
         address: customer.address || '',
+        commission_agent_id: customer.commission_agent_id || '',
       });
     } else {
       form.reset({
@@ -57,6 +73,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
         contact_email: '',
         contact_phone: '',
         address: '',
+        commission_agent_id: '',
       });
     }
   }, [customer, form]);
@@ -68,6 +85,7 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
         contact_email: data.contact_email || null,
         contact_phone: data.contact_phone || null,
         address: data.address || null,
+        commission_agent_id: data.commission_agent_id || null,
       };
 
       if (customer) {
@@ -167,6 +185,32 @@ const CustomerDialog = ({ open, onOpenChange, customer }: CustomerDialogProps) =
                   <FormControl>
                     <Textarea placeholder="123 Main Street, City, Country" rows={3} {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="commission_agent_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Commission Agent (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select commission agent" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {agents?.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.agent_name} ({agent.agent_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

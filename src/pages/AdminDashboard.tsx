@@ -14,7 +14,8 @@ import {
   UserCheck,
   ShoppingCart,
   Cpu,
-  FileText
+  FileText,
+  Banknote
 } from 'lucide-react';
 import LiveProductionDashboard from '@/components/admin/LiveProductionDashboard';
 import UserManagement from '@/components/admin/UserManagement';
@@ -26,6 +27,7 @@ import SystemSettings from '@/components/admin/SystemSettings';
 import MachineManagement from '@/components/admin/MachineManagement';
 import InventoryManagement from '@/components/admin/InventoryManagement';
 import PurchaseManagement from '@/components/admin/PurchaseManagement';
+import { CommissionAgentManagement } from '@/components/admin/CommissionAgentManagement';
 
 const AdminDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -118,7 +120,7 @@ const AdminDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-11">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-12">
             <TabsTrigger value="live-dashboard">
               <Activity className="h-4 w-4 mr-2" />
               Live
@@ -146,6 +148,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="purchases">
               <FileText className="h-4 w-4 mr-2" />
               Purchases
+            </TabsTrigger>
+            <TabsTrigger value="commission-agents">
+              <Banknote className="h-4 w-4 mr-2" />
+              Agents
             </TabsTrigger>
             <TabsTrigger value="units">
               <Ruler className="h-4 w-4 mr-2" />
@@ -191,6 +197,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="purchases" className="space-y-6">
             <PurchaseManagement />
+          </TabsContent>
+
+          <TabsContent value="commission-agents" className="space-y-6">
+            <CommissionAgentManagement />
           </TabsContent>
 
           <TabsContent value="units" className="space-y-6">

@@ -127,6 +127,176 @@ export type Database = {
           },
         ]
       }
+      commission_agent_receipts_account: {
+        Row: {
+          account_id: string | null
+          agent_id: string
+          created_at: string | null
+          current_balance: number | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          agent_id: string
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          agent_id?: string
+          created_at?: string | null
+          current_balance?: number | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_agent_receipts_account_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_agent_receipts_account_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "commission_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_agents: {
+        Row: {
+          address: string | null
+          agent_code: string
+          agent_name: string
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          agent_code: string
+          agent_name: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          agent_code?: string
+          agent_name?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      commission_structures: {
+        Row: {
+          agent_id: string
+          commission_rate: number
+          commission_type: string
+          created_at: string | null
+          id: string
+          item_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          commission_rate: number
+          commission_type: string
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          commission_rate?: number
+          commission_type?: string
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_structures_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "commission_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_structures_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_transactions: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          reference_id: string | null
+          reference_number: string | null
+          reference_type: string | null
+          transaction_date: string | null
+          transaction_type: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_number?: string | null
+          reference_type?: string | null
+          transaction_date?: string | null
+          transaction_type: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_number?: string | null
+          reference_type?: string | null
+          transaction_date?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_transactions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "commission_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_products: {
         Row: {
           created_at: string | null
@@ -169,6 +339,7 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          commission_agent_id: string | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string | null
@@ -178,6 +349,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          commission_agent_id?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
@@ -187,6 +359,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          commission_agent_id?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
@@ -195,6 +368,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_commission_agent_id_fkey"
+            columns: ["commission_agent_id"]
+            isOneToOne: false
+            referencedRelation: "commission_agents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_user_id_fkey"
             columns: ["user_id"]
@@ -1117,6 +1297,7 @@ export type Database = {
         | "sales"
         | "customer"
         | "accountant"
+        | "commission_agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1252,6 +1433,7 @@ export const Constants = {
         "sales",
         "customer",
         "accountant",
+        "commission_agent",
       ],
     },
   },
