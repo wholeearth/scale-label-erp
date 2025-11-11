@@ -3,9 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, Users, Package, Clock, Award } from 'lucide-react';
+import { TrendingUp, Users, Package, Clock, Award, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { useMemo } from 'react';
-import { subDays, differenceInHours, format } from 'date-fns';
+import { subDays, differenceInHours, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachWeekOfInterval, eachMonthOfInterval, isWithinInterval } from 'date-fns';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 interface ProductionRecord {
   id: string;
@@ -186,6 +188,141 @@ export const EfficiencyMetrics = () => {
     };
   }, [productionRecords, daysToAnalyze]);
 
+  // Weekly trend data
+  const weeklyTrends = useMemo(() => {
+    if (!productionRecords || productionRecords.length === 0) return [];
+
+    const now = new Date();
+    const startAnalysis = subDays(now, daysToAnalyze);
+    const weeks = eachWeekOfInterval({ start: startAnalysis, end: now });
+
+    return weeks.map((weekStart) => {
+      const weekEnd = endOfWeek(weekStart);
+      const weekLabel = format(weekStart, 'MMM dd');
+
+      // Group by operator for this week
+      const operatorData: { [key: string]: { name: string; count: number } } = {};
+      
+      productionRecords.forEach(record => {
+        const recordDate = new Date(record.created_at);
+        if (isWithinInterval(recordDate, { start: weekStart, end: weekEnd })) {
+          if (!operatorData[record.operator_id]) {
+            operatorData[record.operator_id] = {
+              name: record.profiles.full_name,
+              count: 0,
+            };
+          }
+          operatorData[record.operator_id].count++;
+        }
+      });
+
+      const dataPoint: any = { week: weekLabel, date: weekStart };
+      let totalForWeek = 0;
+      
+      Object.entries(operatorData).forEach(([id, data]) => {
+        dataPoint[data.name] = data.count;
+        totalForWeek += data.count;
+      });
+      
+      dataPoint.total = totalForWeek;
+      return dataPoint;
+    });
+  }, [productionRecords, daysToAnalyze]);
+
+  // Monthly trend data
+  const monthlyTrends = useMemo(() => {
+    if (!productionRecords || productionRecords.length === 0) return [];
+
+    const now = new Date();
+    const startAnalysis = subDays(now, daysToAnalyze);
+    const months = eachMonthOfInterval({ start: startAnalysis, end: now });
+
+    return months.map((monthStart) => {
+      const monthEnd = endOfMonth(monthStart);
+      const monthLabel = format(monthStart, 'MMM yyyy');
+
+      // Group by operator for this month
+      const operatorData: { [key: string]: { name: string; count: number } } = {};
+      
+      productionRecords.forEach(record => {
+        const recordDate = new Date(record.created_at);
+        if (isWithinInterval(recordDate, { start: monthStart, end: monthEnd })) {
+          if (!operatorData[record.operator_id]) {
+            operatorData[record.operator_id] = {
+              name: record.profiles.full_name,
+              count: 0,
+            };
+          }
+          operatorData[record.operator_id].count++;
+        }
+      });
+
+      const dataPoint: any = { month: monthLabel, date: monthStart };
+      let totalForMonth = 0;
+      
+      Object.entries(operatorData).forEach(([id, data]) => {
+        dataPoint[data.name] = data.count;
+        totalForMonth += data.count;
+      });
+      
+      dataPoint.total = totalForMonth;
+      return dataPoint;
+    });
+  }, [productionRecords, daysToAnalyze]);
+
+  // Calculate week-over-week changes
+  const weekOverWeekChanges = useMemo(() => {
+    if (weeklyTrends.length < 2) return [];
+
+    return operatorMetrics.map(operator => {
+      const lastWeek = weeklyTrends[weeklyTrends.length - 1]?.[operator.operatorName] || 0;
+      const previousWeek = weeklyTrends[weeklyTrends.length - 2]?.[operator.operatorName] || 0;
+      
+      const change = previousWeek > 0 
+        ? ((lastWeek - previousWeek) / previousWeek) * 100 
+        : lastWeek > 0 ? 100 : 0;
+
+      return {
+        operator: operator.operatorName,
+        lastWeek,
+        previousWeek,
+        change,
+        improving: change >= 0,
+      };
+    });
+  }, [weeklyTrends, operatorMetrics]);
+
+  // Calculate month-over-month changes
+  const monthOverMonthChanges = useMemo(() => {
+    if (monthlyTrends.length < 2) return [];
+
+    return operatorMetrics.map(operator => {
+      const lastMonth = monthlyTrends[monthlyTrends.length - 1]?.[operator.operatorName] || 0;
+      const previousMonth = monthlyTrends[monthlyTrends.length - 2]?.[operator.operatorName] || 0;
+      
+      const change = previousMonth > 0 
+        ? ((lastMonth - previousMonth) / previousMonth) * 100 
+        : lastMonth > 0 ? 100 : 0;
+
+      return {
+        operator: operator.operatorName,
+        lastMonth,
+        previousMonth,
+        change,
+        improving: change >= 0,
+      };
+    });
+  }, [monthlyTrends, operatorMetrics]);
+
+  // Get unique operator names for chart colors
+  const operatorNames = useMemo(() => {
+    if (!productionRecords) return [];
+    const names = new Set(productionRecords.map(r => r.profiles.full_name));
+    return Array.from(names);
+  }, [productionRecords]);
+
+  const chartColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
   if (isLoading) {
     return (
       <Card>
@@ -268,7 +405,7 @@ export const EfficiencyMetrics = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="operators" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="operators">
                 <Users className="h-4 w-4 mr-2" />
                 By Operator
@@ -276,6 +413,14 @@ export const EfficiencyMetrics = () => {
               <TabsTrigger value="items">
                 <Package className="h-4 w-4 mr-2" />
                 By Item Type
+              </TabsTrigger>
+              <TabsTrigger value="weekly">
+                <Calendar className="h-4 w-4 mr-2" />
+                Weekly Trends
+              </TabsTrigger>
+              <TabsTrigger value="monthly">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Monthly Trends
               </TabsTrigger>
             </TabsList>
 
@@ -387,6 +532,183 @@ export const EfficiencyMetrics = () => {
                 {itemMetrics.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     No production data available for the selected period
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="weekly" className="space-y-6">
+              {/* Week-over-Week Comparison */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Week-over-Week Performance</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Compare current week performance vs previous week
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {weekOverWeekChanges.map((change) => (
+                    <Card key={change.operator}>
+                      <CardContent className="pt-6">
+                        <div className="space-y-2">
+                          <p className="font-medium truncate">{change.operator}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-muted-foreground">
+                              <div>This week: <span className="font-semibold text-foreground">{change.lastWeek}</span></div>
+                              <div>Last week: <span className="font-semibold text-foreground">{change.previousWeek}</span></div>
+                            </div>
+                            <Badge variant={change.improving ? "default" : "secondary"} className="gap-1">
+                              {change.improving ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              )}
+                              {Math.abs(change.change).toFixed(1)}%
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {weekOverWeekChanges.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Insufficient data for week-over-week comparison
+                  </div>
+                )}
+              </div>
+
+              {/* Weekly Trend Chart */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Weekly Production Trends</h3>
+                {weeklyTrends.length > 0 ? (
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={weeklyTrends}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="week" 
+                          className="text-xs"
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        />
+                        <YAxis 
+                          className="text-xs"
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px',
+                          }}
+                        />
+                        <Legend />
+                        {operatorNames.map((name, idx) => (
+                          <Line
+                            key={name}
+                            type="monotone"
+                            dataKey={name}
+                            stroke={chartColors[idx % chartColors.length]}
+                            strokeWidth={2}
+                            dot={{ r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No weekly trend data available
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="monthly" className="space-y-6">
+              {/* Month-over-Month Comparison */}
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Month-over-Month Performance</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Compare current month performance vs previous month
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {monthOverMonthChanges.map((change) => (
+                    <Card key={change.operator}>
+                      <CardContent className="pt-6">
+                        <div className="space-y-2">
+                          <p className="font-medium truncate">{change.operator}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-muted-foreground">
+                              <div>This month: <span className="font-semibold text-foreground">{change.lastMonth}</span></div>
+                              <div>Last month: <span className="font-semibold text-foreground">{change.previousMonth}</span></div>
+                            </div>
+                            <Badge variant={change.improving ? "default" : "secondary"} className="gap-1">
+                              {change.improving ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : (
+                                <ArrowDown className="h-3 w-3" />
+                              )}
+                              {Math.abs(change.change).toFixed(1)}%
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {monthOverMonthChanges.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Insufficient data for month-over-month comparison
+                  </div>
+                )}
+              </div>
+
+              {/* Monthly Trend Chart */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Monthly Production Trends</h3>
+                {monthlyTrends.length > 0 ? (
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyTrends}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          dataKey="month" 
+                          className="text-xs"
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        />
+                        <YAxis 
+                          className="text-xs"
+                          tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px',
+                          }}
+                        />
+                        <Legend />
+                        {operatorNames.map((name, idx) => (
+                          <Bar
+                            key={name}
+                            dataKey={name}
+                            fill={chartColors[idx % chartColors.length]}
+                            radius={[4, 4, 0, 0]}
+                          />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No monthly trend data available
                   </div>
                 )}
               </div>
