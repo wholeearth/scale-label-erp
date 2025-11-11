@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Search, Plus, Minus, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Package, Search, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -15,15 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface InventoryItem {
@@ -49,14 +40,7 @@ interface InventoryTransaction {
 
 const InventoryManagement = () => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [adjustmentDialog, setAdjustmentDialog] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [adjustmentType, setAdjustmentType] = useState<'add' | 'remove'>('add');
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState('');
-  const [adjustmentWeight, setAdjustmentWeight] = useState('');
-  const [adjustmentReason, setAdjustmentReason] = useState('');
 
   // Fetch inventory summary by item
   const { data: inventoryItems, isLoading } = useQuery({
@@ -133,62 +117,6 @@ const InventoryManagement = () => {
     },
   });
 
-  const adjustmentMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedItem) throw new Error('No item selected');
-
-      const quantity = adjustmentType === 'add' 
-        ? parseInt(adjustmentQuantity) 
-        : -parseInt(adjustmentQuantity);
-      
-      const weight = adjustmentType === 'add'
-        ? parseFloat(adjustmentWeight)
-        : -parseFloat(adjustmentWeight);
-
-      const { error } = await supabase
-        .from('inventory')
-        .insert({
-          item_id: selectedItem.item_id,
-          transaction_type: adjustmentType === 'add' ? 'adjustment_in' : 'adjustment_out',
-          quantity: quantity,
-          weight_kg: weight,
-          reference_id: null,
-        });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory-items'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory-transactions'] });
-      toast({
-        title: 'Success',
-        description: 'Inventory adjusted successfully',
-      });
-      setAdjustmentDialog(false);
-      resetAdjustmentForm();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const resetAdjustmentForm = () => {
-    setSelectedItem(null);
-    setAdjustmentQuantity('');
-    setAdjustmentWeight('');
-    setAdjustmentReason('');
-    setAdjustmentType('add');
-  };
-
-  const openAdjustmentDialog = (item: InventoryItem, type: 'add' | 'remove') => {
-    setSelectedItem(item);
-    setAdjustmentType(type);
-    setAdjustmentDialog(true);
-  };
 
   const filteredItems = inventoryItems?.filter(item =>
     item.product_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -293,7 +221,6 @@ const InventoryManagement = () => {
                     <TableHead className="text-right">Quantity</TableHead>
                     <TableHead className="text-right">Total Weight (kg)</TableHead>
                     <TableHead className="text-right">Last Updated</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -305,7 +232,7 @@ const InventoryManagement = () => {
                     </TableRow>
                   ) : filteredItems?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={5} className="text-center">
                         No inventory items found
                       </TableCell>
                     </TableRow>
@@ -324,24 +251,6 @@ const InventoryManagement = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           {new Date(item.last_transaction).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openAdjustmentDialog(item, 'add')}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openAdjustmentDialog(item, 'remove')}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -426,13 +335,12 @@ const InventoryManagement = () => {
                     <TableHead>Product Code</TableHead>
                     <TableHead>Product Name</TableHead>
                     <TableHead className="text-right">Current Quantity</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {lowStockItems?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center">
+                      <TableCell colSpan={3} className="text-center">
                         No low stock items
                       </TableCell>
                     </TableRow>
@@ -444,16 +352,6 @@ const InventoryManagement = () => {
                         <TableCell className="text-right">
                           <Badge variant="destructive">{item.total_quantity}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openAdjustmentDialog(item, 'add')}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Restock
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -463,68 +361,6 @@ const InventoryManagement = () => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Adjustment Dialog */}
-      <Dialog open={adjustmentDialog} onOpenChange={setAdjustmentDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {adjustmentType === 'add' ? 'Add Stock' : 'Remove Stock'}
-            </DialogTitle>
-            <DialogDescription>
-              Adjust inventory for {selectedItem?.product_code} - {selectedItem?.product_name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Current Stock: {selectedItem?.total_quantity} units</Label>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                value={adjustmentQuantity}
-                onChange={(e) => setAdjustmentQuantity(e.target.value)}
-                placeholder="Enter quantity"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="weight">Weight (kg)</Label>
-              <Input
-                id="weight"
-                type="number"
-                min="0"
-                step="0.01"
-                value={adjustmentWeight}
-                onChange={(e) => setAdjustmentWeight(e.target.value)}
-                placeholder="Enter weight"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason (Optional)</Label>
-              <Input
-                id="reason"
-                value={adjustmentReason}
-                onChange={(e) => setAdjustmentReason(e.target.value)}
-                placeholder="e.g., Damaged goods, Manual count correction"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjustmentDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => adjustmentMutation.mutate()}
-              disabled={!adjustmentQuantity || !adjustmentWeight}
-            >
-              {adjustmentType === 'add' ? 'Add Stock' : 'Remove Stock'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
