@@ -115,7 +115,9 @@ export const AgentStatement = () => {
             <CardTitle className="text-sm font-medium">Money Held</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{Number(receiptsAccount?.current_balance || 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              ₹{((summary?.receiptsCollected || 0) - (summary?.receiptsPaid || 0)).toFixed(2)}
+            </div>
           </CardContent>
         </Card>
       </div>
