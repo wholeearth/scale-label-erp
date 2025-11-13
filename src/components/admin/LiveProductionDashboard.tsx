@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Package, Users, TrendingUp, Box, AlertCircle } from 'lucide-react';
+import { Activity, Package, Users, TrendingUp, Box, AlertCircle, User } from 'lucide-react';
+import { format } from 'date-fns';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ProductionRecord {
@@ -25,6 +26,18 @@ interface ProductionRecord {
   };
 }
 
+interface OperatorStatus {
+  operator_id: string;
+  operator_name: string;
+  employee_code: string;
+  current_item: string;
+  item_code: string;
+  shift_produced: number;
+  last_serial: string;
+  last_production_time: string;
+  is_online: boolean;
+}
+
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))'];
 
 const LiveProductionDashboard = () => {
@@ -33,6 +46,78 @@ const LiveProductionDashboard = () => {
     totalProduction: 0,
     totalWeight: 0,
     activeOperators: 0,
+  });
+
+  // Fetch real-time operator status
+  const { data: operatorStatus } = useQuery({
+    queryKey: ['operator-status-live'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Get active assignments
+      const { data: assignments, error: assignError } = await supabase
+        .from('operator_assignments')
+        .select(`
+          operator_id,
+          item_id,
+          quantity_assigned,
+          quantity_produced,
+          profiles!operator_assignments_operator_id_fkey (
+            full_name,
+            employee_code
+          ),
+          items (
+            product_code,
+            product_name
+          )
+        `)
+        .eq('status', 'active');
+
+      if (assignError) throw assignError;
+
+      // Get today's production records
+      const { data: records, error: recordError } = await supabase
+        .from('production_records')
+        .select(`
+          operator_id,
+          serial_number,
+          production_time,
+          created_at
+        `)
+        .gte('production_date', today)
+        .order('created_at', { ascending: false });
+
+      if (recordError) throw recordError;
+
+      // Group by operator
+      const operatorMap = new Map<string, OperatorStatus>();
+      
+      assignments?.forEach((assignment: any) => {
+        const operatorId = assignment.operator_id;
+        if (!operatorMap.has(operatorId)) {
+          const operatorRecords = records?.filter(r => r.operator_id === operatorId) || [];
+          const lastRecord = operatorRecords[0];
+          const isOnline = lastRecord ? 
+            (new Date().getTime() - new Date(lastRecord.created_at).getTime()) < 600000 : // 10 minutes
+            false;
+
+          operatorMap.set(operatorId, {
+            operator_id: operatorId,
+            operator_name: assignment.profiles.full_name,
+            employee_code: assignment.profiles.employee_code || 'N/A',
+            current_item: `${assignment.items.product_code} (${assignment.items.product_name})`,
+            item_code: assignment.items.product_code,
+            shift_produced: operatorRecords.length,
+            last_serial: lastRecord?.serial_number || 'N/A',
+            last_production_time: lastRecord?.production_time || 'N/A',
+            is_online: isOnline
+          });
+        }
+      });
+
+      return Array.from(operatorMap.values());
+    },
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
   // Fetch initial production data
@@ -191,6 +276,69 @@ const LiveProductionDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Real-time Operator Status */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            <CardTitle>Real-time Production Live View</CardTitle>
+          </div>
+          <CardDescription>Live operator status and current production</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {operatorStatus?.map((operator) => (
+              <Card key={operator.operator_id} className="border-border/50">
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    {/* Operator Info */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{operator.operator_name}</span>
+                        <span className="text-sm text-muted-foreground">o{operator.employee_code}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full ${operator.is_online ? 'bg-green-500' : 'bg-destructive'}`} />
+                        <span className="text-xs text-muted-foreground">
+                          {operator.is_online ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Production Stats */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Current Item</p>
+                        <p className="font-medium">{operator.current_item}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Shift Produced</p>
+                        <p className="font-medium">{operator.shift_produced} items</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Next Serial No.</p>
+                        <p className="font-mono text-xs">{operator.last_serial}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Last Production</p>
+                        <p className="font-medium">{operator.last_production_time}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {(!operatorStatus || operatorStatus.length === 0) && (
+              <div className="col-span-full flex items-center justify-center py-8 text-muted-foreground">
+                <AlertCircle className="mr-2 h-4 w-4" />
+                No active operators found
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
