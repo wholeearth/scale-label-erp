@@ -29,7 +29,7 @@ export const AgentInvoicesList = () => {
     queryFn: async () => {
       if (!agent) return [];
       
-      // Get orders where commission agent is associated
+      // Get completed orders (invoiced orders) where commission agent is associated
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -45,6 +45,7 @@ export const AgentInvoicesList = () => {
           )
         `)
         .eq('customers.commission_agent_id', agent.id)
+        .eq('status', 'completed')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -65,34 +66,43 @@ export const AgentInvoicesList = () => {
     <Card>
       <CardHeader>
         <CardTitle>Invoices Arranged by Me</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Completed orders that have been invoiced by the accountant
+        </p>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order No.</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices?.map((invoice) => (
-              <TableRow key={invoice.id}>
-                <TableCell className="font-medium">{invoice.order_number}</TableCell>
-                <TableCell>{invoice.customers?.customer_name}</TableCell>
-                <TableCell>{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</TableCell>
-                <TableCell>₹{Number(invoice.total_amount).toFixed(2)}</TableCell>
-                <TableCell>
-                  <Badge variant={invoice.status === 'completed' ? 'default' : 'secondary'}>
-                    {invoice.status}
-                  </Badge>
-                </TableCell>
+        {!invoices || invoices.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No invoices found. Invoices appear here when orders are completed and invoiced by the accountant.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice No.</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {invoices.map((invoice) => (
+                <TableRow key={invoice.id}>
+                  <TableCell className="font-medium">{invoice.order_number}</TableCell>
+                  <TableCell>{invoice.customers?.customer_name}</TableCell>
+                  <TableCell>{format(new Date(invoice.created_at), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>₹{Number(invoice.total_amount).toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge variant="default">
+                      Invoiced
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
