@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Search, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Package, Search, TrendingUp, TrendingDown, AlertTriangle, Edit } from 'lucide-react';
+import { PhysicalInventoryAdjustmentDialog } from './PhysicalInventoryAdjustmentDialog';
 import {
   Table,
   TableBody,
@@ -41,6 +42,13 @@ interface InventoryTransaction {
 const InventoryManagement = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+
+  const handleAdjustClick = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setAdjustmentDialogOpen(true);
+  };
 
   // Fetch inventory summary by item
   const { data: inventoryItems, isLoading } = useQuery({
@@ -221,6 +229,7 @@ const InventoryManagement = () => {
                     <TableHead className="text-right">Quantity</TableHead>
                     <TableHead className="text-right">Total Weight (kg)</TableHead>
                     <TableHead className="text-right">Last Updated</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -251,6 +260,16 @@ const InventoryManagement = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           {new Date(item.last_transaction).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAdjustClick(item)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Adjust
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -361,6 +380,12 @@ const InventoryManagement = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <PhysicalInventoryAdjustmentDialog
+        open={adjustmentDialogOpen}
+        onOpenChange={setAdjustmentDialogOpen}
+        item={selectedItem}
+      />
     </div>
   );
 };
