@@ -48,15 +48,17 @@ const CreateSalesInvoice = () => {
   });
 
   const { data: items } = useQuery({
-    queryKey: ['items-sales'],
+    queryKey: ['items-sales', customerId],
     queryFn: async () => {
+      if (!customerId) return [];
       const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .order('product_code');
+        .from('customer_products')
+        .select('item_id, price, items(*)')
+        .eq('customer_id', customerId);
       if (error) throw error;
-      return data;
+      return data?.map(cp => cp.items).filter(Boolean) || [];
     },
+    enabled: !!customerId,
   });
 
   const { data: customerOrders } = useQuery({
