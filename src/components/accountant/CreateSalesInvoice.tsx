@@ -79,7 +79,6 @@ const CreateSalesInvoice = () => {
           )
         `)
         .eq('customer_id', customerId)
-        .in('status', ['pending', 'approved', 'completed'])
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
@@ -312,12 +311,12 @@ const CreateSalesInvoice = () => {
                 <Label className="text-sm">Select Order</Label>
                 <Select value={selectedOrderId} onValueChange={handleOrderSelect}>
                   <SelectTrigger className="h-8 bg-white border-gray-400">
-                    <SelectValue placeholder="Create new or select existing order" />
+                    <SelectValue placeholder="Select order to convert to invoice" />
                   </SelectTrigger>
                   <SelectContent>
                     {customerOrders?.map((order) => (
                       <SelectItem key={order.id} value={order.id}>
-                        {order.order_number} - {order.status} - ₹{Number(order.total_amount).toFixed(2)}
+                        Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
                       </SelectItem>
                     ))}
                   </SelectContent>
