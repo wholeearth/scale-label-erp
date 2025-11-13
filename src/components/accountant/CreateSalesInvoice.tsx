@@ -27,6 +27,7 @@ const CreateSalesInvoice = () => {
   const queryClient = useQueryClient();
   
   const [customerId, setCustomerId] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [narration, setNarration] = useState('');
@@ -56,6 +57,28 @@ const CreateSalesInvoice = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: customerOrders } = useQuery({
+    queryKey: ['customer-orders', customerId],
+    queryFn: async () => {
+      if (!customerId) return [];
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items(
+            *,
+            items(product_name, product_code)
+          )
+        `)
+        .eq('customer_id', customerId)
+        .in('status', ['pending', 'approved', 'completed'])
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!customerId,
   });
 
   const { data: customerPricing } = useQuery({
@@ -129,10 +152,25 @@ const CreateSalesInvoice = () => {
 
   const resetForm = () => {
     setCustomerId('');
+    setSelectedOrderId('');
     setReferenceNo('');
     setSaleDate(new Date().toISOString().split('T')[0]);
     setNarration('');
     setSalesItems([{ item_id: '', quantity: '', rate: '', amount: 0 }]);
+  };
+
+  const handleOrderSelect = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    const selectedOrder = customerOrders?.find(order => order.id === orderId);
+    if (selectedOrder && selectedOrder.order_items) {
+      const items = selectedOrder.order_items.map((item: any) => ({
+        item_id: item.item_id,
+        quantity: item.quantity.toString(),
+        rate: item.unit_price.toString(),
+        amount: item.quantity * item.unit_price,
+      }));
+      setSalesItems(items);
+    }
   };
 
   const addSalesItem = () => {
@@ -244,7 +282,11 @@ const CreateSalesInvoice = () => {
               <Label className="text-sm">Party A/c name</Label>
               <Select
                 value={customerId}
-                onValueChange={setCustomerId}
+                onValueChange={(value) => {
+                  setCustomerId(value);
+                  setSelectedOrderId('');
+                  setSalesItems([{ item_id: '', quantity: '', rate: '', amount: 0 }]);
+                }}
               >
                 <SelectTrigger className="h-8 bg-white border-gray-400">
                   <SelectValue placeholder="Select customer" />
@@ -258,6 +300,24 @@ const CreateSalesInvoice = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {customerId && customerOrders && customerOrders.length > 0 && (
+              <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
+                <Label className="text-sm">Select Order</Label>
+                <Select value={selectedOrderId} onValueChange={handleOrderSelect}>
+                  <SelectTrigger className="h-8 bg-white border-gray-400">
+                    <SelectValue placeholder="Create new or select existing order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customerOrders?.map((order) => (
+                      <SelectItem key={order.id} value={order.id}>
+                        {order.order_number} - {order.status} - ₹{Number(order.total_amount).toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {/* Items Table */}
