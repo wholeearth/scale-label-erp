@@ -53,10 +53,14 @@ const CreateSalesInvoice = () => {
       if (!customerId) return [];
       const { data, error } = await supabase
         .from('customer_products')
-        .select('item_id, price, items(*)')
+        .select('item_id, price, items!inner(*)')
         .eq('customer_id', customerId);
       if (error) throw error;
-      return data?.map(cp => cp.items).filter(Boolean) || [];
+      // Map to include items with their assigned prices
+      return data?.map(cp => ({
+        ...cp.items,
+        assigned_price: cp.price
+      })).filter(Boolean) || [];
     },
     enabled: !!customerId,
   });
@@ -190,10 +194,10 @@ const CreateSalesInvoice = () => {
     newItems[index] = { ...newItems[index], [field]: value };
     
     if (field === 'item_id') {
-      // Auto-fill rate from customer pricing
-      const pricing = customerPricing?.find(p => p.item_id === value);
-      if (pricing) {
-        newItems[index].rate = pricing.price.toString();
+      // Auto-fill rate from assigned customer price
+      const selectedItem = items?.find(itm => itm.id === value);
+      if (selectedItem && 'assigned_price' in selectedItem) {
+        newItems[index].rate = (selectedItem as any).assigned_price.toString();
       }
     }
     
