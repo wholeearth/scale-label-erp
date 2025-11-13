@@ -65,7 +65,7 @@ const CreateSalesInvoice = () => {
     enabled: !!customerId,
   });
 
-  const { data: customerOrders } = useQuery({
+  const { data: customerOrders, isLoading: ordersLoading } = useQuery({
     queryKey: ['customer-orders', customerId],
     queryFn: async () => {
       if (!customerId) return [];
@@ -306,21 +306,31 @@ const CreateSalesInvoice = () => {
               </Select>
             </div>
 
-            {customerId && customerOrders && customerOrders.length > 0 && (
+            {customerId && (
               <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
                 <Label className="text-sm">Select Order</Label>
-                <Select value={selectedOrderId} onValueChange={handleOrderSelect}>
-                  <SelectTrigger className="h-8 bg-white border-gray-400">
-                    <SelectValue placeholder="Select order to convert to invoice" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customerOrders?.map((order) => (
-                      <SelectItem key={order.id} value={order.id}>
-                        Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {ordersLoading ? (
+                  <div className="h-8 bg-gray-50 border border-gray-400 rounded px-3 flex items-center text-sm text-gray-500">
+                    Loading orders...
+                  </div>
+                ) : customerOrders && customerOrders.length > 0 ? (
+                  <Select value={selectedOrderId} onValueChange={handleOrderSelect}>
+                    <SelectTrigger className="h-8 bg-white border-gray-400">
+                      <SelectValue placeholder="Select order to convert to invoice" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white z-50">
+                      {customerOrders.map((order) => (
+                        <SelectItem key={order.id} value={order.id}>
+                          Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="h-8 bg-gray-50 border border-gray-400 rounded px-3 flex items-center text-sm text-gray-500">
+                    No orders found for this customer
+                  </div>
+                )}
               </div>
             )}
           </div>
