@@ -9,11 +9,12 @@ import { AgentStatement } from '@/components/commission-agent/AgentStatement';
 import { AgentCustomers } from '@/components/commission-agent/AgentCustomers';
 import { AgentReceiptCollection } from '@/components/commission-agent/AgentReceiptCollection';
 import { AgentReports } from '@/components/commission-agent/AgentReports';
+import { AgentOrders } from '@/components/commission-agent/AgentOrders';
 
 export default function CommissionAgentDashboard() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('invoices');
+  const [activeTab, setActiveTab] = useState('orders');
 
   const handleLogout = async () => {
     await signOut();
@@ -46,7 +47,11 @@ export default function CommissionAgentDashboard() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="orders" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Orders
+            </TabsTrigger>
             <TabsTrigger value="invoices" className="gap-2">
               <FileText className="h-4 w-4" />
               Invoices
@@ -68,6 +73,10 @@ export default function CommissionAgentDashboard() {
               Reports
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="orders">
+            <AgentOrders />
+          </TabsContent>
 
           <TabsContent value="invoices">
             <AgentInvoicesList />
