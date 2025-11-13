@@ -1,45 +1,26 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Calculator, 
   BookOpen, 
   FileText,
-  BarChart3,
   LogOut,
-  TrendingUp,
-  DollarSign,
-  Receipt,
-  Users,
-  Warehouse,
-  ShoppingCart,
-  PackageX,
-  Banknote,
-  CreditCard,
-  FileStack,
-  FilePlus,
-  HandCoins
+  Receipt
 } from 'lucide-react';
 import ChartOfAccountsManagement from '@/components/accountant/ChartOfAccountsManagement';
 import CreateSalesInvoice from '@/components/accountant/CreateSalesInvoice';
 import JournalEntryForm from '@/components/accountant/JournalEntryForm';
-import GeneralLedger from '@/components/accountant/GeneralLedger';
-import AccountingDashboardOverview from '@/components/accountant/AccountingDashboardOverview';
-import SalesInvoices from '@/components/accountant/SalesInvoices';
-import AccountsReceivable from '@/components/accountant/AccountsReceivable';
-import { InventoryValuation } from '@/components/accountant/InventoryValuation';
-import { StockConsumption } from '@/components/accountant/StockConsumption';
 import { ProductReturns } from '@/components/accountant/ProductReturns';
-import { CashReceipts } from '@/components/accountant/CashReceipts';
-import { SupplierPayments } from '@/components/accountant/SupplierPayments';
-import { ExpenseTracking } from '@/components/accountant/ExpenseTracking';
-import { CommissionPayments } from '@/components/accountant/CommissionPayments';
+import { PurchaseReturnForm } from '@/components/accountant/PurchaseReturnForm';
+import { AllVouchersReport } from '@/components/accountant/AllVouchersReport';
+import CreatePurchaseInvoice from '@/components/admin/CreatePurchaseInvoice';
 
 const AccountantDashboard = () => {
   const { profile, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('ledger');
+  const [voucherTab, setVoucherTab] = useState('purchase');
 
   return (
     <div className="min-h-screen bg-background">
@@ -71,119 +52,59 @@ const AccountantDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2">
-            <TabsTrigger value="overview">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="chart-of-accounts">
+          <TabsList className="grid w-full grid-cols-3 gap-2">
+            <TabsTrigger value="ledger">
               <BookOpen className="h-4 w-4 mr-2" />
-              Accounts
-            </TabsTrigger>
-            <TabsTrigger value="journal-entry">
-              <FileText className="h-4 w-4 mr-2" />
-              Journal
-            </TabsTrigger>
-            <TabsTrigger value="general-ledger">
-              <DollarSign className="h-4 w-4 mr-2" />
               Ledger
             </TabsTrigger>
-            <TabsTrigger value="sales-invoices">
+            <TabsTrigger value="voucher">
+              <FileText className="h-4 w-4 mr-2" />
+              Voucher
+            </TabsTrigger>
+            <TabsTrigger value="reports">
               <Receipt className="h-4 w-4 mr-2" />
-              Sales
-            </TabsTrigger>
-            <TabsTrigger value="create-sales">
-              <FilePlus className="h-4 w-4 mr-2" />
-              New Sale
-            </TabsTrigger>
-            <TabsTrigger value="accounts-receivable">
-              <Users className="h-4 w-4 mr-2" />
-              A/R
-            </TabsTrigger>
-            <TabsTrigger value="inventory">
-              <Warehouse className="h-4 w-4 mr-2" />
-              Inventory
-            </TabsTrigger>
-            <TabsTrigger value="consumption">
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              Consumption
-            </TabsTrigger>
-            <TabsTrigger value="returns">
-              <PackageX className="h-4 w-4 mr-2" />
-              Returns
-            </TabsTrigger>
-            <TabsTrigger value="cash-receipts">
-              <Banknote className="h-4 w-4 mr-2" />
-              Receipts
-            </TabsTrigger>
-            <TabsTrigger value="supplier-payments">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Payments
-            </TabsTrigger>
-            <TabsTrigger value="expenses">
-              <FileStack className="h-4 w-4 mr-2" />
-              Expenses
-            </TabsTrigger>
-            <TabsTrigger value="commission-payments">
-              <HandCoins className="h-4 w-4 mr-2" />
-              Commissions
+              Reports
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <AccountingDashboardOverview />
-          </TabsContent>
-
-          <TabsContent value="chart-of-accounts" className="space-y-6">
+          <TabsContent value="ledger" className="space-y-6">
             <ChartOfAccountsManagement />
           </TabsContent>
 
-          <TabsContent value="journal-entry" className="space-y-6">
-            <JournalEntryForm />
+          <TabsContent value="voucher" className="space-y-6">
+            <Tabs value={voucherTab} onValueChange={setVoucherTab}>
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="purchase">Purchase</TabsTrigger>
+                <TabsTrigger value="sales">Sales</TabsTrigger>
+                <TabsTrigger value="purchase-return">Purchase Return</TabsTrigger>
+                <TabsTrigger value="sales-return">Sales Return</TabsTrigger>
+                <TabsTrigger value="journal">Journal</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="purchase" className="mt-6">
+                <CreatePurchaseInvoice />
+              </TabsContent>
+
+              <TabsContent value="sales" className="mt-6">
+                <CreateSalesInvoice />
+              </TabsContent>
+
+              <TabsContent value="purchase-return" className="mt-6">
+                <PurchaseReturnForm />
+              </TabsContent>
+
+              <TabsContent value="sales-return" className="mt-6">
+                <ProductReturns />
+              </TabsContent>
+
+              <TabsContent value="journal" className="mt-6">
+                <JournalEntryForm />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
-          <TabsContent value="general-ledger" className="space-y-6">
-            <GeneralLedger />
-          </TabsContent>
-
-          <TabsContent value="sales-invoices" className="space-y-6">
-            <SalesInvoices />
-          </TabsContent>
-
-          <TabsContent value="create-sales" className="space-y-6">
-            <CreateSalesInvoice />
-          </TabsContent>
-
-          <TabsContent value="accounts-receivable" className="space-y-6">
-            <AccountsReceivable />
-          </TabsContent>
-
-          <TabsContent value="inventory" className="space-y-6">
-            <InventoryValuation />
-          </TabsContent>
-
-          <TabsContent value="consumption" className="space-y-6">
-            <StockConsumption />
-          </TabsContent>
-
-          <TabsContent value="returns" className="space-y-6">
-            <ProductReturns />
-          </TabsContent>
-
-          <TabsContent value="cash-receipts" className="space-y-6">
-            <CashReceipts />
-          </TabsContent>
-
-          <TabsContent value="supplier-payments" className="space-y-6">
-            <SupplierPayments />
-          </TabsContent>
-
-          <TabsContent value="expenses" className="space-y-6">
-            <ExpenseTracking />
-          </TabsContent>
-
-          <TabsContent value="commission-payments" className="space-y-6">
-            <CommissionPayments />
+          <TabsContent value="reports" className="space-y-6">
+            <AllVouchersReport />
           </TabsContent>
         </Tabs>
       </main>
