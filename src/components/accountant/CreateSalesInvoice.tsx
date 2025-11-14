@@ -123,12 +123,18 @@ const CreateSalesInvoice = () => {
       const order = orders[0];
 
       // Insert order items
-      const itemsToInsert = salesItems.map(item => ({
-        order_id: order.id,
-        item_id: item.item_id,
-        quantity: parseFloat(item.quantity),
-        unit_price: parseFloat(item.rate),
-      }));
+      const itemsToInsert = salesItems.map(item => {
+        const qty = parseInt(item.quantity, 10);
+        if (isNaN(qty) || qty <= 0 || qty > 2147483647) {
+          throw new Error('Invalid quantity value');
+        }
+        return {
+          order_id: order.id,
+          item_id: item.item_id,
+          quantity: qty,
+          unit_price: parseFloat(item.rate),
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from('order_items')
