@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { z } from 'zod';
 
 interface SalesItem {
   item_id: string;
@@ -21,6 +22,24 @@ interface SalesItem {
   rate: string;
   amount: number;
 }
+
+const salesItemSchema = z.object({
+  item_id: z.string().uuid({ message: "Valid item must be selected" }),
+  quantity: z.string()
+    .refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+      message: "Quantity must be a positive number"
+    })
+    .refine((val) => {
+      const num = parseInt(val, 10);
+      return num <= 2147483647;
+    }, {
+      message: "Quantity exceeds maximum allowed value"
+    }),
+  rate: z.string()
+    .refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+      message: "Rate must be a positive number"
+    }),
+});
 
 const CreateSalesInvoice = () => {
   const { toast } = useToast();
@@ -103,8 +122,17 @@ const CreateSalesInvoice = () => {
   const createSalesMutation = useMutation({
     mutationFn: async () => {
       if (!customerId) throw new Error('Customer is required');
-      if (salesItems.some(item => !item.item_id || !item.quantity || !item.rate)) {
-        throw new Error('All item fields must be filled');
+      
+      // Validate all sales items
+      for (const item of salesItems) {
+        try {
+          salesItemSchema.parse(item);
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            throw new Error(error.errors[0].message);
+          }
+          throw error;
+        }
       }
 
       const totalAmount = salesItems.reduce((sum, item) => sum + item.amount, 0);
@@ -376,10 +404,17 @@ const CreateSalesInvoice = () => {
                     <td className="p-1">
                       <Input
                         type="number"
-                        min="0.01"
-                        step="0.01"
+                        min="1"
+                        max="2147483647"
+                        step="1"
                         value={item.quantity}
-                        onChange={(e) => updateSalesItem(index, 'quantity', e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // Prevent entering values too large
+                          if (val === '' || (Number(val) >= 1 && Number(val) <= 2147483647)) {
+                            updateSalesItem(index, 'quantity', val);
+                          }
+                        }}
                         className="h-8 text-right bg-white border-gray-400"
                         placeholder="0"
                       />
