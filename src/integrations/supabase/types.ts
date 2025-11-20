@@ -667,6 +667,42 @@ export type Database = {
           },
         ]
       }
+      label_configurations: {
+        Row: {
+          company_name: string | null
+          created_at: string | null
+          fields_config: Json
+          id: string
+          label_height_mm: number
+          label_width_mm: number
+          logo_url: string | null
+          orientation: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string | null
+          fields_config?: Json
+          id?: string
+          label_height_mm?: number
+          label_width_mm?: number
+          logo_url?: string | null
+          orientation?: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string | null
+          fields_config?: Json
+          id?: string
+          label_height_mm?: number
+          label_width_mm?: number
+          logo_url?: string | null
+          orientation?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       machines: {
         Row: {
           created_at: string | null
@@ -1276,6 +1312,7 @@ export type Database = {
     Functions: {
       generate_expense_number: { Args: never; Returns: string }
       generate_journal_entry_number: { Args: never; Returns: string }
+      generate_order_number: { Args: never; Returns: string }
       generate_payment_number: { Args: never; Returns: string }
       generate_purchase_number: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }

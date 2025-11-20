@@ -23,6 +23,8 @@ const AVAILABLE_FIELDS = [
   { id: 'item_code', name: 'Item Code' },
   { id: 'length', name: 'Length' },
   { id: 'width', name: 'Width' },
+  { id: 'color', name: 'Color' },
+  { id: 'quality', name: 'Quality' },
   { id: 'weight', name: 'Weight' },
   { id: 'serial_no', name: 'Serial Number' },
   { id: 'barcode', name: 'Barcode' },
@@ -276,7 +278,7 @@ const LabelConfiguration = () => {
           </p>
           
           <div
-            className="border-2 border-dashed rounded-lg bg-background relative overflow-hidden"
+            className="border-2 border-dashed rounded-lg bg-white relative overflow-hidden"
             style={{
               width: config.orientation === 'landscape' ? '400px' : '300px',
               height: config.orientation === 'landscape' 
@@ -286,21 +288,65 @@ const LabelConfiguration = () => {
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
-            {fields.filter(f => f.enabled).map((field) => (
-              <div
-                key={field.id}
-                draggable
-                onDragStart={() => handleDragStart(field.id)}
-                className="absolute cursor-move bg-primary/10 border border-primary rounded px-2 py-1 text-xs flex items-center gap-1 hover:bg-primary/20 transition-colors"
-                style={{
-                  left: `${field.x}px`,
-                  top: `${field.y}px`,
-                }}
-              >
-                <GripVertical className="h-3 w-3" />
-                {field.name}
+            {/* Company Logo Preview */}
+            {config.logo_url && (
+              <div className="absolute top-2 left-2">
+                <img src={config.logo_url} alt="Logo" className="h-8 w-auto" />
               </div>
-            ))}
+            )}
+            
+            {/* Company Name Preview */}
+            {config.company_name && (
+              <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
+                <div className="text-lg font-bold text-black text-center tracking-widest">
+                  {config.company_name}
+                </div>
+              </div>
+            )}
+
+            {/* Label Preview with Example Data */}
+            <div className="absolute top-12 left-2 right-2 space-y-1 text-black">
+              {fields.filter(f => f.enabled && f.id !== 'company_name' && f.id !== 'barcode').map((field) => (
+                <div
+                  key={field.id}
+                  draggable
+                  onDragStart={() => handleDragStart(field.id)}
+                  className="cursor-move bg-blue-50 border border-blue-200 rounded px-2 py-0.5 text-xs flex items-center gap-1 hover:bg-blue-100 transition-colors"
+                  style={{
+                    position: 'relative',
+                  }}
+                >
+                  <GripVertical className="h-3 w-3 text-blue-600" />
+                  <span className="font-semibold">{field.name}:</span>
+                  <span className="text-gray-600">
+                    {field.id === 'item_name' && '2565'}
+                    {field.id === 'item_code' && '2565110'}
+                    {field.id === 'length' && '65 meter'}
+                    {field.id === 'width' && '40'}
+                    {field.id === 'color' && 'Normal White'}
+                    {field.id === 'quality' && 'Normal Hard'}
+                    {field.id === 'weight' && '2.5kg'}
+                    {field.id === 'serial_no' && '01-M1-041025-00152-0119'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Barcode Preview at Bottom */}
+            {fields.find(f => f.id === 'barcode' && f.enabled) && (
+              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-center">
+                <div className="text-xs font-mono mb-1 text-black">00054321:2770:001234:1.25</div>
+                <div className="flex gap-0.5 justify-center">
+                  {Array.from({ length: 20 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-0.5 bg-black"
+                      style={{ height: i % 3 === 0 ? '24px' : '20px' }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
