@@ -1,11 +1,12 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Factory, LogOut, ClipboardList, Users, TrendingUp, UserPlus } from 'lucide-react';
+import { Factory, LogOut, ClipboardList, Users, TrendingUp, UserPlus, Calendar } from 'lucide-react';
 import { OrdersList } from '@/components/production-manager/OrdersList';
 import { ActiveAssignments } from '@/components/production-manager/ActiveAssignments';
 import { EfficiencyMetrics } from '@/components/production-manager/EfficiencyMetrics';
 import { DirectAssignment } from '@/components/production-manager/DirectAssignment';
+import { ProductionCalendar } from '@/components/production-manager/ProductionCalendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ProductionManagerDashboard = () => {
@@ -49,22 +50,26 @@ const ProductionManagerDashboard = () => {
         </Card>
 
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-4xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" />
-              Approved Orders
+              Orders
             </TabsTrigger>
             <TabsTrigger value="direct" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
-              Direct Assignment
+              Direct
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Calendar
             </TabsTrigger>
             <TabsTrigger value="assignments" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Active Assignments
+              Assignments
             </TabsTrigger>
             <TabsTrigger value="metrics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Efficiency Metrics
+              Metrics
             </TabsTrigger>
           </TabsList>
 
@@ -74,6 +79,10 @@ const ProductionManagerDashboard = () => {
 
           <TabsContent value="direct" className="space-y-4">
             <DirectAssignment />
+          </TabsContent>
+
+          <TabsContent value="calendar" className="space-y-4">
+            <ProductionCalendar />
           </TabsContent>
 
           <TabsContent value="assignments" className="space-y-4">
