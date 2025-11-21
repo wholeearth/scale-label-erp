@@ -123,64 +123,19 @@ const CreateSalesInvoice = () => {
     mutationFn: async () => {
       if (!customerId) throw new Error('Customer is required');
       if (!selectedOrderId) throw new Error('Please select an order to create invoice from');
-      
-      // Validate all sales items
-      for (const item of salesItems) {
-        try {
-          salesItemSchema.parse(item);
-        } catch (error) {
-          if (error instanceof z.ZodError) {
-            throw new Error(error.errors[0].message);
-          }
-          throw error;
-        }
-      }
 
-      const totalAmount = salesItems.reduce((sum, item) => sum + item.amount, 0);
-
-      // Update the selected order status to 'invoiced'
+      // Simply update the order status to 'invoiced'
+      // Don't modify the order_items - they remain as originally placed
       const { data: updatedOrders, error: updateError } = await supabase
         .from('orders')
-        .update({ 
-          status: 'invoiced',
-          total_amount: totalAmount 
-        })
+        .update({ status: 'invoiced' })
         .eq('id', selectedOrderId)
         .select();
 
       if (updateError) throw updateError;
       if (!updatedOrders || updatedOrders.length === 0) throw new Error('Failed to update order');
       
-      const updatedOrder = updatedOrders[0];
-
-      // Update order items with the invoice quantities and prices
-      const { error: deleteError } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('order_id', selectedOrderId);
-
-      if (deleteError) throw deleteError;
-
-      const itemsToInsert = salesItems.map(item => {
-        const qty = parseInt(item.quantity, 10);
-        if (isNaN(qty) || qty <= 0 || qty > 2147483647) {
-          throw new Error('Invalid quantity value');
-        }
-        return {
-          order_id: selectedOrderId,
-          item_id: item.item_id,
-          quantity: qty,
-          unit_price: parseFloat(item.rate),
-        };
-      });
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(itemsToInsert);
-
-      if (itemsError) throw itemsError;
-
-      return updatedOrder;
+      return updatedOrders[0];
     },
     onSuccess: (order) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
