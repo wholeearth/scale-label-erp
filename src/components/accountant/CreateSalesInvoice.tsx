@@ -139,17 +139,19 @@ const CreateSalesInvoice = () => {
       const totalAmount = salesItems.reduce((sum, item) => sum + item.amount, 0);
 
       // Update the selected order status to 'invoiced'
-      const { data: updatedOrder, error: updateError } = await supabase
+      const { data: updatedOrders, error: updateError } = await supabase
         .from('orders')
         .update({ 
           status: 'invoiced',
           total_amount: totalAmount 
         })
         .eq('id', selectedOrderId)
-        .select()
-        .single();
+        .select();
 
       if (updateError) throw updateError;
+      if (!updatedOrders || updatedOrders.length === 0) throw new Error('Failed to update order');
+      
+      const updatedOrder = updatedOrders[0];
 
       // Update order items with the invoice quantities and prices
       const { error: deleteError } = await supabase
