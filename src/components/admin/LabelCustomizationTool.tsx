@@ -1068,16 +1068,16 @@ const LabelCustomizationTool = () => {
                              />
                            </div>
                           ) : (field.codeType === 'barcode' || field.id === 'barcode') ? (
-                            <div className="flex flex-col items-center w-full">
-                              <div style={{ fontSize: `${field.fontSize * zoom * 0.6}px` }} className="mb-1">{getFieldValue(field.id)}</div>
-                              <div className="flex gap-0.5">
+                            <div className="flex flex-col items-center justify-center w-full h-full">
+                              <div style={{ fontSize: `${field.fontSize * zoom * 0.8}px` }} className="mb-1">{getFieldValue(field.id)}</div>
+                              <div className="flex items-end" style={{ gap: `${0.5 * zoom}px`, height: `${field.height * zoom * 0.6}px` }}>
                                 {Array.from({ length: 30 }).map((_, i) => (
                                   <div
                                     key={i}
                                     className="bg-black"
                                     style={{ 
-                                      width: `${(field.width / 30) * zoom * 0.8}px`, 
-                                      height: i % 3 === 0 ? `${field.height * zoom * 0.6}px` : `${field.height * zoom * 0.5}px` 
+                                      width: `${Math.max(2, (field.width * zoom) / 35)}px`,
+                                      height: i % 3 === 0 ? '100%' : '85%'
                                     }}
                                   />
                                 ))}
