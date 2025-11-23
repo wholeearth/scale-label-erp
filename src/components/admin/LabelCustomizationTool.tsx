@@ -579,7 +579,7 @@ const LabelCustomizationTool = () => {
             <div>
               <CardTitle>Label Customization Tool</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
-                Keyboard: Arrow keys to move • Ctrl+Up/Down for size • Shift+/- for rotation • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- canvas zoom
+                Click the preview area first, then use: Arrow keys to move • Ctrl+Up/Down for size • Shift+/- for rotation • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- canvas zoom
               </p>
             </div>
             <div className="flex gap-2">
@@ -998,7 +998,12 @@ const LabelCustomizationTool = () => {
                   </Button>
                 </div>
 
-                <div className="overflow-auto border rounded-lg p-8" style={{ backgroundColor: '#f5f5f5' }}>
+                <div 
+                  className="overflow-auto border rounded-lg p-8 focus:ring-2 focus:ring-primary focus:outline-none" 
+                  style={{ backgroundColor: '#f5f5f5' }}
+                  tabIndex={0}
+                  onFocus={() => toast({ title: 'Canvas focused - keyboard shortcuts active' })}
+                >
                   <div
                     className="relative mx-auto bg-white"
                     style={{
