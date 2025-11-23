@@ -579,8 +579,8 @@ const LabelCustomizationTool = () => {
               ref={canvasRef}
               className="relative bg-white shadow-2xl"
               style={{
-                width: canvasWidth * zoom,
-                height: canvasHeight * zoom,
+                width: canvasWidth,
+                height: canvasHeight,
                 transform: `scale(${zoom})`,
                 transformOrigin: 'center',
                 border: `${config.borderWidth}px solid ${config.borderColor}`,
