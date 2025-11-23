@@ -13,7 +13,8 @@ import {
   Upload, Save, Download, Grid3x3, ZoomIn, ZoomOut, 
   RotateCw, AlignLeft, AlignCenter, AlignRight, Trash2,
   Copy, Eye, EyeOff, Lock, Unlock, Undo, Redo, Plus,
-  Layers, Move, Type, Maximize2, Image as ImageIcon, Barcode
+  Layers, Move, Type, Maximize2, Image as ImageIcon, Barcode,
+  Minus, Circle, Square
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -25,7 +26,7 @@ import JsBarcode from 'jsbarcode';
 interface LabelField {
   id: string;
   name: string;
-  type: 'text' | 'barcode' | 'qrcode' | 'logo';
+  type: 'text' | 'barcode' | 'qrcode' | 'logo' | 'custom_text' | 'line' | 'circle' | 'box';
   x: number;
   y: number;
   width: number;
@@ -46,6 +47,7 @@ interface LabelField {
   zIndex: number;
   visible: boolean;
   opacity: number;
+  customText?: string; // For custom_text type
 }
 
 interface LabelConfiguration {
@@ -336,6 +338,41 @@ const LabelCustomizationTool = () => {
     saveToHistory();
   };
 
+  const addCustomField = (fieldType: 'custom_text' | 'line' | 'circle' | 'box') => {
+    const newField: LabelField = {
+      id: `${fieldType}_${Date.now()}`,
+      name: fieldType === 'custom_text' ? 'Custom Text' : 
+            fieldType === 'line' ? 'Line' :
+            fieldType === 'circle' ? 'Circle' : 'Box',
+      type: fieldType,
+      x: 10,
+      y: 10,
+      width: fieldType === 'line' ? 100 : fieldType === 'circle' ? 50 : 80,
+      height: fieldType === 'line' ? 2 : fieldType === 'circle' ? 50 : 60,
+      enabled: true,
+      visible: true,
+      fontSize: 12,
+      fontWeight: 'normal',
+      fontFamily: 'Arial',
+      color: '#000000',
+      backgroundColor: fieldType === 'box' ? 'transparent' : '#000000',
+      textAlign: 'left',
+      rotation: fieldType === 'line' ? 0 : 270,
+      borderWidth: fieldType === 'box' ? 2 : 0,
+      borderColor: '#000000',
+      borderRadius: fieldType === 'circle' ? 50 : 0,
+      padding: 2,
+      locked: false,
+      zIndex: fields.length,
+      opacity: 1,
+      customText: fieldType === 'custom_text' ? 'Enter text here' : undefined,
+    };
+
+    setFields([...fields, newField]);
+    setSelectedField(newField.id);
+    saveToHistory();
+  };
+
   const updateField = (id: string, updates: Partial<LabelField>) => {
     setFields(fields.map(f => f.id === id ? { ...f, ...updates } : f));
     saveToHistory();
@@ -551,22 +588,79 @@ const LabelCustomizationTool = () => {
               Add Elements
             </h3>
             <ScrollArea className="h-[calc(100vh-200px)]">
-              <div className="space-y-2">
-                {FIELD_TEMPLATES.map(template => (
-                  <Button
-                    key={template.id}
-                    onClick={() => addField(template.id)}
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                    size="sm"
-                  >
-                    {template.type === 'text' && <Type className="h-4 w-4" />}
-                    {template.type === 'barcode' && <Barcode className="h-4 w-4" />}
-                    {template.type === 'qrcode' && <Grid3x3 className="h-4 w-4" />}
-                    {template.type === 'logo' && <ImageIcon className="h-4 w-4" />}
-                    {template.name}
-                  </Button>
-                ))}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-2">Fields</h4>
+                  <div className="space-y-2">
+                    {FIELD_TEMPLATES.map(template => (
+                      <Button
+                        key={template.id}
+                        onClick={() => addField(template.id)}
+                        variant="outline"
+                        className="w-full justify-start gap-2"
+                        size="sm"
+                      >
+                        {template.type === 'text' && <Type className="h-4 w-4" />}
+                        {template.type === 'barcode' && <Barcode className="h-4 w-4" />}
+                        {template.type === 'qrcode' && <Grid3x3 className="h-4 w-4" />}
+                        {template.type === 'logo' && <ImageIcon className="h-4 w-4" />}
+                        {template.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-2">Custom Elements</h4>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => addCustomField('custom_text')}
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      size="sm"
+                    >
+                      <Type className="h-4 w-4" />
+                      Custom Text
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground mb-2">Shapes</h4>
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => addCustomField('line')}
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      size="sm"
+                    >
+                      <Minus className="h-4 w-4" />
+                      Line
+                    </Button>
+                    <Button
+                      onClick={() => addCustomField('circle')}
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      size="sm"
+                    >
+                      <Circle className="h-4 w-4" />
+                      Circle
+                    </Button>
+                    <Button
+                      onClick={() => addCustomField('box')}
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      size="sm"
+                    >
+                      <Square className="h-4 w-4" />
+                      Box
+                    </Button>
+                  </div>
+                </div>
               </div>
             </ScrollArea>
           </div>
@@ -658,6 +752,26 @@ const LabelCustomizationTool = () => {
                            field.name === 'Serial Number' ? previewData.serialNumber :
                            field.name}
                         </span>
+                      )}
+                      {field.type === 'custom_text' && (
+                        <span className="truncate w-full" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {field.customText || 'Enter text'}
+                        </span>
+                      )}
+                      {field.type === 'line' && (
+                        <div className="w-full h-full" style={{ backgroundColor: field.color }} />
+                      )}
+                      {field.type === 'circle' && (
+                        <div 
+                          className="w-full h-full rounded-full" 
+                          style={{ 
+                            backgroundColor: field.backgroundColor,
+                            border: `${field.borderWidth}px solid ${field.borderColor}` 
+                          }} 
+                        />
+                      )}
+                      {field.type === 'box' && (
+                        <div className="w-full h-full" />
                       )}
                       {field.type === 'barcode' && !isPreviewing && (
                         <div className="text-xs">Barcode</div>
@@ -813,6 +927,18 @@ const LabelCustomizationTool = () => {
                       />
                     </div>
 
+                    {selectedFieldData.type === 'custom_text' && (
+                      <div>
+                        <Label className="text-xs">Text Content</Label>
+                        <Input
+                          value={selectedFieldData.customText || ''}
+                          onChange={(e) => updateField(selectedFieldData.id, { customText: e.target.value })}
+                          className="mt-1"
+                          placeholder="Enter your text here"
+                        />
+                      </div>
+                    )}
+
                     <Separator />
 
                     <div className="grid grid-cols-2 gap-2">
@@ -854,7 +980,7 @@ const LabelCustomizationTool = () => {
                       </div>
                     </div>
 
-                    {selectedFieldData.type === 'text' && (
+                    {(selectedFieldData.type === 'text' || selectedFieldData.type === 'custom_text') && (
                       <>
                         <Separator />
                         <div>

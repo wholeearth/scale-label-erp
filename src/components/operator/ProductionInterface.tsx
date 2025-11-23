@@ -605,6 +605,28 @@ const ProductionInterface = () => {
               ${qrImg ? `<img src="${qrImg}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
             </div>
           `;
+        } else if (fieldType === 'custom_text') {
+          // Custom text field with user-defined text
+          return `
+            <div style="${baseStyle}">
+              <span style="white-space: pre-wrap; word-break: break-word;">${field.customText || ''}</span>
+            </div>
+          `;
+        } else if (fieldType === 'line') {
+          // Line shape
+          return `
+            <div style="${baseStyle} background-color: ${color};"></div>
+          `;
+        } else if (fieldType === 'circle') {
+          // Circle shape
+          return `
+            <div style="${baseStyle} border-radius: 50%;"></div>
+          `;
+        } else if (fieldType === 'box') {
+          // Box shape (rectangle)
+          return `
+            <div style="${baseStyle}"></div>
+          `;
         } else {
           // Text field
           return `
