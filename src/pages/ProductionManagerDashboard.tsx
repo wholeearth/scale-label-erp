@@ -1,5 +1,6 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Factory, LogOut, ClipboardList, Users, TrendingUp, UserPlus, Calendar, Printer } from 'lucide-react';
 import { OrdersList } from '@/components/production-manager/OrdersList';
@@ -9,9 +10,67 @@ import { DirectAssignment } from '@/components/production-manager/DirectAssignme
 import { ProductionCalendar } from '@/components/production-manager/ProductionCalendar';
 import { ReprintRequests } from '@/components/production-manager/ReprintRequests';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 const ProductionManagerDashboard = () => {
   const { profile, signOut } = useAuth();
+  const { toast } = useToast();
+
+  // Fetch pending reprint requests count
+  const { data: pendingCount = 0, refetch: refetchCount } = useQuery({
+    queryKey: ['reprint-requests-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('reprint_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    refetchInterval: 5000,
+  });
+
+  // Set up real-time subscription for new reprint requests
+  useEffect(() => {
+    const channel = supabase
+      .channel('reprint-requests-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reprint_requests',
+        },
+        async (payload) => {
+          console.log('New reprint request:', payload);
+          
+          // Fetch operator details for the notification
+          const { data: operatorData } = await supabase
+            .from('profiles')
+            .select('full_name, employee_code')
+            .eq('id', payload.new.operator_id)
+            .single();
+
+          toast({
+            title: '🔔 New Reprint Request',
+            description: `${operatorData?.full_name || 'An operator'} has requested a label reprint`,
+            duration: 5000,
+          });
+
+          // Refresh the count
+          refetchCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast, refetchCount]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -68,9 +127,17 @@ const ProductionManagerDashboard = () => {
               <Users className="h-4 w-4" />
               Assignments
             </TabsTrigger>
-            <TabsTrigger value="reprints" className="flex items-center gap-2">
+            <TabsTrigger value="reprints" className="flex items-center gap-2 relative">
               <Printer className="h-4 w-4" />
               Reprints
+              {pendingCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="ml-1 h-5 min-w-5 rounded-full px-1 text-xs"
+                >
+                  {pendingCount}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="metrics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
