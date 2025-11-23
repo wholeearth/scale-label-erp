@@ -819,29 +819,23 @@ const ProductionInterface = () => {
             <CardDescription>See how your label will print with current production data</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              <div 
-                className="border-2 border-dashed border-primary/30 rounded-lg p-4 bg-background shadow-xl"
+            <div className="flex justify-center items-center min-h-[300px]">
+              <div
+                className="relative bg-white shadow-2xl"
                 style={{
-                  width: `${(labelConfig.label_width_mm || 60) * 3.78}px`,
-                  height: `${(labelConfig.label_height_mm || 40) * 3.78}px`,
+                  width: (labelConfig.label_width_mm || 60) * 3.78,
+                  height: (labelConfig.label_height_mm || 40) * 3.78,
+                  transform: 'scale(1)',
+                  transformOrigin: 'center',
+                  border: `${(labelConfig as any).borderWidth || 0}px solid ${(labelConfig as any).borderColor || 'transparent'}`,
+                  borderRadius: (labelConfig as any).borderRadius || 0,
+                  backgroundColor: (labelConfig as any).backgroundColor || '#ffffff',
                 }}
               >
-                <div
-                  className="relative"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: (labelConfig as any).backgroundColor || '#ffffff',
-                    borderWidth: (labelConfig as any).borderWidth ? `${(labelConfig as any).borderWidth}px` : '0',
-                    borderColor: (labelConfig as any).borderColor || 'transparent',
-                    borderRadius: (labelConfig as any).borderRadius ? `${(labelConfig as any).borderRadius}px` : '0',
-                  }}
-                >
-                  {((labelConfig.fields_config as any[]) || [])
-                    .filter((field: any) => field.visible !== false && field.enabled !== false)
-                    .sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0))
-                    .map((field: any) => {
+                {((labelConfig.fields_config as any[]) || [])
+                  .filter((field: any) => field.visible !== false && field.enabled !== false)
+                  .sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0))
+                  .map((field: any) => {
                       const now = new Date();
                       const operatorCode = profile?.employee_code || '00';
                       const machineCode = machines?.find(m => m.id === selectedMachine)?.machine_code || 'M1';
@@ -868,40 +862,41 @@ const ProductionInterface = () => {
 
                       const value = fieldValues[field.id] || field.label || '';
 
-                      return (
+                    return (
+                      <div
+                        key={field.id}
+                        className="absolute"
+                        style={{
+                          left: field.x,
+                          top: field.y,
+                          width: field.width,
+                          height: field.height,
+                          transform: `rotate(${field.rotation}deg)`,
+                          transformOrigin: 'center',
+                          opacity: field.opacity,
+                        }}
+                      >
                         <div
-                          key={field.id}
+                          className="w-full h-full flex items-center justify-center"
                           style={{
-                            position: 'absolute',
-                            left: `${field.x}px`,
-                            top: `${field.y}px`,
-                            width: field.width ? `${field.width}px` : 'auto',
-                            height: field.height ? `${field.height}px` : 'auto',
-                            transform: field.rotation ? `rotate(${field.rotation}deg)` : 'none',
-                            transformOrigin: 'top left',
-                            fontSize: field.fontSize ? `${field.fontSize}px` : '14px',
-                            fontWeight: field.fontWeight || 'normal',
-                            fontFamily: field.fontFamily || 'Arial',
-                            color: field.color || '#000000',
-                            backgroundColor: field.backgroundColor || 'transparent',
-                            textAlign: field.textAlign || 'left',
-                            borderWidth: field.borderWidth ? `${field.borderWidth}px` : '0',
-                            borderColor: field.borderColor || 'transparent',
-                            borderStyle: 'solid',
-                            borderRadius: field.borderRadius ? `${field.borderRadius}px` : '0',
-                            padding: field.padding ? `${field.padding}px` : '0',
-                            opacity: field.opacity !== undefined ? field.opacity : 1,
-                            zIndex: field.zIndex || 0,
-                            whiteSpace: 'pre-wrap',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: field.textAlign === 'center' ? 'center' : field.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                            fontSize: field.fontSize,
+                            fontWeight: field.fontWeight,
+                            fontFamily: field.fontFamily,
+                            color: field.color,
+                            backgroundColor: field.backgroundColor,
+                            textAlign: field.textAlign,
+                            border: `${field.borderWidth}px solid ${field.borderColor}`,
+                            borderRadius: field.borderRadius,
+                            padding: field.padding,
                           }}
                         >
-                          {field.type === 'text' && <span>{value}</span>}
+                          {field.type === 'text' && (
+                            <span className="truncate w-full" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                              {value}
+                            </span>
+                          )}
                           {field.type === 'logo' && fieldValues.logo && (
-                            <img src={fieldValues.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            <img src={fieldValues.logo} alt="Logo" className="w-full h-full object-contain" />
                           )}
                           {field.type === 'barcode' && (
                             <canvas
@@ -910,8 +905,8 @@ const ProductionInterface = () => {
                                   try {
                                     JsBarcode(el, value, {
                                       format: 'CODE128',
-                                      width: 2,
-                                      height: field.height - 4 || 50,
+                                      width: 1.5,
+                                      height: field.height - 10 || 40,
                                       displayValue: false,
                                       margin: 0,
                                     });
@@ -924,15 +919,16 @@ const ProductionInterface = () => {
                             />
                           )}
                           {field.type === 'qrcode' && (
-                            <QRCodeSVG 
-                              value={value} 
-                              size={Math.min(field.width || 50, field.height || 50) - 4} 
+                            <QRCodeSVG
+                              value={value}
+                              size={Math.min(field.width || 100, field.height || 100) - 8}
+                              level="M"
                             />
                           )}
                         </div>
-                      );
-                    })}
-                </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           </CardContent>
