@@ -382,17 +382,19 @@ const ProductionInterface = () => {
       return { serialNumber, barcodeData };
     },
     onSuccess: async ({ serialNumber, barcodeData }) => {
-      // Generate label codes first
-      await generateLabel(serialNumber, barcodeData);
-      
       // Check if print preview is enabled
       if (printPreviewEnabled) {
+        // Generate label codes first for preview
+        await generateLabel(serialNumber, barcodeData);
         // Show preview dialog
         setPreviewData({ serialNumber, barcodeData });
         setShowPrintPreview(true);
       } else {
-        // Auto-print without preview
+        // Auto-print mode: print immediately without preview
         await printLabel(serialNumber, barcodeData);
+        
+        // Reset weight immediately for next production
+        setCurrentWeight(0);
       }
       
       // Invalidate with exact query key including profile ID
@@ -414,11 +416,6 @@ const ProductionInterface = () => {
         title: 'Success',
         description: `Item ${serialNumber} recorded successfully`,
       });
-      
-      // Reset weight for next production
-      if (!printPreviewEnabled) {
-        setCurrentWeight(0);
-      }
     },
     onError: (error: Error) => {
       toast({
