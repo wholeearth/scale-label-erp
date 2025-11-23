@@ -15,6 +15,7 @@ interface LabelField {
   x: number;
   y: number;
   enabled: boolean;
+  rotation?: number;
 }
 
 const AVAILABLE_FIELDS = [
@@ -33,65 +34,65 @@ const AVAILABLE_FIELDS = [
 const LABEL_TEMPLATES = {
   product: {
     name: 'Product Label',
-    description: 'Standard product label with item details',
+    description: 'Standard product label with item details - W60*L40',
     config: {
-      label_width_mm: 100,
-      label_height_mm: 60,
-      orientation: 'landscape' as const,
-    },
-    fields: [
-      { id: 'company_name', name: 'Company Name', x: 10, y: 10, enabled: true },
-      { id: 'item_name', name: 'Item Name', x: 10, y: 50, enabled: true },
-      { id: 'item_code', name: 'Item Code', x: 10, y: 80, enabled: true },
-      { id: 'length', name: 'Length', x: 10, y: 110, enabled: true },
-      { id: 'width', name: 'Width', x: 10, y: 140, enabled: true },
-      { id: 'color', name: 'Color', x: 10, y: 170, enabled: true },
-      { id: 'quality', name: 'Quality', x: 10, y: 200, enabled: false },
-      { id: 'weight', name: 'Weight', x: 10, y: 230, enabled: true },
-      { id: 'serial_no', name: 'Serial Number', x: 10, y: 260, enabled: false },
-      { id: 'barcode', name: 'Barcode', x: 10, y: 290, enabled: false },
-    ],
-  },
-  shipping: {
-    name: 'Shipping Label',
-    description: 'Label optimized for shipping with serial and barcode',
-    config: {
-      label_width_mm: 100,
-      label_height_mm: 80,
-      orientation: 'portrait' as const,
-    },
-    fields: [
-      { id: 'company_name', name: 'Company Name', x: 10, y: 10, enabled: true },
-      { id: 'item_name', name: 'Item Name', x: 10, y: 50, enabled: true },
-      { id: 'item_code', name: 'Item Code', x: 10, y: 80, enabled: true },
-      { id: 'length', name: 'Length', x: 10, y: 110, enabled: false },
-      { id: 'width', name: 'Width', x: 10, y: 140, enabled: false },
-      { id: 'color', name: 'Color', x: 10, y: 170, enabled: false },
-      { id: 'quality', name: 'Quality', x: 10, y: 200, enabled: false },
-      { id: 'weight', name: 'Weight', x: 10, y: 230, enabled: true },
-      { id: 'serial_no', name: 'Serial Number', x: 10, y: 260, enabled: true },
-      { id: 'barcode', name: 'Barcode', x: 10, y: 290, enabled: true },
-    ],
-  },
-  barcode: {
-    name: 'Barcode Label',
-    description: 'Minimal label with barcode focus',
-    config: {
-      label_width_mm: 80,
+      label_width_mm: 60,
       label_height_mm: 40,
       orientation: 'landscape' as const,
     },
     fields: [
-      { id: 'company_name', name: 'Company Name', x: 10, y: 10, enabled: false },
-      { id: 'item_name', name: 'Item Name', x: 10, y: 50, enabled: false },
-      { id: 'item_code', name: 'Item Code', x: 10, y: 80, enabled: true },
-      { id: 'length', name: 'Length', x: 10, y: 110, enabled: false },
-      { id: 'width', name: 'Width', x: 10, y: 140, enabled: false },
-      { id: 'color', name: 'Color', x: 10, y: 170, enabled: false },
-      { id: 'quality', name: 'Quality', x: 10, y: 200, enabled: false },
-      { id: 'weight', name: 'Weight', x: 10, y: 230, enabled: false },
-      { id: 'serial_no', name: 'Serial Number', x: 10, y: 260, enabled: true },
-      { id: 'barcode', name: 'Barcode', x: 10, y: 290, enabled: true },
+      { id: 'company_name', name: 'Company Name', x: 50, y: 5, enabled: true, rotation: 270 },
+      { id: 'item_name', name: 'Item Name', x: 50, y: 15, enabled: true, rotation: 270 },
+      { id: 'item_code', name: 'Item Code', x: 50, y: 25, enabled: true, rotation: 270 },
+      { id: 'length', name: 'Length', x: 35, y: 5, enabled: true, rotation: 270 },
+      { id: 'width', name: 'Width', x: 35, y: 15, enabled: true, rotation: 270 },
+      { id: 'color', name: 'Color', x: 35, y: 25, enabled: true, rotation: 270 },
+      { id: 'quality', name: 'Quality', x: 20, y: 5, enabled: false, rotation: 270 },
+      { id: 'weight', name: 'Weight', x: 20, y: 15, enabled: true, rotation: 270 },
+      { id: 'serial_no', name: 'Serial Number', x: 20, y: 25, enabled: false, rotation: 270 },
+      { id: 'barcode', name: 'Barcode', x: 5, y: 20, enabled: false, rotation: 270 },
+    ],
+  },
+  shipping: {
+    name: 'Shipping Label',
+    description: 'Label optimized for shipping - W60*L40',
+    config: {
+      label_width_mm: 60,
+      label_height_mm: 40,
+      orientation: 'landscape' as const,
+    },
+    fields: [
+      { id: 'company_name', name: 'Company Name', x: 50, y: 5, enabled: true, rotation: 270 },
+      { id: 'item_name', name: 'Item Name', x: 50, y: 15, enabled: true, rotation: 270 },
+      { id: 'item_code', name: 'Item Code', x: 50, y: 25, enabled: true, rotation: 270 },
+      { id: 'length', name: 'Length', x: 35, y: 5, enabled: false, rotation: 270 },
+      { id: 'width', name: 'Width', x: 35, y: 15, enabled: false, rotation: 270 },
+      { id: 'color', name: 'Color', x: 35, y: 25, enabled: false, rotation: 270 },
+      { id: 'quality', name: 'Quality', x: 20, y: 5, enabled: false, rotation: 270 },
+      { id: 'weight', name: 'Weight', x: 20, y: 15, enabled: true, rotation: 270 },
+      { id: 'serial_no', name: 'Serial Number', x: 20, y: 25, enabled: true, rotation: 270 },
+      { id: 'barcode', name: 'Barcode', x: 5, y: 20, enabled: true, rotation: 270 },
+    ],
+  },
+  barcode: {
+    name: 'Barcode Label',
+    description: 'Minimal barcode label - W60*L40',
+    config: {
+      label_width_mm: 60,
+      label_height_mm: 40,
+      orientation: 'landscape' as const,
+    },
+    fields: [
+      { id: 'company_name', name: 'Company Name', x: 50, y: 5, enabled: false, rotation: 270 },
+      { id: 'item_name', name: 'Item Name', x: 50, y: 15, enabled: false, rotation: 270 },
+      { id: 'item_code', name: 'Item Code', x: 50, y: 25, enabled: true, rotation: 270 },
+      { id: 'length', name: 'Length', x: 35, y: 5, enabled: false, rotation: 270 },
+      { id: 'width', name: 'Width', x: 35, y: 15, enabled: false, rotation: 270 },
+      { id: 'color', name: 'Color', x: 35, y: 25, enabled: false, rotation: 270 },
+      { id: 'quality', name: 'Quality', x: 20, y: 5, enabled: false, rotation: 270 },
+      { id: 'weight', name: 'Weight', x: 20, y: 15, enabled: false, rotation: 270 },
+      { id: 'serial_no', name: 'Serial Number', x: 20, y: 25, enabled: true, rotation: 270 },
+      { id: 'barcode', name: 'Barcode', x: 5, y: 20, enabled: true, rotation: 270 },
     ],
   },
 };
@@ -105,17 +106,18 @@ const LabelConfiguration = () => {
   const [config, setConfig] = useState({
     company_name: '',
     logo_url: '',
-    label_width_mm: 100,
-    label_height_mm: 60,
+    label_width_mm: 60,
+    label_height_mm: 40,
     orientation: 'landscape' as 'landscape' | 'portrait',
   });
 
   const [fields, setFields] = useState<LabelField[]>(
     AVAILABLE_FIELDS.map((field, index) => ({
       ...field,
-      x: 10,
-      y: 10 + (index * 30),
+      x: 50 - (Math.floor(index / 3) * 15),
+      y: 5 + ((index % 3) * 10),
       enabled: true,
+      rotation: 270,
     }))
   );
 
@@ -418,15 +420,18 @@ const LabelConfiguration = () => {
             )}
 
             {/* Label Preview with Example Data */}
-            <div className="absolute top-12 left-2 right-2 space-y-1 text-black">
+            <div className="absolute inset-0 text-black">
               {fields.filter(f => f.enabled && f.id !== 'company_name' && f.id !== 'barcode').map((field) => (
                 <div
                   key={field.id}
                   draggable
                   onDragStart={() => handleDragStart(field.id)}
-                  className="cursor-move bg-blue-50 border border-blue-200 rounded px-2 py-0.5 text-xs flex items-center gap-1 hover:bg-blue-100 transition-colors"
+                  className="cursor-move bg-blue-50 border border-blue-200 rounded px-2 py-0.5 text-xs flex items-center gap-1 hover:bg-blue-100 transition-colors absolute whitespace-nowrap"
                   style={{
-                    position: 'relative',
+                    left: `${field.x * labelScale}px`,
+                    top: `${field.y * labelScale}px`,
+                    transform: `rotate(${field.rotation || 0}deg)`,
+                    transformOrigin: 'top left',
                   }}
                 >
                   <GripVertical className="h-3 w-3 text-blue-600" />
