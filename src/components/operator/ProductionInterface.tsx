@@ -116,6 +116,21 @@ const ProductionInterface = () => {
     },
   });
 
+  // Fetch label configuration
+  const { data: labelConfig } = useQuery({
+    queryKey: ['label-configuration'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('label_configurations')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Auto-capture weight when item is selected (only if not using predefined weight)
   useEffect(() => {
     if (selectedItem) {
@@ -368,19 +383,109 @@ const ProductionInterface = () => {
 
       // Print label
       setTimeout(() => {
-        printLabel();
+        printLabel(serialNumber, barcodeData);
       }, 500);
     } catch (error) {
       console.error('Label generation error:', error);
     }
   };
 
-  const printLabel = () => {
+  const getFieldValue = (fieldId: string, serialNumber: string, barcodeData: string): string => {
+    const fieldValues: Record<string, string> = {
+      company_name: labelConfig?.company_name || 'R. K. INTERLINING',
+      item_name: selectedItem?.items.product_name || '',
+      item_code: selectedItem?.items.product_code || '',
+      length: `${selectedItem?.items.length_yards || '-'} yds`,
+      width: `${selectedItem?.items.width_inches || '-'}"`,
+      color: selectedItem?.items.color || '-',
+      quality: '-',
+      weight: `${currentWeight.toFixed(2)} kg`,
+      serial_no: serialNumber,
+      barcode: barcodeData,
+      qrcode: barcodeData,
+    };
+    return fieldValues[fieldId] || '';
+  };
+
+  const printLabel = (serialNumber: string, barcodeData: string) => {
     const printWindow = window.open('', '', 'width=400,height=300');
     if (!printWindow) return;
 
     const barcodeCanvas = barcodeCanvasRef.current;
     const qrcodeCanvas = qrcodeCanvasRef.current;
+
+    if (!labelConfig) {
+      console.error('Label configuration not loaded');
+      return;
+    }
+
+    const fields = labelConfig.fields_config as any[];
+    const labelWidth = labelConfig.label_width_mm;
+    const labelHeight = labelConfig.label_height_mm;
+
+    const fieldsHtml = fields
+      .filter((field: any) => field.enabled)
+      .sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0))
+      .map((field: any) => {
+        const value = getFieldValue(field.id, serialNumber, barcodeData);
+        
+        if (field.id === 'barcode' || field.codeType === 'barcode') {
+          return `
+            <div style="
+              position: absolute;
+              left: ${field.x}px;
+              top: ${field.y}px;
+              width: ${field.width}px;
+              height: ${field.height}px;
+              transform: rotate(${field.rotation || 0}deg);
+              transform-origin: top left;
+            ">
+              <div style="font-size: ${field.fontSize || 10}px; text-align: center;">${value}</div>
+              <img src="${barcodeCanvas?.toDataURL()}" style="width: 100%; height: auto;" />
+            </div>
+          `;
+        }
+        
+        if (field.id === 'qrcode' || field.codeType === 'qrcode') {
+          return `
+            <div style="
+              position: absolute;
+              left: ${field.x}px;
+              top: ${field.y}px;
+              width: ${field.width}px;
+              height: ${field.height}px;
+              transform: rotate(${field.rotation || 0}deg);
+              transform-origin: top left;
+            ">
+              <img src="${qrcodeCanvas?.toDataURL()}" style="width: 100%; height: 100%;" />
+            </div>
+          `;
+        }
+
+        return `
+          <div style="
+            position: absolute;
+            left: ${field.x}px;
+            top: ${field.y}px;
+            width: ${field.width}px;
+            height: ${field.height}px;
+            font-size: ${field.fontSize || 12}px;
+            font-weight: ${field.fontWeight || 'normal'};
+            font-family: ${field.fontFamily || 'Arial'};
+            color: ${field.color || '#000000'};
+            text-align: ${field.textAlign || 'left'};
+            transform: rotate(${field.rotation || 0}deg);
+            transform-origin: top left;
+            padding: ${field.padding || 0}px;
+            background-color: ${field.backgroundColor || 'transparent'};
+            ${field.borderWidth ? `border: ${field.borderWidth}px solid ${field.borderColor || '#000000'};` : ''}
+            overflow: hidden;
+          ">
+            ${value}
+          </div>
+        `;
+      })
+      .join('');
 
     const content = `
       <html>
@@ -388,76 +493,27 @@ const ProductionInterface = () => {
           <title>Production Label</title>
           <style>
             @page {
-              size: 60mm 40mm;
+              size: ${labelWidth}mm ${labelHeight}mm;
               margin: 0;
             }
             body { 
-              font-family: Arial, sans-serif; 
               margin: 0;
-              padding: 2mm;
-              width: 60mm;
-              height: 40mm;
+              padding: 0;
+              width: ${labelWidth}mm;
+              height: ${labelHeight}mm;
               box-sizing: border-box;
             }
             .label {
+              position: relative;
               width: 100%;
               height: 100%;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-            }
-            .header {
-              font-size: 8px;
-              font-weight: bold;
-              text-align: center;
-              margin-bottom: 1mm;
-            }
-            .content {
-              display: flex;
-              gap: 2mm;
-            }
-            .left {
-              flex: 1;
-              font-size: 5px;
-              line-height: 1.3;
-            }
-            .right {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 1mm;
-            }
-            .barcode img {
-              width: 25mm;
-              height: auto;
-            }
-            .qrcode img {
-              width: 15mm;
-              height: 15mm;
+              background-color: white;
             }
           </style>
         </head>
         <body>
           <div class="label">
-            <div class="header">${selectedItem?.items.product_name}</div>
-            <div class="content">
-              <div class="left">
-                <div>Code: ${selectedItem?.items.product_code}</div>
-                <div>Color: ${selectedItem?.items.color || '-'}</div>
-                <div>L: ${selectedItem?.items.length_yards || '-'} yds</div>
-                <div>W: ${selectedItem?.items.width_inches || '-'} in</div>
-                <div>Wt: ${currentWeight.toFixed(2)} kg</div>
-                <div>Op: ${profile?.employee_code}</div>
-              </div>
-              <div class="right">
-                <div class="barcode">
-                  <img src="${barcodeCanvas?.toDataURL()}" />
-                </div>
-                <div class="qrcode">
-                  <img src="${qrcodeCanvas?.toDataURL()}" />
-                </div>
-              </div>
-            </div>
+            ${fieldsHtml}
           </div>
         </body>
       </html>
