@@ -1121,7 +1121,7 @@ const LabelCustomizationTool = () => {
                               ))}
                             </div>
                             <div style={{ fontSize: `${6 * zoom}px`, fontFamily: 'monospace' }}>
-                              {getFieldValue('serial_no')}
+                              {getFieldValue('barcode')}
                             </div>
                           </div>
                         )}
