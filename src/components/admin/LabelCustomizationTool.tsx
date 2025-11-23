@@ -17,6 +17,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface LabelField {
   id: string;
@@ -38,6 +39,7 @@ interface LabelField {
   padding: number;
   locked: boolean;
   zIndex: number;
+  codeType?: 'barcode' | 'qrcode';
 }
 
 interface LabelConfiguration {
@@ -65,6 +67,7 @@ const AVAILABLE_FIELDS = [
   { id: 'weight', name: 'Weight', defaultValue: '2.5kg' },
   { id: 'serial_no', name: 'Serial Number', defaultValue: '01-M1-041025-00152-0119' },
   { id: 'barcode', name: 'Barcode', defaultValue: '00054321:2770:001234:1.25' },
+  { id: 'qrcode', name: 'QR Code', defaultValue: '00054321:2770:001234:1.25' },
 ];
 
 const FONT_FAMILIES = [
@@ -84,7 +87,7 @@ const LABEL_TEMPLATES = {
       { x: 10, y: 120, width: 85, height: 18, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'color' },
       { x: 105, y: 120, width: 85, height: 18, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'weight' },
       { x: 10, y: 145, width: 180, height: 18, fontSize: 9, enabled: true, fontWeight: 'normal' as const, id: 'serial_no' },
-      { x: 10, y: 170, width: 180, height: 50, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'barcode' },
+      { x: 10, y: 170, width: 180, height: 50, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'barcode', codeType: 'barcode' as const },
     ],
   },
   shipping: {
@@ -95,7 +98,7 @@ const LABEL_TEMPLATES = {
       { x: 10, y: 45, width: 180, height: 20, fontSize: 12, enabled: true, fontWeight: 'normal' as const, id: 'item_code' },
       { x: 10, y: 120, width: 180, height: 20, fontSize: 11, enabled: true, fontWeight: 'normal' as const, id: 'weight' },
       { x: 10, y: 150, width: 180, height: 20, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'serial_no' },
-      { x: 10, y: 180, width: 180, height: 60, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'barcode' },
+      { x: 10, y: 180, width: 80, height: 80, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'qrcode', codeType: 'qrcode' as const },
     ],
   },
   minimal: {
@@ -103,7 +106,7 @@ const LABEL_TEMPLATES = {
     config: { label_width_mm: 80, label_height_mm: 40, orientation: 'landscape' as const },
     fields: [
       { x: 10, y: 10, width: 140, height: 20, fontSize: 12, enabled: true, fontWeight: 'bold' as const, id: 'item_code' },
-      { x: 10, y: 35, width: 140, height: 40, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'barcode' },
+      { x: 10, y: 35, width: 140, height: 40, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'barcode', codeType: 'barcode' as const },
     ],
   },
 };
@@ -138,8 +141,8 @@ const LabelCustomizationTool = () => {
       name: field.name,
       x: 10,
       y: 10 + (index * 25),
-      width: 180,
-      height: 20,
+      width: field.id === 'qrcode' ? 80 : 180,
+      height: field.id === 'qrcode' ? 80 : 20,
       enabled: index < 5,
       fontSize: 12,
       fontWeight: 'normal',
@@ -153,6 +156,7 @@ const LabelCustomizationTool = () => {
       padding: 2,
       locked: false,
       zIndex: index,
+      codeType: field.id === 'barcode' ? 'barcode' : field.id === 'qrcode' ? 'qrcode' : undefined,
     }))
   );
 
@@ -345,6 +349,7 @@ const LabelCustomizationTool = () => {
         padding: 2,
         locked: false,
         zIndex: index,
+        codeType: ('codeType' in tf) ? tf.codeType : undefined,
       };
     });
     
@@ -785,24 +790,43 @@ const LabelCustomizationTool = () => {
                             />
                             <span className="text-xs text-muted-foreground">{field.rotation}°</span>
                           </div>
-                          <div>
-                            <Label>Border Width</Label>
-                            <Slider
-                              value={[field.borderWidth]}
-                              onValueChange={([value]) => updateField(field.id, { borderWidth: value })}
-                              min={0}
-                              max={5}
-                              step={1}
-                            />
-                            <span className="text-xs text-muted-foreground">{field.borderWidth}px</span>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+                           <div>
+                             <Label>Border Width</Label>
+                             <Slider
+                               value={[field.borderWidth]}
+                               onValueChange={([value]) => updateField(field.id, { borderWidth: value })}
+                               min={0}
+                               max={5}
+                               step={1}
+                             />
+                             <span className="text-xs text-muted-foreground">{field.borderWidth}px</span>
+                           </div>
+                           {(field.id === 'barcode' || field.id === 'qrcode' || field.codeType) && (
+                             <div className="col-span-2">
+                               <Label>Code Type</Label>
+                               <Select
+                                 value={field.codeType || (field.id === 'barcode' ? 'barcode' : 'qrcode')}
+                                 onValueChange={(value: 'barcode' | 'qrcode') => 
+                                   updateField(field.id, { codeType: value })
+                                 }
+                               >
+                                 <SelectTrigger>
+                                   <SelectValue />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                   <SelectItem value="barcode">Barcode</SelectItem>
+                                   <SelectItem value="qrcode">QR Code</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                             </div>
+                           )}
+                         </div>
+                       )}
+                     </CardContent>
+                   </Card>
+                 ))}
+               </div>
+             </TabsContent>
 
             <TabsContent value="preview" className="mt-4">
               <div className="space-y-4">
@@ -882,27 +906,36 @@ const LabelCustomizationTool = () => {
                           overflow: 'hidden',
                           wordBreak: 'break-word',
                         }}
-                      >
-                        {field.id === 'barcode' ? (
-                          <div className="flex flex-col items-center w-full">
-                            <div className="text-[10px] mb-1">{getFieldValue(field.id)}</div>
-                            <div className="flex gap-0.5">
-                              {Array.from({ length: 30 }).map((_, i) => (
-                                <div
-                                  key={i}
-                                  className="bg-black"
-                                  style={{ 
-                                    width: `${1 * zoom}px`, 
-                                    height: i % 3 === 0 ? `${20 * zoom}px` : `${16 * zoom}px` 
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="w-full">{getFieldValue(field.id)}</span>
-                        )}
-                      </div>
+                       >
+                         {(field.codeType === 'qrcode' || field.id === 'qrcode') ? (
+                           <div className="flex flex-col items-center justify-center w-full h-full">
+                             <QRCodeSVG 
+                               value={getFieldValue(field.id)} 
+                               size={Math.min(field.width, field.height) * zoom * 0.9}
+                               level="M"
+                               includeMargin={false}
+                             />
+                           </div>
+                         ) : (field.codeType === 'barcode' || field.id === 'barcode') ? (
+                           <div className="flex flex-col items-center w-full">
+                             <div className="text-[10px] mb-1">{getFieldValue(field.id)}</div>
+                             <div className="flex gap-0.5">
+                               {Array.from({ length: 30 }).map((_, i) => (
+                                 <div
+                                   key={i}
+                                   className="bg-black"
+                                   style={{ 
+                                     width: `${1 * zoom}px`, 
+                                     height: i % 3 === 0 ? `${20 * zoom}px` : `${16 * zoom}px` 
+                                   }}
+                                 />
+                               ))}
+                             </div>
+                           </div>
+                         ) : (
+                           <span className="w-full">{getFieldValue(field.id)}</span>
+                         )}
+                       </div>
                     ))}
                   </div>
                 </div>
