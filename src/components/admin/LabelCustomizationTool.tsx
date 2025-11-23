@@ -196,24 +196,34 @@ const LabelCustomizationTool = () => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
-      // Arrow keys - move selected field
+      // Arrow keys - move selected field (or adjust size with Ctrl)
       if (selectedField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
         const field = fields.find(f => f.id === selectedField);
         if (!field || field.locked) return;
 
-        const step = e.shiftKey ? 10 : 1;
-        let updates: Partial<LabelField> = {};
+        if (cmdOrCtrl && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+          // Ctrl+Up/Down: Adjust field font size
+          const newSize = e.key === 'ArrowUp' 
+            ? Math.min(32, field.fontSize + 1)
+            : Math.max(8, field.fontSize - 1);
+          updateField(selectedField, { fontSize: newSize });
+          saveToHistory();
+        } else {
+          // Regular arrow keys: Move field
+          const step = e.shiftKey ? 10 : 1;
+          let updates: Partial<LabelField> = {};
 
-        switch (e.key) {
-          case 'ArrowUp': updates = { y: field.y - step }; break;
-          case 'ArrowDown': updates = { y: field.y + step }; break;
-          case 'ArrowLeft': updates = { x: field.x - step }; break;
-          case 'ArrowRight': updates = { x: field.x + step }; break;
+          switch (e.key) {
+            case 'ArrowUp': updates = { y: field.y - step }; break;
+            case 'ArrowDown': updates = { y: field.y + step }; break;
+            case 'ArrowLeft': updates = { x: field.x - step }; break;
+            case 'ArrowRight': updates = { x: field.x + step }; break;
+          }
+
+          updateField(selectedField, updates);
+          saveToHistory();
         }
-
-        updateField(selectedField, updates);
-        saveToHistory();
       }
 
       // Delete - remove selected field
@@ -262,17 +272,10 @@ const LabelCustomizationTool = () => {
         setSelectedField(enabledFields[nextIndex].id);
       }
 
-      // Plus/Minus - canvas zoom, field zoom (Ctrl), or field rotation (Shift)
+      // Plus/Minus - canvas zoom or field rotation (Shift)
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
-        if (cmdOrCtrl && selectedField) {
-          // Ctrl+Plus: Increase field font size
-          const field = fields.find(f => f.id === selectedField);
-          if (field && !field.locked) {
-            updateField(selectedField, { fontSize: Math.min(32, field.fontSize + 1) });
-            saveToHistory();
-          }
-        } else if (e.shiftKey && selectedField) {
+        if (e.shiftKey && selectedField) {
           // Shift+Plus: Rotate field clockwise
           const field = fields.find(f => f.id === selectedField);
           if (field && !field.locked) {
@@ -286,14 +289,7 @@ const LabelCustomizationTool = () => {
       }
       if (e.key === '-') {
         e.preventDefault();
-        if (cmdOrCtrl && selectedField) {
-          // Ctrl+Minus: Decrease field font size
-          const field = fields.find(f => f.id === selectedField);
-          if (field && !field.locked) {
-            updateField(selectedField, { fontSize: Math.max(8, field.fontSize - 1) });
-            saveToHistory();
-          }
-        } else if (e.shiftKey && selectedField) {
+        if (e.shiftKey && selectedField) {
           // Shift+Minus: Rotate field counter-clockwise
           const field = fields.find(f => f.id === selectedField);
           if (field && !field.locked) {
@@ -561,7 +557,7 @@ const LabelCustomizationTool = () => {
             <div>
               <CardTitle>Label Customization Tool</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
-                Keyboard: Arrow keys to move • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- canvas zoom • Ctrl+/- field size • Shift+/- field rotation
+                Keyboard: Arrow keys to move • Ctrl+Up/Down for size • Shift+/- for rotation • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- canvas zoom
               </p>
             </div>
             <div className="flex gap-2">
