@@ -106,124 +106,111 @@ export const ReprintRequests = () => {
 
     const barcodeDataUrl = barcodeCanvas?.toDataURL() || '';
 
+    // Get label configuration
+    const labelWidth = labelConfig?.label_width_mm || 60;
+    const labelHeight = labelConfig?.label_height_mm || 40;
+    const fields = (labelConfig?.fields_config as any[]) || [];
+
+    // Field value mapping
+    const fieldValues: Record<string, string> = {
+      company_name: companyName,
+      item_name: record.items.product_name || '-',
+      item_code: record.items.product_code || '-',
+      length: `${record.items.length_yards || '-'} ${record.items.length_yards ? 'meter' : ''}`,
+      width: `${record.items.width_inches || '-'} ${record.items.width_inches ? '"' : ''}`,
+      color: record.items.color || '-',
+      quality: '-',
+      weight: `${record.weight_kg.toFixed(2)} kg`,
+      serial_no: record.serial_number,
+      barcode: record.barcode_data,
+    };
+
+    // Generate field HTML
+    const fieldsHtml = fields
+      .filter((field: any) => field.enabled && field.id !== 'barcode')
+      .map((field: any) => {
+        const value = fieldValues[field.id] || '';
+        const rotation = field.rotation || 0;
+        const fieldName = field.name || field.id;
+        
+        return `
+          <div class="field-item" style="
+            position: absolute;
+            left: ${field.x}mm;
+            top: ${field.y}mm;
+            transform: rotate(${rotation}deg);
+            transform-origin: top left;
+            white-space: nowrap;
+          ">
+            <span style="font-weight: 600; font-size: 9px;">${fieldName}:</span>
+            <span style="font-size: 9px;">${value}</span>
+          </div>
+        `;
+      })
+      .join('');
+
+    // Check if barcode field is enabled
+    const barcodeField = fields.find((f: any) => f.id === 'barcode' && f.enabled);
+    const barcodeHtml = barcodeField ? `
+      <div class="barcode-container" style="
+        position: absolute;
+        left: ${barcodeField.x}mm;
+        top: ${barcodeField.y}mm;
+        transform: rotate(${barcodeField.rotation || 0}deg);
+        transform-origin: top left;
+      ">
+        <img src="${barcodeDataUrl}" style="height: 30px; width: auto;" />
+        <div style="font-size: 7px; margin-top: 2px; text-align: center;">${record.serial_number}</div>
+      </div>
+    ` : '';
+
     const content = `
       <html>
         <head>
           <title>Production Label</title>
           <style>
             @page {
-              size: 60mm 40mm;
+              size: ${labelWidth}mm ${labelHeight}mm;
               margin: 0;
             }
             body { 
               margin: 0;
-              padding: 4mm;
+              padding: 0;
               font-family: Arial, sans-serif;
-              width: 60mm;
-              height: 40mm;
-              box-sizing: border-box;
             }
-            .label-container {
+            .label {
+              width: ${labelWidth}mm;
+              height: ${labelHeight}mm;
+              position: relative;
+              background-color: white;
+              overflow: hidden;
+            }
+            .field-item {
+              display: flex;
+              gap: 4px;
+              align-items: baseline;
+            }
+            .barcode-container {
               display: flex;
               flex-direction: column;
-              height: 100%;
-            }
-            .header {
-              display: flex;
               align-items: center;
-              justify-content: space-between;
-              margin-bottom: 2mm;
-              padding-bottom: 1mm;
-              border-bottom: 1px solid #333;
-            }
-            .logo {
-              width: 12mm;
-              height: 12mm;
-              object-fit: contain;
-            }
-            .company-name {
-              font-size: 8pt;
-              font-weight: bold;
-              text-align: center;
-              flex: 1;
-              margin: 0 2mm;
-            }
-            .info-section {
-              flex: 1;
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 1mm 2mm;
-              font-size: 7pt;
-            }
-            .info-row {
-              display: flex;
-              align-items: center;
-            }
-            .info-label {
-              font-weight: bold;
-              margin-right: 1mm;
-              white-space: nowrap;
-            }
-            .info-value {
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-            .barcode-section {
-              margin-top: auto;
-              text-align: center;
-              padding-top: 1mm;
-            }
-            .barcode-image {
-              max-width: 100%;
-              height: auto;
-              max-height: 12mm;
-            }
-            .barcode-text {
-              font-size: 6pt;
-              margin-top: 0.5mm;
-              font-family: monospace;
             }
           </style>
         </head>
         <body>
-          <div class="label-container">
-            <div class="header">
-              ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : '<div style="width: 12mm;"></div>'}
-              <div class="company-name">${companyName}</div>
-            </div>
+          <div class="label">
+            ${logoUrl ? `
+              <img src="${logoUrl}" style="
+                position: absolute;
+                top: 2mm;
+                left: 2mm;
+                height: 8mm;
+                width: auto;
+              " alt="Logo" />
+            ` : ''}
             
-            <div class="info-section">
-              <div class="info-row">
-                <span class="info-label">Item:</span>
-                <span class="info-value">${record.items.product_name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Code:</span>
-                <span class="info-value">${record.items.product_code}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Length:</span>
-                <span class="info-value">${record.items.length_yards || '-'} yds</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Width:</span>
-                <span class="info-value">${record.items.width_inches || '-'}"</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Color:</span>
-                <span class="info-value">${record.items.color || '-'}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Weight:</span>
-                <span class="info-value">${record.weight_kg.toFixed(2)} kg</span>
-              </div>
-            </div>
-            
-            <div class="barcode-section">
-              <img src="${barcodeDataUrl}" class="barcode-image" alt="Barcode" />
-              <div class="barcode-text">${record.serial_number}</div>
-            </div>
+            ${fieldsHtml}
+            ${barcodeHtml}
           </div>
         </body>
       </html>
