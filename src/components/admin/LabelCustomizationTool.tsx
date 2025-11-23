@@ -262,14 +262,48 @@ const LabelCustomizationTool = () => {
         setSelectedField(enabledFields[nextIndex].id);
       }
 
-      // Plus/Minus - zoom
+      // Plus/Minus - canvas zoom, field zoom (Ctrl), or field rotation (Shift)
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
-        setZoom(Math.min(2, zoom + 0.25));
+        if (cmdOrCtrl && selectedField) {
+          // Ctrl+Plus: Increase field font size
+          const field = fields.find(f => f.id === selectedField);
+          if (field && !field.locked) {
+            updateField(selectedField, { fontSize: Math.min(32, field.fontSize + 1) });
+            saveToHistory();
+          }
+        } else if (e.shiftKey && selectedField) {
+          // Shift+Plus: Rotate field clockwise
+          const field = fields.find(f => f.id === selectedField);
+          if (field && !field.locked) {
+            updateField(selectedField, { rotation: (field.rotation + 15) % 360 });
+            saveToHistory();
+          }
+        } else {
+          // No modifier: Canvas zoom
+          setZoom(Math.min(2, zoom + 0.25));
+        }
       }
       if (e.key === '-') {
         e.preventDefault();
-        setZoom(Math.max(0.5, zoom - 0.25));
+        if (cmdOrCtrl && selectedField) {
+          // Ctrl+Minus: Decrease field font size
+          const field = fields.find(f => f.id === selectedField);
+          if (field && !field.locked) {
+            updateField(selectedField, { fontSize: Math.max(8, field.fontSize - 1) });
+            saveToHistory();
+          }
+        } else if (e.shiftKey && selectedField) {
+          // Shift+Minus: Rotate field counter-clockwise
+          const field = fields.find(f => f.id === selectedField);
+          if (field && !field.locked) {
+            updateField(selectedField, { rotation: (field.rotation - 15 + 360) % 360 });
+            saveToHistory();
+          }
+        } else {
+          // No modifier: Canvas zoom
+          setZoom(Math.max(0.5, zoom - 0.25));
+        }
       }
     };
 
@@ -525,7 +559,7 @@ const LabelCustomizationTool = () => {
             <div>
               <CardTitle>Label Customization Tool</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
-                Keyboard: Arrow keys to move • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- to zoom
+                Keyboard: Arrow keys to move • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- canvas zoom • Ctrl+/- field size • Shift+/- field rotation
               </p>
             </div>
             <div className="flex gap-2">
