@@ -2,13 +2,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Factory, LogOut, ClipboardList, Users, TrendingUp, UserPlus, Calendar, Printer } from 'lucide-react';
+import { Factory, LogOut, ClipboardList, Users, TrendingUp, UserPlus, Calendar, Printer, History } from 'lucide-react';
 import { OrdersList } from '@/components/production-manager/OrdersList';
 import { ActiveAssignments } from '@/components/production-manager/ActiveAssignments';
 import { EfficiencyMetrics } from '@/components/production-manager/EfficiencyMetrics';
 import { DirectAssignment } from '@/components/production-manager/DirectAssignment';
 import { ProductionCalendar } from '@/components/production-manager/ProductionCalendar';
 import { ReprintRequests } from '@/components/production-manager/ReprintRequests';
+import { ReprintRequestHistory } from '@/components/production-manager/ReprintRequestHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -110,7 +111,7 @@ const ProductionManagerDashboard = () => {
         </Card>
 
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 max-w-5xl">
+          <TabsList className="grid w-full grid-cols-7 max-w-6xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" />
               Orders
@@ -139,6 +140,10 @@ const ProductionManagerDashboard = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              History
+            </TabsTrigger>
             <TabsTrigger value="metrics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Metrics
@@ -163,6 +168,10 @@ const ProductionManagerDashboard = () => {
 
           <TabsContent value="reprints" className="space-y-4">
             <ReprintRequests />
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-4">
+            <ReprintRequestHistory />
           </TabsContent>
 
           <TabsContent value="metrics" className="space-y-4">
