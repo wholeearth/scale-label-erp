@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -184,6 +184,98 @@ const LabelCustomizationTool = () => {
       setHistoryIndex(historyIndex + 1);
     }
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      // Arrow keys - move selected field
+      if (selectedField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const field = fields.find(f => f.id === selectedField);
+        if (!field || field.locked) return;
+
+        const step = e.shiftKey ? 10 : 1;
+        let updates: Partial<LabelField> = {};
+
+        switch (e.key) {
+          case 'ArrowUp': updates = { y: field.y - step }; break;
+          case 'ArrowDown': updates = { y: field.y + step }; break;
+          case 'ArrowLeft': updates = { x: field.x - step }; break;
+          case 'ArrowRight': updates = { x: field.x + step }; break;
+        }
+
+        updateField(selectedField, updates);
+        saveToHistory();
+      }
+
+      // Delete - remove selected field
+      if (selectedField && e.key === 'Delete') {
+        e.preventDefault();
+        deleteField(selectedField);
+      }
+
+      // Escape - deselect
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedField(null);
+      }
+
+      // Ctrl/Cmd+D - duplicate
+      if (cmdOrCtrl && e.key === 'd') {
+        e.preventDefault();
+        if (selectedField) {
+          duplicateField(selectedField);
+        }
+      }
+
+      // Ctrl/Cmd+Z - undo
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+
+      // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y - redo
+      if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+
+      // Tab - cycle through fields
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const enabledFields = fields.filter(f => f.enabled);
+        if (enabledFields.length === 0) return;
+
+        const currentIndex = enabledFields.findIndex(f => f.id === selectedField);
+        const nextIndex = e.shiftKey 
+          ? (currentIndex - 1 + enabledFields.length) % enabledFields.length
+          : (currentIndex + 1) % enabledFields.length;
+        
+        setSelectedField(enabledFields[nextIndex].id);
+      }
+
+      // Plus/Minus - zoom
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setZoom(Math.min(2, zoom + 0.25));
+      }
+      if (e.key === '-') {
+        e.preventDefault();
+        setZoom(Math.max(0.5, zoom - 0.25));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedField, fields, zoom, historyIndex, history.length]);
 
   const { data: existingConfig } = useQuery({
     queryKey: ['label-config'],
@@ -430,7 +522,12 @@ const LabelCustomizationTool = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Label Customization Tool</CardTitle>
+            <div>
+              <CardTitle>Label Customization Tool</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Keyboard: Arrow keys to move • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- to zoom
+              </p>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex <= 0}>
                 <Undo className="h-4 w-4" />
