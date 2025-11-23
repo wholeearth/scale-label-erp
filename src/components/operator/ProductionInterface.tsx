@@ -471,9 +471,11 @@ const ProductionInterface = () => {
     const item = itemData || selectedItem?.items;
     const itemWeight = weight !== undefined ? weight : currentWeight;
 
-    // Get label configuration
-    const labelWidth = labelConfig?.label_width_mm || 60;
-    const labelHeight = labelConfig?.label_height_mm || 40;
+    // Get label configuration - convert mm to px for consistency with preview
+    const labelWidthMm = labelConfig?.label_width_mm || 60;
+    const labelHeightMm = labelConfig?.label_height_mm || 40;
+    const labelWidth = labelWidthMm * 3.78; // Convert mm to px
+    const labelHeight = labelHeightMm * 3.78;
     const fields = (labelConfig?.fields_config as any[]) || [];
 
     // Field value mapping
@@ -521,7 +523,7 @@ const ProductionInterface = () => {
             left: ${field.x || 0}px;
             top: ${field.y || 0}px;
             transform: rotate(${rotation}deg);
-            transform-origin: top left;
+            transform-origin: center;
             font-size: ${fontSize}px;
             font-family: ${fontFamily};
             font-weight: ${fontWeight};
@@ -536,6 +538,9 @@ const ProductionInterface = () => {
             height: ${typeof height === 'number' ? `${height}px` : height};
             z-index: ${zIndex};
             box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: ${textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start'};
           `;
 
           // Handle different field types
@@ -561,8 +566,8 @@ const ProductionInterface = () => {
             // Text field
             const value = fieldValues[field.id] || field.name || '';
             return `
-              <div style="${baseStyle} white-space: nowrap; overflow: hidden;">
-                ${value}
+              <div style="${baseStyle}">
+                <span style="white-space: pre-wrap; word-break: break-word;">${value}</span>
               </div>
             `;
           }
@@ -575,7 +580,7 @@ const ProductionInterface = () => {
           <title>Production Label</title>
           <style>
             @page {
-              size: ${labelWidth}mm ${labelHeight}mm;
+              size: ${labelWidthMm}mm ${labelHeightMm}mm;
               margin: 0;
             }
             body { 
@@ -584,8 +589,8 @@ const ProductionInterface = () => {
               font-family: Arial, sans-serif;
             }
             .label {
-              width: ${labelWidth}mm;
-              height: ${labelHeight}mm;
+              width: ${labelWidth}px;
+              height: ${labelHeight}px;
               position: relative;
               background-color: ${(labelConfig as any)?.backgroundColor || 'white'};
               border: ${(labelConfig as any)?.borderWidth || 0}px solid ${(labelConfig as any)?.borderColor || '#000000'};
@@ -901,7 +906,7 @@ const ProductionInterface = () => {
                           {field.type === 'barcode' && (
                             <canvas
                               ref={(el) => {
-                                if (el) {
+                                if (el && value && value.trim()) {
                                   try {
                                     JsBarcode(el, value, {
                                       format: 'CODE128',
