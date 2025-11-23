@@ -124,6 +124,12 @@ const CreateSalesInvoice = () => {
       if (!customerId) throw new Error('Customer is required');
       if (!selectedOrderId) throw new Error('Please select an order to create invoice from');
 
+      // Check if the order is already invoiced
+      const selectedOrder = customerOrders?.find(order => order.id === selectedOrderId);
+      if (selectedOrder?.status === 'invoiced') {
+        throw new Error('This order has already been invoiced. Please select a different order.');
+      }
+
       // Simply update the order status to 'invoiced'
       // Don't modify the order_items - they remain as originally placed
       const { data: updatedOrders, error: updateError } = await supabase
