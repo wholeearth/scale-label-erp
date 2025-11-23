@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye } from 'lucide-react';
@@ -58,6 +60,9 @@ const ProductionInterface = () => {
   const [autoWeight, setAutoWeight] = useState(true);
   const [showWeightWarning, setShowWeightWarning] = useState(false);
   const [weightVariance, setWeightVariance] = useState<{ deviation: number; isOver: boolean } | null>(null);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [printPreviewEnabled, setPrintPreviewEnabled] = useState(false);
+  const [previewData, setPreviewData] = useState<{ serialNumber: string; barcodeData: string } | null>(null);
   const barcodeCanvasRef = useRef<HTMLCanvasElement>(null);
   const qrcodeCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -377,8 +382,18 @@ const ProductionInterface = () => {
       return { serialNumber, barcodeData };
     },
     onSuccess: async ({ serialNumber, barcodeData }) => {
-      // Generate and print label
+      // Generate label codes first
       await generateLabel(serialNumber, barcodeData);
+      
+      // Check if print preview is enabled
+      if (printPreviewEnabled) {
+        // Show preview dialog
+        setPreviewData({ serialNumber, barcodeData });
+        setShowPrintPreview(true);
+      } else {
+        // Auto-print without preview
+        await printLabel(serialNumber, barcodeData);
+      }
       
       // Invalidate with exact query key including profile ID
       queryClient.invalidateQueries({ queryKey: ['operator-assignments', profile?.id] });
@@ -400,7 +415,10 @@ const ProductionInterface = () => {
         description: `Item ${serialNumber} recorded successfully`,
       });
       
-      setCurrentWeight(0);
+      // Reset weight for next production
+      if (!printPreviewEnabled) {
+        setCurrentWeight(0);
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -761,6 +779,21 @@ const ProductionInterface = () => {
   const proceedWithProduction = () => {
     setShowWeightWarning(false);
     productionMutation.mutate();
+  };
+
+  const handleConfirmPrint = async () => {
+    if (previewData) {
+      await printLabel(previewData.serialNumber, previewData.barcodeData);
+      setShowPrintPreview(false);
+      setPreviewData(null);
+      setCurrentWeight(0);
+    }
+  };
+
+  const handleCancelPrint = () => {
+    setShowPrintPreview(false);
+    setPreviewData(null);
+    setCurrentWeight(0);
   };
 
   const handleSelectItem = (assignment: Assignment) => {
@@ -1139,6 +1172,18 @@ const ProductionInterface = () => {
             </Card>
           </div>
 
+          {/* Print Preview Checkbox */}
+          <div className="flex items-center space-x-2 p-4 bg-accent/30 rounded-lg">
+            <Checkbox
+              id="printPreview"
+              checked={printPreviewEnabled}
+              onCheckedChange={(checked) => setPrintPreviewEnabled(checked as boolean)}
+            />
+            <Label htmlFor="printPreview" className="text-sm font-medium cursor-pointer">
+              Show print preview before printing
+            </Label>
+          </div>
+
           {/* Action Button */}
           <Button
             size="lg"
@@ -1160,6 +1205,167 @@ const ProductionInterface = () => {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Print Preview Dialog */}
+      <AlertDialog open={showPrintPreview} onOpenChange={setShowPrintPreview}>
+        <AlertDialogContent className="max-w-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Print Preview
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Review the label before printing
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            {previewData && labelConfig && (
+              <div className="flex justify-center items-center min-h-[300px]">
+                <div
+                  className="relative bg-white shadow-2xl"
+                  style={{
+                    width: (labelConfig.label_width_mm || 60) * 3.78,
+                    height: (labelConfig.label_height_mm || 40) * 3.78,
+                    transform: 'scale(1.2)',
+                    transformOrigin: 'center',
+                    border: `${(labelConfig as any).borderWidth || 0}px solid ${(labelConfig as any).borderColor || 'transparent'}`,
+                    borderRadius: (labelConfig as any).borderRadius || 0,
+                    backgroundColor: (labelConfig as any).backgroundColor || '#ffffff',
+                  }}
+                >
+                  {((labelConfig.fields_config as any[]) || [])
+                    .filter((field: any) => field.visible !== false && field.enabled !== false)
+                    .sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0))
+                    .map((field: any) => {
+                      const fieldValues: Record<string, string> = {
+                        company_name: labelConfig.company_name || 'Company',
+                        item_name: selectedItem?.items.product_name || '',
+                        item_code: selectedItem?.items.product_code || '',
+                        length: `${selectedItem?.items.length_yards || '-'} yds`,
+                        width: `${selectedItem?.items.width_inches || '-'}"`,
+                        color: selectedItem?.items.color || '-',
+                        quality: '-',
+                        weight: `${currentWeight.toFixed(2)} kg`,
+                        serial_no: previewData.serialNumber,
+                        serial_number: previewData.serialNumber,
+                        barcode: previewData.barcodeData,
+                        qrcode: previewData.barcodeData,
+                      };
+
+                      const fieldType = field.type || field.id?.split('_')[0];
+                      const value = fieldValues[field.id] || fieldValues[field.name?.toLowerCase().replace(/\s+/g, '_')] || field.customText || '';
+
+                      return (
+                        <div
+                          key={field.id}
+                          style={{
+                            position: 'absolute',
+                            left: field.x,
+                            top: field.y,
+                            width: field.width,
+                            height: field.height,
+                            transform: `rotate(${field.rotation || 0}deg)`,
+                            transformOrigin: 'top left',
+                            opacity: field.opacity || 1,
+                            zIndex: field.zIndex || 0,
+                            backgroundColor: field.backgroundColor || 'transparent',
+                            borderColor: field.borderColor || 'transparent',
+                            borderWidth: field.borderWidth || 0,
+                            borderRadius: field.borderRadius || 0,
+                          }}
+                        >
+                          {fieldType === 'logo' && labelConfig.logo_url && (
+                            <img
+                              src={labelConfig.logo_url}
+                              alt="Logo"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
+                          )}
+                          {fieldType === 'barcode' && (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Barcode className="h-full w-full text-foreground" />
+                            </div>
+                          )}
+                          {fieldType === 'qrcode' && (
+                            <div style={{ width: '100%', height: '100%', padding: '2px' }}>
+                              <QRCodeSVG value={value} size={field.height - 4} />
+                            </div>
+                          )}
+                          {fieldType === 'text' && (
+                            <div
+                              style={{
+                                fontSize: field.fontSize,
+                                fontWeight: field.fontWeight,
+                                fontFamily: field.fontFamily,
+                                color: field.color,
+                                textAlign: field.textAlign,
+                                padding: field.padding,
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '100%',
+                              }}
+                            >
+                              {value}
+                            </div>
+                          )}
+                          {fieldType === 'custom_text' && (
+                            <div
+                              style={{
+                                fontSize: field.fontSize,
+                                fontWeight: field.fontWeight,
+                                fontFamily: field.fontFamily,
+                                color: field.color,
+                                textAlign: field.textAlign,
+                                padding: field.padding,
+                                display: 'flex',
+                                alignItems: 'center',
+                                height: '100%',
+                              }}
+                            >
+                              {field.customText || ''}
+                            </div>
+                          )}
+                          {fieldType === 'line' && (
+                            <div style={{ width: '100%', height: '100%', backgroundColor: field.color }} />
+                          )}
+                          {fieldType === 'circle' && (
+                            <div
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                borderRadius: '50%',
+                                border: `${field.borderWidth || 2}px solid ${field.color}`,
+                                backgroundColor: field.backgroundColor || 'transparent',
+                              }}
+                            />
+                          )}
+                          {fieldType === 'box' && (
+                            <div
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                border: `${field.borderWidth || 2}px solid ${field.color}`,
+                                backgroundColor: field.backgroundColor || 'transparent',
+                                borderRadius: field.borderRadius || 0,
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelPrint}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmPrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Label
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Production History */}
       <Card>
