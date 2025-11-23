@@ -29,6 +29,7 @@ import InventoryManagement from '@/components/admin/InventoryManagement';
 import PurchaseManagement from '@/components/admin/PurchaseManagement';
 import { CommissionAgentManagement } from '@/components/admin/CommissionAgentManagement';
 import LabelConfiguration from '@/components/admin/LabelConfiguration';
+import LabelCustomizationTool from '@/components/admin/LabelCustomizationTool';
 
 const AdminDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -214,7 +215,7 @@ const AdminDashboard = () => {
 
           <TabsContent value="settings" className="space-y-6">
             <SystemSettings />
-            <LabelConfiguration />
+            <LabelCustomizationTool />
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
