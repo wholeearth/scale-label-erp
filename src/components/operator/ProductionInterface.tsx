@@ -440,105 +440,111 @@ const ProductionInterface = () => {
     const item = itemData || selectedItem?.items;
     const itemWeight = weight !== undefined ? weight : currentWeight;
 
+    // Get label configuration
+    const labelWidth = labelConfig?.label_width_mm || 60;
+    const labelHeight = labelConfig?.label_height_mm || 40;
+    const fields = (labelConfig?.fields_config as any[]) || [];
+
+    // Field value mapping
+    const fieldValues: Record<string, string> = {
+      company_name: companyName,
+      item_name: item?.product_name || '-',
+      item_code: item?.product_code || '-',
+      length: `${item?.length_yards || '-'} ${item?.length_yards ? 'meter' : ''}`,
+      width: `${item?.width_inches || '-'} ${item?.width_inches ? '"' : ''}`,
+      color: item?.color || '-',
+      quality: '-',
+      weight: `${itemWeight.toFixed(2)} kg`,
+      serial_no: serialNumber,
+      barcode: barcodeData,
+    };
+
+    // Generate field HTML
+    const fieldsHtml = fields
+      .filter((field: any) => field.enabled && field.id !== 'barcode')
+      .map((field: any) => {
+        const value = fieldValues[field.id] || '';
+        const rotation = field.rotation || 0;
+        const fieldName = field.name || field.id;
+        
+        return `
+          <div class="field-item" style="
+            position: absolute;
+            left: ${field.x}mm;
+            top: ${field.y}mm;
+            transform: rotate(${rotation}deg);
+            transform-origin: top left;
+            white-space: nowrap;
+          ">
+            <span style="font-weight: 600; font-size: 9px;">${fieldName}:</span>
+            <span style="font-size: 9px;">${value}</span>
+          </div>
+        `;
+      })
+      .join('');
+
+    // Check if barcode field is enabled
+    const barcodeField = fields.find((f: any) => f.id === 'barcode' && f.enabled);
+    const barcodeHtml = barcodeField ? `
+      <div class="barcode-container" style="
+        position: absolute;
+        left: ${barcodeField.x}mm;
+        top: ${barcodeField.y}mm;
+        transform: rotate(${barcodeField.rotation || 0}deg);
+        transform-origin: top left;
+      ">
+        <img src="${barcodeCanvas?.toDataURL()}" style="height: 30px; width: auto;" />
+        <div style="font-size: 7px; margin-top: 2px; text-align: center;">${barcodeData}</div>
+      </div>
+    ` : '';
+
     const content = `
       <html>
         <head>
           <title>Production Label</title>
           <style>
             @page {
-              size: 60mm 40mm;
+              size: ${labelWidth}mm ${labelHeight}mm;
               margin: 0;
             }
             body { 
               margin: 0;
               padding: 0;
               font-family: Arial, sans-serif;
-              font-size: 11px;
-              line-height: 1.3;
             }
             .label {
-              width: 60mm;
-              height: 40mm;
-              padding: 3mm;
-              box-sizing: border-box;
+              width: ${labelWidth}mm;
+              height: ${labelHeight}mm;
+              position: relative;
               background-color: white;
+              overflow: hidden;
             }
-            .header {
+            .field-item {
               display: flex;
+              gap: 4px;
+              align-items: baseline;
+            }
+            .barcode-container {
+              display: flex;
+              flex-direction: column;
               align-items: center;
-              gap: 8px;
-              margin-bottom: 8px;
-              padding-bottom: 4px;
-              border-bottom: 1px solid #000;
-            }
-            .logo {
-              width: 40px;
-              height: 40px;
-              object-fit: contain;
-            }
-            .company-name {
-              font-size: 16px;
-              font-weight: bold;
-            }
-            .field {
-              margin-bottom: 3px;
-            }
-            .field-label {
-              display: inline-block;
-              min-width: 70px;
-              font-weight: normal;
-            }
-            .barcode-section {
-              margin-top: 6px;
-              text-align: center;
-            }
-            .barcode-text {
-              font-size: 9px;
-              margin-top: 2px;
             }
           </style>
         </head>
         <body>
           <div class="label">
-            <div class="header">
-              ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : '<div style="width: 40px; height: 40px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 10px;">Logo</div>'}
-              <div class="company-name">${companyName}</div>
-            </div>
+            ${logoUrl ? `
+              <img src="${logoUrl}" style="
+                position: absolute;
+                top: 2mm;
+                left: 2mm;
+                height: 8mm;
+                width: auto;
+              " alt="Logo" />
+            ` : ''}
             
-            <div class="field">
-              <span class="field-label">Item Name:</span>
-              <span>${item?.product_name || '-'}</span>
-            </div>
-            
-            <div class="field">
-              <span class="field-label">Item code:</span>
-              <span>${item?.product_code || '-'}</span>
-            </div>
-            
-            <div class="field">
-              <span class="field-label">Item weight:</span>
-              <span>${itemWeight.toFixed(2)} kg</span>
-            </div>
-            
-            <div class="field">
-              <span class="field-label">Length:</span>
-              <span>${item?.length_yards || '-'} ${item?.length_yards ? 'meter' : ''}</span>
-            </div>
-            
-            <div class="field">
-              <span class="field-label">Width:</span>
-              <span>${item?.width_inches || '-'} ${item?.width_inches ? '"' : ''}</span>
-            </div>
-            
-            <div class="field">
-              <span class="field-label">Serial no.:</span>
-              <span>${serialNumber}</span>
-            </div>
-            
-            <div class="barcode-section">
-              <img src="${barcodeCanvas?.toDataURL()}" style="width: 100%; height: auto; max-height: 40px;" />
-              <div class="barcode-text">${barcodeData}</div>
-            </div>
+            ${fieldsHtml}
+            ${barcodeHtml}
           </div>
         </body>
       </html>
