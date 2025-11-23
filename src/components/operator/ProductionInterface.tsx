@@ -487,6 +487,7 @@ const ProductionInterface = () => {
       quality: '-',
       weight: `${itemWeight.toFixed(2)} kg`,
       serial_no: serialNumber,
+      serial_number: serialNumber, // Alias for serial_no
       barcode: barcodeData,
       qrcode: barcodeData,
     };
@@ -578,7 +579,10 @@ const ProductionInterface = () => {
         `;
 
         // Get field value
-        const value = fieldValues[field.id] || fieldValues[field.name?.toLowerCase().replace(/\s+/g, '_')] || '';
+        const value = fieldValues[field.id] || 
+                     fieldValues[field.name?.toLowerCase().replace(/\s+/g, '_')] || 
+                     (field.id === 'serial_no' || field.name?.toLowerCase().includes('serial') ? serialNumber : '') ||
+                     '';
 
         // Handle different field types
         if (fieldType === 'logo') {
