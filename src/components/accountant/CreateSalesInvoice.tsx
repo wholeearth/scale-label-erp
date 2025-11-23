@@ -141,6 +141,17 @@ const CreateSalesInvoice = () => {
         throw new Error('This order has already been invoiced. Please select a different order.');
       }
 
+      // Check if an invoice already exists for this order
+      const { data: existingInvoice } = await supabase
+        .from('sales_invoices')
+        .select('invoice_number')
+        .eq('order_id', selectedOrderId)
+        .maybeSingle();
+      
+      if (existingInvoice) {
+        throw new Error(`An invoice (${existingInvoice.invoice_number}) already exists for this order.`);
+      }
+
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -160,16 +171,30 @@ const CreateSalesInvoice = () => {
         .select()
         .single();
 
-      if (invoiceError) throw invoiceError;
-      if (!invoice) throw new Error('Failed to create invoice');
+      if (invoiceError) {
+        console.error('Invoice creation error:', invoiceError);
+        throw new Error(`Failed to create invoice: ${invoiceError.message}`);
+      }
+      
+      if (!invoice) {
+        throw new Error('Failed to create invoice - no data returned');
+      }
 
-      // Update the order status to 'invoiced'
+      // Only update order status if invoice was successfully created
       const { error: updateError } = await supabase
         .from('orders')
         .update({ status: 'invoiced' })
         .eq('id', selectedOrderId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Order update error:', updateError);
+        // If order update fails, try to delete the invoice to maintain consistency
+        await supabase
+          .from('sales_invoices')
+          .delete()
+          .eq('id', invoice.id);
+        throw new Error(`Failed to update order status: ${updateError.message}`);
+      }
       
       return invoice;
     },
