@@ -109,12 +109,13 @@ export const ReprintRequests = () => {
     refetchInterval: 5000,
   });
 
-  const printLabel = (request: ReprintRequest) => {
+  const printLabel = async (request: ReprintRequest) => {
     const printWindow = window.open('', '', 'width=400,height=300');
     if (!printWindow) return;
 
     const record = request.production_records;
     const barcodeCanvas = barcodeCanvasRef.current;
+    const qrcodeCanvas = document.createElement('canvas');
     const logoUrl = labelConfig?.logo_url || '';
     const companyName = labelConfig?.company_name || 'Company Name';
 
@@ -128,7 +129,15 @@ export const ReprintRequests = () => {
       });
     }
 
+    // Generate QR code
+    const QRCode = (await import('qrcode')).default;
+    await QRCode.toCanvas(qrcodeCanvas, record.barcode_data, {
+      width: 200,
+      margin: 1,
+    });
+
     const barcodeDataUrl = barcodeCanvas?.toDataURL() || '';
+    const qrcodeDataUrl = qrcodeCanvas?.toDataURL() || '';
 
     // Get label configuration
     const labelWidth = labelConfig?.label_width_mm || 60;
@@ -147,46 +156,85 @@ export const ReprintRequests = () => {
       weight: `${record.weight_kg.toFixed(2)} kg`,
       serial_no: record.serial_number,
       barcode: record.barcode_data,
+      qrcode: record.barcode_data,
     };
 
-    // Generate field HTML
-    const fieldsHtml = fields
-      .filter((field: any) => field.enabled && field.id !== 'barcode')
+    // Sort fields by zIndex for proper layering
+    const sortedFields = [...fields].sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0));
+
+    // Generate field HTML based on type
+    const fieldsHtml = sortedFields
+      .filter((field: any) => field.enabled !== false && field.visible !== false)
       .map((field: any) => {
-        const value = fieldValues[field.id] || '';
+        const fieldType = field.type || 'text';
         const rotation = field.rotation || 0;
-        const fieldName = field.name || field.id;
-        
-        return `
-          <div class="field-item" style="
-            position: absolute;
-            left: ${field.x}mm;
-            top: ${field.y}mm;
-            transform: rotate(${rotation}deg);
-            transform-origin: top left;
-            white-space: nowrap;
-          ">
-            <span style="font-weight: 600; font-size: 9px;">${fieldName}:</span>
-            <span style="font-size: 9px;">${value}</span>
-          </div>
+        const fontSize = field.fontSize || 12;
+        const fontFamily = field.fontFamily || 'Arial';
+        const fontWeight = field.fontWeight || 'normal';
+        const color = field.color || '#000000';
+        const backgroundColor = field.backgroundColor || 'transparent';
+        const textAlign = field.textAlign || 'left';
+        const borderWidth = field.borderWidth || 0;
+        const borderColor = field.borderColor || '#000000';
+        const borderRadius = field.borderRadius || 0;
+        const padding = field.padding || 0;
+        const opacity = field.opacity !== undefined ? field.opacity : 1;
+        const width = field.width || 'auto';
+        const height = field.height || 'auto';
+        const zIndex = field.zIndex || 0;
+
+        const baseStyle = `
+          position: absolute;
+          left: ${field.x || 0}px;
+          top: ${field.y || 0}px;
+          transform: rotate(${rotation}deg);
+          transform-origin: top left;
+          font-size: ${fontSize}px;
+          font-family: ${fontFamily};
+          font-weight: ${fontWeight};
+          color: ${color};
+          background-color: ${backgroundColor};
+          text-align: ${textAlign};
+          border: ${borderWidth}px solid ${borderColor};
+          border-radius: ${borderRadius}px;
+          padding: ${padding}px;
+          opacity: ${opacity};
+          width: ${typeof width === 'number' ? `${width}px` : width};
+          height: ${typeof height === 'number' ? `${height}px` : height};
+          z-index: ${zIndex};
+          box-sizing: border-box;
         `;
+
+        // Handle different field types
+        if (fieldType === 'logo') {
+          return `
+            <div style="${baseStyle}">
+              ${logoUrl ? `<img src="${logoUrl}" style="width: 100%; height: 100%; object-fit: contain;" alt="Logo" />` : ''}
+            </div>
+          `;
+        } else if (fieldType === 'barcode' && field.id === 'barcode') {
+          return `
+            <div style="${baseStyle} display: flex; flex-direction: column; align-items: center;">
+              ${barcodeDataUrl ? `<img src="${barcodeDataUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
+            </div>
+          `;
+        } else if (fieldType === 'qrcode' && field.id === 'qrcode') {
+          return `
+            <div style="${baseStyle} display: flex; align-items: center; justify-content: center;">
+              ${qrcodeDataUrl ? `<img src="${qrcodeDataUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
+            </div>
+          `;
+        } else {
+          // Text field
+          const value = fieldValues[field.id] || field.name || '';
+          return `
+            <div style="${baseStyle} white-space: nowrap; overflow: hidden;">
+              ${value}
+            </div>
+          `;
+        }
       })
       .join('');
-
-    // Check if barcode field is enabled
-    const barcodeField = fields.find((f: any) => f.id === 'barcode' && f.enabled);
-    const barcodeHtml = barcodeField ? `
-      <div class="barcode-container" style="
-        position: absolute;
-        left: ${barcodeField.x}mm;
-        top: ${barcodeField.y}mm;
-        transform: rotate(${barcodeField.rotation || 0}deg);
-        transform-origin: top left;
-      ">
-        <img src="${barcodeDataUrl}" style="height: 30px; width: auto;" />
-        <div style="font-size: 7px; margin-top: 2px; text-align: center;">${record.serial_number}</div>
-      </div>
-    ` : '';
 
     const content = `
       <html>
@@ -206,35 +254,16 @@ export const ReprintRequests = () => {
               width: ${labelWidth}mm;
               height: ${labelHeight}mm;
               position: relative;
-              background-color: white;
+              background-color: ${(labelConfig as any)?.backgroundColor || 'white'};
+              border: ${(labelConfig as any)?.borderWidth || 0}px solid ${(labelConfig as any)?.borderColor || '#000000'};
+              border-radius: ${(labelConfig as any)?.borderRadius || 0}px;
               overflow: hidden;
-            }
-            .field-item {
-              display: flex;
-              gap: 4px;
-              align-items: baseline;
-            }
-            .barcode-container {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
             }
           </style>
         </head>
         <body>
           <div class="label">
-            ${logoUrl ? `
-              <img src="${logoUrl}" style="
-                position: absolute;
-                top: 2mm;
-                left: 2mm;
-                height: 8mm;
-                width: auto;
-              " alt="Logo" />
-            ` : ''}
-            
             ${fieldsHtml}
-            ${barcodeHtml}
           </div>
         </body>
       </html>
@@ -317,9 +346,9 @@ export const ReprintRequests = () => {
     const selectedRequestsList = requests?.filter(r => selectedRequests.has(r.id)) || [];
     
     // Print all selected labels
-    selectedRequestsList.forEach(request => {
-      printLabel(request);
-    });
+    for (const request of selectedRequestsList) {
+      await printLabel(request);
+    }
 
     // Approve all selected requests
     await approveMutation.mutateAsync(Array.from(selectedRequests));
@@ -329,9 +358,9 @@ export const ReprintRequests = () => {
     if (!requests || requests.length === 0) return;
 
     // Print all labels
-    requests.forEach(request => {
-      printLabel(request);
-    });
+    for (const request of requests) {
+      await printLabel(request);
+    }
 
     // Approve all requests
     const allRequestIds = requests.map(r => r.id);

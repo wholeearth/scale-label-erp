@@ -431,8 +431,8 @@ const ProductionInterface = () => {
       }
 
       // Print label
-      setTimeout(() => {
-        printLabel(serialNumber, barcodeData);
+      setTimeout(async () => {
+        await printLabel(serialNumber, barcodeData);
       }, 500);
     } catch (error) {
       console.error('Label generation error:', error);
@@ -457,11 +457,12 @@ const ProductionInterface = () => {
     return fieldValues[fieldId] || '';
   };
 
-  const printLabel = (serialNumber: string, barcodeData: string, itemData?: any, weight?: number) => {
+  const printLabel = async (serialNumber: string, barcodeData: string, itemData?: any, weight?: number) => {
     const printWindow = window.open('', '', 'width=400,height=300');
     if (!printWindow) return;
 
     const barcodeCanvas = barcodeCanvasRef.current;
+    const qrcodeCanvas = qrcodeCanvasRef.current;
     const logoUrl = labelConfig?.logo_url || '';
     const companyName = labelConfig?.company_name || 'Company Name';
     
@@ -486,46 +487,86 @@ const ProductionInterface = () => {
       weight: `${itemWeight.toFixed(2)} kg`,
       serial_no: serialNumber,
       barcode: barcodeData,
+      qrcode: barcodeData,
     };
 
-    // Generate field HTML
-    const fieldsHtml = fields
-      .filter((field: any) => field.enabled && field.id !== 'barcode')
-      .map((field: any) => {
-        const value = fieldValues[field.id] || '';
-        const rotation = field.rotation || 0;
-        const fieldName = field.name || field.id;
-        
-        return `
-          <div class="field-item" style="
+    // Sort fields by zIndex for proper layering
+    const sortedFields = [...fields].sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0));
+
+    // Generate field HTML based on type
+    const fieldsHtml = await Promise.all(
+      sortedFields
+        .filter((field: any) => field.enabled !== false && field.visible !== false)
+        .map(async (field: any) => {
+          const fieldType = field.type || 'text';
+          const rotation = field.rotation || 0;
+          const fontSize = field.fontSize || 12;
+          const fontFamily = field.fontFamily || 'Arial';
+          const fontWeight = field.fontWeight || 'normal';
+          const color = field.color || '#000000';
+          const backgroundColor = field.backgroundColor || 'transparent';
+          const textAlign = field.textAlign || 'left';
+          const borderWidth = field.borderWidth || 0;
+          const borderColor = field.borderColor || '#000000';
+          const borderRadius = field.borderRadius || 0;
+          const padding = field.padding || 0;
+          const opacity = field.opacity !== undefined ? field.opacity : 1;
+          const width = field.width || 'auto';
+          const height = field.height || 'auto';
+          const zIndex = field.zIndex || 0;
+
+          const baseStyle = `
             position: absolute;
-            left: ${field.x}mm;
-            top: ${field.y}mm;
+            left: ${field.x || 0}px;
+            top: ${field.y || 0}px;
             transform: rotate(${rotation}deg);
             transform-origin: top left;
-            white-space: nowrap;
-          ">
-            <span style="font-weight: 600; font-size: 9px;">${fieldName}:</span>
-            <span style="font-size: 9px;">${value}</span>
-          </div>
-        `;
-      })
-      .join('');
+            font-size: ${fontSize}px;
+            font-family: ${fontFamily};
+            font-weight: ${fontWeight};
+            color: ${color};
+            background-color: ${backgroundColor};
+            text-align: ${textAlign};
+            border: ${borderWidth}px solid ${borderColor};
+            border-radius: ${borderRadius}px;
+            padding: ${padding}px;
+            opacity: ${opacity};
+            width: ${typeof width === 'number' ? `${width}px` : width};
+            height: ${typeof height === 'number' ? `${height}px` : height};
+            z-index: ${zIndex};
+            box-sizing: border-box;
+          `;
 
-    // Check if barcode field is enabled
-    const barcodeField = fields.find((f: any) => f.id === 'barcode' && f.enabled);
-    const barcodeHtml = barcodeField ? `
-      <div class="barcode-container" style="
-        position: absolute;
-        left: ${barcodeField.x}mm;
-        top: ${barcodeField.y}mm;
-        transform: rotate(${barcodeField.rotation || 0}deg);
-        transform-origin: top left;
-      ">
-        <img src="${barcodeCanvas?.toDataURL()}" style="height: 30px; width: auto;" />
-        <div style="font-size: 7px; margin-top: 2px; text-align: center;">${barcodeData}</div>
-      </div>
-    ` : '';
+          // Handle different field types
+          if (fieldType === 'logo') {
+            return `
+              <div style="${baseStyle}">
+                ${logoUrl ? `<img src="${logoUrl}" style="width: 100%; height: 100%; object-fit: contain;" alt="Logo" />` : ''}
+              </div>
+            `;
+          } else if (fieldType === 'barcode' && field.id === 'barcode') {
+            return `
+              <div style="${baseStyle} display: flex; flex-direction: column; align-items: center;">
+                ${barcodeCanvas ? `<img src="${barcodeCanvas.toDataURL()}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
+              </div>
+            `;
+          } else if (fieldType === 'qrcode' && field.id === 'qrcode') {
+            return `
+              <div style="${baseStyle} display: flex; align-items: center; justify-content: center;">
+                ${qrcodeCanvas ? `<img src="${qrcodeCanvas.toDataURL()}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
+              </div>
+            `;
+          } else {
+            // Text field
+            const value = fieldValues[field.id] || field.name || '';
+            return `
+              <div style="${baseStyle} white-space: nowrap; overflow: hidden;">
+                ${value}
+              </div>
+            `;
+          }
+        })
+    );
 
     const content = `
       <html>
@@ -545,35 +586,16 @@ const ProductionInterface = () => {
               width: ${labelWidth}mm;
               height: ${labelHeight}mm;
               position: relative;
-              background-color: white;
+              background-color: ${(labelConfig as any)?.backgroundColor || 'white'};
+              border: ${(labelConfig as any)?.borderWidth || 0}px solid ${(labelConfig as any)?.borderColor || '#000000'};
+              border-radius: ${(labelConfig as any)?.borderRadius || 0}px;
               overflow: hidden;
-            }
-            .field-item {
-              display: flex;
-              gap: 4px;
-              align-items: baseline;
-            }
-            .barcode-container {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
             }
           </style>
         </head>
         <body>
           <div class="label">
-            ${logoUrl ? `
-              <img src="${logoUrl}" style="
-                position: absolute;
-                top: 2mm;
-                left: 2mm;
-                height: 8mm;
-                width: auto;
-              " alt="Logo" />
-            ` : ''}
-            
-            ${fieldsHtml}
-            ${barcodeHtml}
+            ${(await Promise.all(fieldsHtml)).join('')}
           </div>
         </body>
       </html>
