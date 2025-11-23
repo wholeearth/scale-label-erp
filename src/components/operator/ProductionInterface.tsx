@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History } from 'lucide-react';
+import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
@@ -806,6 +806,127 @@ const ProductionInterface = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Live Label Preview */}
+      {labelConfig && selectedMachine && (
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Live Label Preview
+            </CardTitle>
+            <CardDescription>See how your label will print with current production data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center">
+              <div 
+                className="border-2 border-dashed border-primary/30 rounded-lg p-4 bg-background shadow-xl"
+                style={{
+                  width: `${(labelConfig.label_width_mm || 60) * 3.78}px`,
+                  height: `${(labelConfig.label_height_mm || 40) * 3.78}px`,
+                }}
+              >
+                <div
+                  className="relative"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: (labelConfig as any).backgroundColor || '#ffffff',
+                    borderWidth: (labelConfig as any).borderWidth ? `${(labelConfig as any).borderWidth}px` : '0',
+                    borderColor: (labelConfig as any).borderColor || 'transparent',
+                    borderRadius: (labelConfig as any).borderRadius ? `${(labelConfig as any).borderRadius}px` : '0',
+                  }}
+                >
+                  {((labelConfig.fields_config as any[]) || [])
+                    .filter((field: any) => field.visible !== false && field.enabled !== false)
+                    .sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0))
+                    .map((field: any) => {
+                      const now = new Date();
+                      const operatorCode = profile?.employee_code || '00';
+                      const machineCode = machines?.find(m => m.id === selectedMachine)?.machine_code || 'M1';
+                      const ddmmyy = now.toLocaleDateString('en-GB').split('/').join('').slice(0, 6);
+                      const hhmm = now.toTimeString().slice(0, 5).replace(':', '');
+                      const operatorSeq = String((selectedItem.quantity_produced || 0) + 1).padStart(5, '0');
+                      const previewSerial = `${operatorCode}-${machineCode}-${ddmmyy}-${operatorSeq}-${hhmm}`;
+                      const previewBarcode = `00012345:${selectedItem.items.product_code}:000123:${currentWeight.toFixed(2)}`;
+
+                      const fieldValues: Record<string, string> = {
+                        company_name: labelConfig.company_name || 'Company',
+                        item_name: selectedItem.items.product_name,
+                        item_code: selectedItem.items.product_code,
+                        length: `${selectedItem.items.length_yards || '-'} yds`,
+                        width: `${selectedItem.items.width_inches || '-'}"`,
+                        color: selectedItem.items.color || '-',
+                        quality: '-',
+                        weight: `${currentWeight.toFixed(2)} kg`,
+                        serial_no: previewSerial,
+                        barcode: previewBarcode,
+                        qrcode: previewBarcode,
+                        logo: labelConfig.logo_url || '',
+                      };
+
+                      const value = fieldValues[field.id] || field.label || '';
+
+                      return (
+                        <div
+                          key={field.id}
+                          style={{
+                            position: 'absolute',
+                            left: `${field.x}px`,
+                            top: `${field.y}px`,
+                            width: field.width ? `${field.width}px` : 'auto',
+                            height: field.height ? `${field.height}px` : 'auto',
+                            transform: field.rotation ? `rotate(${field.rotation}deg)` : 'none',
+                            transformOrigin: 'top left',
+                            fontSize: field.fontSize ? `${field.fontSize}px` : '14px',
+                            fontWeight: field.fontWeight || 'normal',
+                            fontFamily: field.fontFamily || 'Arial',
+                            color: field.color || '#000000',
+                            backgroundColor: field.backgroundColor || 'transparent',
+                            textAlign: field.textAlign || 'left',
+                            borderWidth: field.borderWidth ? `${field.borderWidth}px` : '0',
+                            borderColor: field.borderColor || 'transparent',
+                            borderStyle: 'solid',
+                            borderRadius: field.borderRadius ? `${field.borderRadius}px` : '0',
+                            padding: field.padding ? `${field.padding}px` : '0',
+                            opacity: field.opacity !== undefined ? field.opacity : 1,
+                            zIndex: field.zIndex || 0,
+                            whiteSpace: 'pre-wrap',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: field.textAlign === 'center' ? 'center' : field.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                          }}
+                        >
+                          {field.type === 'text' && <span>{value}</span>}
+                          {field.type === 'logo' && fieldValues.logo && (
+                            <img src={fieldValues.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                          )}
+                          {field.type === 'barcode' && (
+                            <div className="text-xs font-mono bg-white px-1 border border-foreground/20">
+                              ||| {value.substring(0, 20)}...
+                            </div>
+                          )}
+                          {field.type === 'qrcode' && (
+                            <div 
+                              className="border-2 border-foreground/40 flex items-center justify-center text-[10px] font-bold"
+                              style={{ 
+                                width: field.width ? `${field.width}px` : '50px',
+                                height: field.height ? `${field.height}px` : '50px',
+                              }}
+                            >
+                              QR
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
