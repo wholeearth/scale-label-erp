@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { QRCodeSVG } from 'qrcode.react';
+import JsBarcode from 'jsbarcode';
 
 interface LabelField {
   id: string;
@@ -95,6 +96,27 @@ const LabelCustomizationTool = () => {
   const [history, setHistory] = useState<{ fields: LabelField[], config: LabelConfiguration }[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const barcodePreviewRef = useRef<HTMLCanvasElement>(null);
+  
+  // Sample production data for preview
+  const previewData = {
+    operatorCode: '01',
+    machineCode: 'M1',
+    date: new Date().toLocaleDateString('en-GB').split('/').join('').slice(0, 6),
+    time: new Date().toTimeString().slice(0, 5).replace(':', ''),
+    serialNumber: `01-M1-${new Date().toLocaleDateString('en-GB').split('/').join('').slice(0, 6)}-00152-${new Date().toTimeString().slice(0, 5).replace(':', '')}`,
+    barcodeData: `00054321:2770:001234:${(Math.random() * 3 + 1).toFixed(2)}`,
+    globalSerial: '00054321',
+    itemCode: '2770',
+    itemSerial: '001234',
+    weight: (Math.random() * 3 + 1).toFixed(2),
+    companyName: 'R. K. INTERLINING',
+    itemName: 'Cotton Interlining',
+    length: '65 meter',
+    width: '40"',
+    color: 'Normal White',
+    quality: 'Normal Hard',
+  };
   
   const [config, setConfig] = useState<LabelConfiguration>({
     company_name: '',
@@ -620,14 +642,51 @@ const LabelCustomizationTool = () => {
                         padding: field.padding,
                       }}
                     >
-                      {field.type === 'text' && (
+                      {field.type === 'text' && !isPreviewing && (
                         <span className="truncate w-full">{field.name}</span>
                       )}
-                      {field.type === 'barcode' && (
+                      {field.type === 'text' && isPreviewing && (
+                        <span className="truncate w-full" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {field.name === 'Company Name' ? previewData.companyName :
+                           field.name === 'Item Name' ? previewData.itemName :
+                           field.name === 'Item Code' ? previewData.itemCode :
+                           field.name === 'Length' ? previewData.length :
+                           field.name === 'Width' ? previewData.width :
+                           field.name === 'Color' ? previewData.color :
+                           field.name === 'Quality' ? previewData.quality :
+                           field.name === 'Weight' ? `${previewData.weight}kg` :
+                           field.name === 'Serial Number' ? previewData.serialNumber :
+                           field.name}
+                        </span>
+                      )}
+                      {field.type === 'barcode' && !isPreviewing && (
                         <div className="text-xs">Barcode</div>
                       )}
-                      {field.type === 'qrcode' && (
-                        <QRCodeSVG value="QR" size={field.width - 4} />
+                      {field.type === 'barcode' && isPreviewing && (
+                        <canvas
+                          ref={(el) => {
+                            if (el) {
+                              try {
+                                JsBarcode(el, previewData.barcodeData, {
+                                  format: 'CODE128',
+                                  width: 2,
+                                  height: field.height - 4,
+                                  displayValue: false,
+                                  margin: 0,
+                                });
+                              } catch (error) {
+                                console.error('Barcode generation error:', error);
+                              }
+                            }
+                          }}
+                          style={{ width: field.width - 4, height: field.height - 4 }}
+                        />
+                      )}
+                      {field.type === 'qrcode' && !isPreviewing && (
+                        <QRCodeSVG value="QR" size={Math.min(field.width, field.height) - 4} />
+                      )}
+                      {field.type === 'qrcode' && isPreviewing && (
+                        <QRCodeSVG value={previewData.barcodeData} size={Math.min(field.width, field.height) - 4} />
                       )}
                       {field.type === 'logo' && config.logo_url && (
                         <img src={config.logo_url} alt="Logo" className="w-full h-full object-contain" />
