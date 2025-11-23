@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Activity, Package, Users, TrendingUp, Box, AlertCircle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -286,56 +287,63 @@ const LiveProductionDashboard = () => {
           <CardDescription>Live operator status and current production</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {operatorStatus?.map((operator) => (
-              <Card key={operator.operator_id} className="border-border/50">
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    {/* Operator Info */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{operator.operator_name}</span>
-                        <span className="text-sm text-muted-foreground">o{operator.employee_code}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${operator.is_online ? 'bg-green-500' : 'bg-destructive'}`} />
-                        <span className="text-xs text-muted-foreground">
-                          {operator.is_online ? 'Online' : 'Offline'}
-                        </span>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Operator</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Current Item</TableHead>
+                <TableHead>Shift Produced</TableHead>
+                <TableHead>Next Serial No.</TableHead>
+                <TableHead>Last Production</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {operatorStatus?.map((operator) => (
+                <TableRow key={operator.operator_id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="font-medium">{operator.operator_name}</div>
+                        <div className="text-sm text-muted-foreground">o{operator.employee_code}</div>
                       </div>
                     </div>
-
-                    {/* Production Stats */}
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Current Item</p>
-                        <p className="font-medium">{operator.current_item}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Shift Produced</p>
-                        <p className="font-medium">{operator.shift_produced} items</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Next Serial No.</p>
-                        <p className="font-mono text-xs">{operator.last_serial}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Last Production</p>
-                        <p className="font-medium">{operator.last_production_time}</p>
-                      </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${operator.is_online ? 'bg-green-500' : 'bg-destructive'}`} />
+                      <span className="text-sm">
+                        {operator.is_online ? 'Online' : 'Offline'}
+                      </span>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {(!operatorStatus || operatorStatus.length === 0) && (
-              <div className="col-span-full flex items-center justify-center py-8 text-muted-foreground">
-                <AlertCircle className="mr-2 h-4 w-4" />
-                No active operators found
-              </div>
-            )}
-          </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{operator.current_item}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{operator.shift_produced} items</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-mono text-xs">{operator.last_serial}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{operator.last_production_time}</div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(!operatorStatus || operatorStatus.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <div className="flex items-center justify-center">
+                      <AlertCircle className="mr-2 h-4 w-4" />
+                      No active operators found
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
