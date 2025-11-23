@@ -403,6 +403,7 @@ const ProductionInterface = () => {
       serial_no: serialNumber,
       barcode: barcodeData,
       qrcode: barcodeData,
+      logo: labelConfig?.logo_url || '',
     };
     return fieldValues[fieldId] || '';
   };
@@ -429,6 +430,22 @@ const ProductionInterface = () => {
       .map((field: any) => {
         const value = getFieldValue(field.id, serialNumber, barcodeData);
         
+        if (field.id === 'logo') {
+          return `
+            <div style="
+              position: absolute;
+              left: ${field.x}px;
+              top: ${field.y}px;
+              width: ${field.width}px;
+              height: ${field.height}px;
+              transform: rotate(${field.rotation || 0}deg);
+              transform-origin: top left;
+            ">
+              <img src="${value}" style="width: 100%; height: 100%; object-fit: contain;" />
+            </div>
+          `;
+        }
+        
         if (field.id === 'barcode' || field.codeType === 'barcode') {
           return `
             <div style="
@@ -440,8 +457,8 @@ const ProductionInterface = () => {
               transform: rotate(${field.rotation || 0}deg);
               transform-origin: top left;
             ">
-              <div style="font-size: ${field.fontSize || 10}px; text-align: center;">${value}</div>
-              <img src="${barcodeCanvas?.toDataURL()}" style="width: 100%; height: auto;" />
+              <div style="font-size: ${field.fontSize || 10}px; text-align: center; margin-bottom: 2px;">${value}</div>
+              <img src="${barcodeCanvas?.toDataURL()}" style="width: 100%; height: calc(100% - ${field.fontSize || 10}px - 2px);" />
             </div>
           `;
         }
@@ -480,6 +497,8 @@ const ProductionInterface = () => {
             background-color: ${field.backgroundColor || 'transparent'};
             ${field.borderWidth ? `border: ${field.borderWidth}px solid ${field.borderColor || '#000000'};` : ''}
             overflow: hidden;
+            display: flex;
+            align-items: center;
           ">
             ${value}
           </div>
