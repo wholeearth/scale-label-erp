@@ -1102,6 +1102,61 @@ export type Database = {
           },
         ]
       }
+      reprint_requests: {
+        Row: {
+          id: string
+          notes: string | null
+          operator_id: string
+          processed_at: string | null
+          processed_by: string | null
+          production_record_id: string
+          requested_at: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          operator_id: string
+          processed_at?: string | null
+          processed_by?: string | null
+          production_record_id: string
+          requested_at?: string
+          status?: string
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          operator_id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          production_record_id?: string
+          requested_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reprint_requests_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reprint_requests_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reprint_requests_production_record_id_fkey"
+            columns: ["production_record_id"]
+            isOneToOne: false
+            referencedRelation: "production_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_invoices: {
         Row: {
           created_at: string

@@ -1,12 +1,13 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Factory, LogOut, ClipboardList, Users, TrendingUp, UserPlus, Calendar } from 'lucide-react';
+import { Factory, LogOut, ClipboardList, Users, TrendingUp, UserPlus, Calendar, Printer } from 'lucide-react';
 import { OrdersList } from '@/components/production-manager/OrdersList';
 import { ActiveAssignments } from '@/components/production-manager/ActiveAssignments';
 import { EfficiencyMetrics } from '@/components/production-manager/EfficiencyMetrics';
 import { DirectAssignment } from '@/components/production-manager/DirectAssignment';
 import { ProductionCalendar } from '@/components/production-manager/ProductionCalendar';
+import { ReprintRequests } from '@/components/production-manager/ReprintRequests';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ProductionManagerDashboard = () => {
@@ -50,7 +51,7 @@ const ProductionManagerDashboard = () => {
         </Card>
 
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-4xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-5xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" />
               Orders
@@ -66,6 +67,10 @@ const ProductionManagerDashboard = () => {
             <TabsTrigger value="assignments" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Assignments
+            </TabsTrigger>
+            <TabsTrigger value="reprints" className="flex items-center gap-2">
+              <Printer className="h-4 w-4" />
+              Reprints
             </TabsTrigger>
             <TabsTrigger value="metrics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -87,6 +92,10 @@ const ProductionManagerDashboard = () => {
 
           <TabsContent value="assignments" className="space-y-4">
             <ActiveAssignments />
+          </TabsContent>
+
+          <TabsContent value="reprints" className="space-y-4">
+            <ReprintRequests />
           </TabsContent>
 
           <TabsContent value="metrics" className="space-y-4">
