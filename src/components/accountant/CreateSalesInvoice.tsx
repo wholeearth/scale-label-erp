@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { X } from 'lucide-react';
+import { X, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -397,7 +398,17 @@ const CreateSalesInvoice = () => {
                         .filter(order => showInvoicedOrders || order.status !== 'invoiced')
                         .map((order) => (
                           <SelectItem key={order.id} value={order.id}>
-                            Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="flex-1">
+                                Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
+                              </span>
+                              {order.status === 'invoiced' && (
+                                <Badge variant="secondary" className="gap-1 text-xs">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Invoiced
+                                </Badge>
+                              )}
+                            </div>
                           </SelectItem>
                         ))}
                     </SelectContent>
