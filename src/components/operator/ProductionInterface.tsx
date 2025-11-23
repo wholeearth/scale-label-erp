@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
@@ -129,6 +129,23 @@ const ProductionInterface = () => {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch production history
+  const { data: productionHistory } = useQuery({
+    queryKey: ['production-history', profile?.id],
+    queryFn: async () => {
+      if (!profile) return [];
+      const { data, error } = await supabase
+        .from('production_records')
+        .select('*, items(product_name, product_code), machines(machine_code)')
+        .eq('operator_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile,
   });
 
   // Auto-capture weight when item is selected (only if not using predefined weight)
@@ -408,13 +425,17 @@ const ProductionInterface = () => {
     return fieldValues[fieldId] || '';
   };
 
-  const printLabel = (serialNumber: string, barcodeData: string) => {
+  const printLabel = (serialNumber: string, barcodeData: string, itemData?: any, weight?: number) => {
     const printWindow = window.open('', '', 'width=400,height=300');
     if (!printWindow) return;
 
     const barcodeCanvas = barcodeCanvasRef.current;
     const logoUrl = labelConfig?.logo_url || '';
     const companyName = labelConfig?.company_name || 'Company Name';
+    
+    // Use provided data or fall back to current selection
+    const item = itemData || selectedItem?.items;
+    const itemWeight = weight !== undefined ? weight : currentWeight;
 
     const content = `
       <html>
@@ -483,27 +504,27 @@ const ProductionInterface = () => {
             
             <div class="field">
               <span class="field-label">Item Name:</span>
-              <span>${selectedItem?.items.product_name || '-'}</span>
+              <span>${item?.product_name || '-'}</span>
             </div>
             
             <div class="field">
               <span class="field-label">Item code:</span>
-              <span>${selectedItem?.items.product_code || '-'}</span>
+              <span>${item?.product_code || '-'}</span>
             </div>
             
             <div class="field">
               <span class="field-label">Item weight:</span>
-              <span>${currentWeight.toFixed(2)} kg</span>
+              <span>${itemWeight.toFixed(2)} kg</span>
             </div>
             
             <div class="field">
               <span class="field-label">Length:</span>
-              <span>${selectedItem?.items.length_yards || '-'} ${selectedItem?.items.length_yards ? 'meter' : ''}</span>
+              <span>${item?.length_yards || '-'} ${item?.length_yards ? 'meter' : ''}</span>
             </div>
             
             <div class="field">
               <span class="field-label">Width:</span>
-              <span>${selectedItem?.items.width_inches || '-'} ${selectedItem?.items.width_inches ? '"' : ''}</span>
+              <span>${item?.width_inches || '-'} ${item?.width_inches ? '"' : ''}</span>
             </div>
             
             <div class="field">
@@ -526,6 +547,34 @@ const ProductionInterface = () => {
       printWindow.print();
       printWindow.close();
     };
+  };
+
+  const handleReprint = async (record: any) => {
+    try {
+      // Generate barcode for reprint
+      if (barcodeCanvasRef.current) {
+        JsBarcode(barcodeCanvasRef.current, record.barcode_data, {
+          format: 'CODE128',
+          width: 2,
+          height: 50,
+          displayValue: false,
+        });
+      }
+
+      printLabel(record.serial_number, record.barcode_data, record.items, record.weight_kg);
+      
+      toast({
+        title: 'Label Reprinted',
+        description: `Reprinting label for ${record.serial_number}`,
+      });
+    } catch (error) {
+      console.error('Error reprinting label:', error);
+      toast({
+        title: 'Reprint Failed',
+        description: 'Could not reprint the label',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleProduction = () => {
@@ -822,6 +871,58 @@ const ProductionInterface = () => {
               </>
             )}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Production History */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            <CardTitle>Production History</CardTitle>
+          </div>
+          <CardDescription>Recent production records (last 20 items)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!productionHistory || productionHistory.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No production records yet</p>
+          ) : (
+            <div className="space-y-2">
+              {productionHistory.map((record: any) => (
+                <div
+                  key={record.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="font-medium">{record.items?.product_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Code: {record.items?.product_code} | Serial: {record.serial_number}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                      <span>Weight: {record.weight_kg} kg</span>
+                      <span>Machine: {record.machines?.machine_code || 'N/A'}</span>
+                      <span>
+                        Date: {new Date(record.production_date).toLocaleDateString()} {record.production_time}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReprint(record)}
+                    className="ml-4"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Reprint
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
