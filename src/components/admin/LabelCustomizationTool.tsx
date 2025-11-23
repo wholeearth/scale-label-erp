@@ -167,23 +167,23 @@ const LabelCustomizationTool = () => {
     setHistoryIndex(newHistory.length - 1);
   }, [fields, config, history, historyIndex]);
 
-  const undo = () => {
+  const undo = useCallback(() => {
     if (historyIndex > 0) {
       const prevState = history[historyIndex - 1];
       setFields(JSON.parse(JSON.stringify(prevState.fields)));
       setConfig(JSON.parse(JSON.stringify(prevState.config)));
       setHistoryIndex(historyIndex - 1);
     }
-  };
+  }, [history, historyIndex]);
 
-  const redo = () => {
+  const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const nextState = history[historyIndex + 1];
       setFields(JSON.parse(JSON.stringify(nextState.fields)));
       setConfig(JSON.parse(JSON.stringify(nextState.config)));
       setHistoryIndex(historyIndex + 1);
     }
-  };
+  }, [history, historyIndex]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -484,32 +484,34 @@ const LabelCustomizationTool = () => {
     toast({ title: 'Template applied', description: `${template.name} loaded successfully` });
   };
 
-  const updateField = (fieldId: string, updates: Partial<LabelField>) => {
-    setFields(fields.map(f => f.id === fieldId ? { ...f, ...updates } : f));
-  };
+  const updateField = useCallback((fieldId: string, updates: Partial<LabelField>) => {
+    setFields(prevFields => prevFields.map(f => f.id === fieldId ? { ...f, ...updates } : f));
+  }, []);
 
-  const duplicateField = (fieldId: string) => {
-    const field = fields.find(f => f.id === fieldId);
-    if (!field) return;
-    
-    const newField = { 
-      ...field, 
-      id: `${field.id}_${Date.now()}`,
-      x: field.x + 20, 
-      y: field.y + 20,
-      zIndex: Math.max(...fields.map(f => f.zIndex)) + 1,
-    };
-    setFields([...fields, newField]);
+  const duplicateField = useCallback((fieldId: string) => {
+    setFields(prevFields => {
+      const field = prevFields.find(f => f.id === fieldId);
+      if (!field) return prevFields;
+      
+      const newField = { 
+        ...field, 
+        id: `${field.id}_${Date.now()}`,
+        x: field.x + 20, 
+        y: field.y + 20,
+        zIndex: Math.max(...prevFields.map(f => f.zIndex)) + 1,
+      };
+      return [...prevFields, newField];
+    });
     saveToHistory();
     toast({ title: 'Field duplicated' });
-  };
+  }, [saveToHistory, toast]);
 
-  const deleteField = (fieldId: string) => {
-    setFields(fields.filter(f => f.id !== fieldId));
-    if (selectedField === fieldId) setSelectedField(null);
+  const deleteField = useCallback((fieldId: string) => {
+    setFields(prevFields => prevFields.filter(f => f.id !== fieldId));
+    setSelectedField(prev => prev === fieldId ? null : prev);
     saveToHistory();
     toast({ title: 'Field deleted' });
-  };
+  }, [saveToHistory, toast]);
 
   const exportConfiguration = () => {
     const exportData = { config, fields };
