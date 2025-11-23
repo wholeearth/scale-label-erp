@@ -730,7 +730,10 @@ const ProductionInterface = () => {
   };
 
   const handleProduction = () => {
-    if (currentWeight === 0) {
+    // Skip weight validation if item uses predefined weight
+    const usePredefinedWeight = selectedItem?.items.use_predefined_weight;
+    
+    if (currentWeight === 0 && !usePredefinedWeight) {
       toast({
         title: 'Warning',
         description: 'Please wait for weight measurement',
