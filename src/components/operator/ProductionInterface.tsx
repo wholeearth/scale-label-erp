@@ -413,98 +413,8 @@ const ProductionInterface = () => {
     if (!printWindow) return;
 
     const barcodeCanvas = barcodeCanvasRef.current;
-    const qrcodeCanvas = qrcodeCanvasRef.current;
-
-    if (!labelConfig) {
-      console.error('Label configuration not loaded');
-      return;
-    }
-
-    const fields = labelConfig.fields_config as any[];
-    const labelWidth = labelConfig.label_width_mm;
-    const labelHeight = labelConfig.label_height_mm;
-
-    const fieldsHtml = fields
-      .filter((field: any) => field.enabled)
-      .sort((a: any, b: any) => (a.zIndex || 0) - (b.zIndex || 0))
-      .map((field: any) => {
-        const value = getFieldValue(field.id, serialNumber, barcodeData);
-        
-        if (field.id === 'logo') {
-          return `
-            <div style="
-              position: absolute;
-              left: ${field.x}px;
-              top: ${field.y}px;
-              width: ${field.width}px;
-              height: ${field.height}px;
-              transform: rotate(${field.rotation || 0}deg);
-              transform-origin: top left;
-            ">
-              <img src="${value}" style="width: 100%; height: 100%; object-fit: contain;" />
-            </div>
-          `;
-        }
-        
-        if (field.id === 'barcode' || field.codeType === 'barcode') {
-          return `
-            <div style="
-              position: absolute;
-              left: ${field.x}px;
-              top: ${field.y}px;
-              width: ${field.width}px;
-              height: ${field.height}px;
-              transform: rotate(${field.rotation || 0}deg);
-              transform-origin: top left;
-            ">
-              <div style="font-size: ${field.fontSize || 10}px; text-align: center; margin-bottom: 2px;">${value}</div>
-              <img src="${barcodeCanvas?.toDataURL()}" style="width: 100%; height: calc(100% - ${field.fontSize || 10}px - 2px);" />
-            </div>
-          `;
-        }
-        
-        if (field.id === 'qrcode' || field.codeType === 'qrcode') {
-          return `
-            <div style="
-              position: absolute;
-              left: ${field.x}px;
-              top: ${field.y}px;
-              width: ${field.width}px;
-              height: ${field.height}px;
-              transform: rotate(${field.rotation || 0}deg);
-              transform-origin: top left;
-            ">
-              <img src="${qrcodeCanvas?.toDataURL()}" style="width: 100%; height: 100%;" />
-            </div>
-          `;
-        }
-
-        return `
-          <div style="
-            position: absolute;
-            left: ${field.x}px;
-            top: ${field.y}px;
-            width: ${field.width}px;
-            height: ${field.height}px;
-            font-size: ${field.fontSize || 12}px;
-            font-weight: ${field.fontWeight || 'normal'};
-            font-family: ${field.fontFamily || 'Arial'};
-            color: ${field.color || '#000000'};
-            text-align: ${field.textAlign || 'left'};
-            transform: rotate(${field.rotation || 0}deg);
-            transform-origin: top left;
-            padding: ${field.padding || 0}px;
-            background-color: ${field.backgroundColor || 'transparent'};
-            ${field.borderWidth ? `border: ${field.borderWidth}px solid ${field.borderColor || '#000000'};` : ''}
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-          ">
-            ${value}
-          </div>
-        `;
-      })
-      .join('');
+    const logoUrl = labelConfig?.logo_url || '';
+    const companyName = labelConfig?.company_name || 'Company Name';
 
     const content = `
       <html>
@@ -512,27 +422,99 @@ const ProductionInterface = () => {
           <title>Production Label</title>
           <style>
             @page {
-              size: ${labelWidth}mm ${labelHeight}mm;
+              size: 60mm 40mm;
               margin: 0;
             }
             body { 
               margin: 0;
               padding: 0;
-              width: ${labelWidth}mm;
-              height: ${labelHeight}mm;
-              box-sizing: border-box;
+              font-family: Arial, sans-serif;
+              font-size: 11px;
+              line-height: 1.3;
             }
             .label {
-              position: relative;
-              width: 100%;
-              height: 100%;
+              width: 60mm;
+              height: 40mm;
+              padding: 3mm;
+              box-sizing: border-box;
               background-color: white;
+            }
+            .header {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 8px;
+              padding-bottom: 4px;
+              border-bottom: 1px solid #000;
+            }
+            .logo {
+              width: 40px;
+              height: 40px;
+              object-fit: contain;
+            }
+            .company-name {
+              font-size: 16px;
+              font-weight: bold;
+            }
+            .field {
+              margin-bottom: 3px;
+            }
+            .field-label {
+              display: inline-block;
+              min-width: 70px;
+              font-weight: normal;
+            }
+            .barcode-section {
+              margin-top: 6px;
+              text-align: center;
+            }
+            .barcode-text {
+              font-size: 9px;
+              margin-top: 2px;
             }
           </style>
         </head>
         <body>
           <div class="label">
-            ${fieldsHtml}
+            <div class="header">
+              ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : '<div style="width: 40px; height: 40px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 10px;">Logo</div>'}
+              <div class="company-name">${companyName}</div>
+            </div>
+            
+            <div class="field">
+              <span class="field-label">Item Name:</span>
+              <span>${selectedItem?.items.product_name || '-'}</span>
+            </div>
+            
+            <div class="field">
+              <span class="field-label">Item code:</span>
+              <span>${selectedItem?.items.product_code || '-'}</span>
+            </div>
+            
+            <div class="field">
+              <span class="field-label">Item weight:</span>
+              <span>${currentWeight.toFixed(2)} kg</span>
+            </div>
+            
+            <div class="field">
+              <span class="field-label">Length:</span>
+              <span>${selectedItem?.items.length_yards || '-'} ${selectedItem?.items.length_yards ? 'meter' : ''}</span>
+            </div>
+            
+            <div class="field">
+              <span class="field-label">Width:</span>
+              <span>${selectedItem?.items.width_inches || '-'} ${selectedItem?.items.width_inches ? '"' : ''}</span>
+            </div>
+            
+            <div class="field">
+              <span class="field-label">Serial no.:</span>
+              <span>${serialNumber}</span>
+            </div>
+            
+            <div class="barcode-section">
+              <img src="${barcodeCanvas?.toDataURL()}" style="width: 100%; height: auto; max-height: 40px;" />
+              <div class="barcode-text">${barcodeData}</div>
+            </div>
           </div>
         </body>
       </html>
