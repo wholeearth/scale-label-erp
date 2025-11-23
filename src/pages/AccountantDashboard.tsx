@@ -7,10 +7,12 @@ import {
   BookOpen, 
   FileText,
   LogOut,
-  Receipt
+  Receipt,
+  FileSpreadsheet
 } from 'lucide-react';
 import ChartOfAccountsManagement from '@/components/accountant/ChartOfAccountsManagement';
 import CreateSalesInvoice from '@/components/accountant/CreateSalesInvoice';
+import SalesInvoicesList from '@/components/accountant/SalesInvoicesList';
 import JournalEntryForm from '@/components/accountant/JournalEntryForm';
 import { ProductReturns } from '@/components/accountant/ProductReturns';
 import { PurchaseReturnForm } from '@/components/accountant/PurchaseReturnForm';
@@ -61,6 +63,10 @@ const AccountantDashboard = () => {
               <FileText className="h-4 w-4 mr-2" />
               Voucher
             </TabsTrigger>
+            <TabsTrigger value="invoices">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Invoices
+            </TabsTrigger>
             <TabsTrigger value="reports">
               <Receipt className="h-4 w-4 mr-2" />
               Reports
@@ -100,7 +106,11 @@ const AccountantDashboard = () => {
               <TabsContent value="journal" className="mt-6">
                 <JournalEntryForm />
               </TabsContent>
-            </Tabs>
+          </Tabs>
+          </TabsContent>
+
+          <TabsContent value="invoices" className="space-y-6">
+            <SalesInvoicesList />
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
