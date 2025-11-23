@@ -448,11 +448,6 @@ const ProductionInterface = () => {
           margin: 1,
         });
       }
-
-      // Print label
-      setTimeout(async () => {
-        await printLabel(serialNumber, barcodeData);
-      }, 500);
     } catch (error) {
       console.error('Label generation error:', error);
     }
