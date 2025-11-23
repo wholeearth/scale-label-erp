@@ -9,6 +9,7 @@ import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, His
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
+import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
 import {
   AlertDialog,
@@ -903,20 +904,30 @@ const ProductionInterface = () => {
                             <img src={fieldValues.logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                           )}
                           {field.type === 'barcode' && (
-                            <div className="text-xs font-mono bg-white px-1 border border-foreground/20">
-                              ||| {value.substring(0, 20)}...
-                            </div>
+                            <canvas
+                              ref={(el) => {
+                                if (el) {
+                                  try {
+                                    JsBarcode(el, value, {
+                                      format: 'CODE128',
+                                      width: 2,
+                                      height: field.height - 4 || 50,
+                                      displayValue: false,
+                                      margin: 0,
+                                    });
+                                  } catch (error) {
+                                    console.error('Barcode generation error:', error);
+                                  }
+                                }
+                              }}
+                              style={{ maxWidth: '100%', maxHeight: '100%' }}
+                            />
                           )}
                           {field.type === 'qrcode' && (
-                            <div 
-                              className="border-2 border-foreground/40 flex items-center justify-center text-[10px] font-bold"
-                              style={{ 
-                                width: field.width ? `${field.width}px` : '50px',
-                                height: field.height ? `${field.height}px` : '50px',
-                              }}
-                            >
-                              QR
-                            </div>
+                            <QRCodeSVG 
+                              value={value} 
+                              size={Math.min(field.width || 50, field.height || 50) - 4} 
+                            />
                           )}
                         </div>
                       );
