@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +44,7 @@ export const ReprintRequests = () => {
   const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set());
   const barcodeCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Fetch label configuration
+  // Fetch label configuration with real-time sync
   const { data: labelConfig } = useQuery({
     queryKey: ['label-configuration'],
     queryFn: async () => {
@@ -57,7 +57,31 @@ export const ReprintRequests = () => {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 5000,
   });
+
+  // Real-time subscription for label config changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('label-config-reprint-sync')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'label_configurations',
+        },
+        (payload) => {
+          console.log('Label design synced:', payload);
+          queryClient.invalidateQueries({ queryKey: ['label-configuration'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Fetch pending reprint requests
   const { data: requests, refetch } = useQuery({
