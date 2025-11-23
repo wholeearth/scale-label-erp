@@ -61,6 +61,7 @@ const CreateSalesInvoice = () => {
   const [referenceNo, setReferenceNo] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
   const [narration, setNarration] = useState('');
+  const [showInvoicedOrders, setShowInvoicedOrders] = useState(false);
   const [salesItems, setSalesItems] = useState<SalesItem[]>([
     { item_id: '', quantity: '', rate: '', amount: 0 }
   ]);
@@ -370,7 +371,18 @@ const CreateSalesInvoice = () => {
 
             {customerId && (
               <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
-                <Label className="text-sm">Select Order<span className="text-red-500">*</span></Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm">Select Order<span className="text-red-500">*</span></Label>
+                  <label className="flex items-center gap-1 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={showInvoicedOrders}
+                      onChange={(e) => setShowInvoicedOrders(e.target.checked)}
+                      className="h-3 w-3"
+                    />
+                    <span>Show invoiced</span>
+                  </label>
+                </div>
                 {ordersLoading ? (
                   <div className="h-8 bg-gray-50 border border-gray-400 rounded px-3 flex items-center text-sm text-gray-500">
                     Loading orders...
@@ -381,11 +393,13 @@ const CreateSalesInvoice = () => {
                       <SelectValue placeholder="Select order to create invoice from (Required)" />
                     </SelectTrigger>
                     <SelectContent className="bg-white z-50">
-                      {customerOrders.map((order) => (
-                        <SelectItem key={order.id} value={order.id}>
-                          Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
-                        </SelectItem>
-                      ))}
+                      {customerOrders
+                        .filter(order => showInvoicedOrders || order.status !== 'invoiced')
+                        .map((order) => (
+                          <SelectItem key={order.id} value={order.id}>
+                            Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 ) : (
