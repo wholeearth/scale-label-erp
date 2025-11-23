@@ -663,24 +663,29 @@ const LabelCustomizationTool = () => {
                         <div className="text-xs">Barcode</div>
                       )}
                       {field.type === 'barcode' && isPreviewing && (
-                        <canvas
-                          ref={(el) => {
-                            if (el) {
-                              try {
-                                JsBarcode(el, previewData.barcodeData, {
-                                  format: 'CODE128',
-                                  width: 2,
-                                  height: field.height - 4,
-                                  displayValue: false,
-                                  margin: 0,
-                                });
-                              } catch (error) {
-                                console.error('Barcode generation error:', error);
+                        <div className="flex flex-col items-center justify-center w-full h-full">
+                          <canvas
+                            ref={(el) => {
+                              if (el) {
+                                try {
+                                  JsBarcode(el, previewData.barcodeData, {
+                                    format: 'CODE128',
+                                    width: 2,
+                                    height: Math.max(field.height - 30, 30),
+                                    displayValue: false,
+                                    margin: 0,
+                                  });
+                                } catch (error) {
+                                  console.error('Barcode generation error:', error);
+                                }
                               }
-                            }
-                          }}
-                          style={{ width: field.width - 4, height: field.height - 4 }}
-                        />
+                            }}
+                            style={{ width: field.width - 4, height: field.height - 30 }}
+                          />
+                          <div className="text-xs mt-1" style={{ fontSize: Math.max(field.fontSize * 0.6, 8) }}>
+                            {previewData.barcodeData}
+                          </div>
+                        </div>
                       )}
                       {field.type === 'qrcode' && !isPreviewing && (
                         <QRCodeSVG value="QR" size={Math.min(field.width, field.height) - 4} />

@@ -498,7 +498,7 @@ const ProductionInterface = () => {
         JsBarcode(canvas, data, {
           format: 'CODE128',
           width: 1.5,
-          height: height - 10 || 40,
+          height: Math.max(height - 30, 30),
           displayValue: false,
           margin: 0,
         });
@@ -590,8 +590,11 @@ const ProductionInterface = () => {
         } else if (fieldType === 'barcode') {
           const barcodeImg = generateBarcode(value || barcodeData, field.width, field.height);
           return `
-            <div style="${baseStyle}">
-              ${barcodeImg ? `<img src="${barcodeImg}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
+            <div style="${baseStyle} flex-direction: column;">
+              ${barcodeImg ? `<img src="${barcodeImg}" style="max-width: 100%; max-height: calc(100% - 20px); object-fit: contain;" />` : ''}
+              <div style="font-size: ${Math.max(fontSize * 0.6, 8)}px; margin-top: 2px; text-align: center;">
+                ${value || barcodeData}
+              </div>
             </div>
           `;
         } else if (fieldType === 'qrcode') {
@@ -942,24 +945,29 @@ const ProductionInterface = () => {
                             <img src={fieldValues.logo} alt="Logo" className="w-full h-full object-contain" />
                           )}
                           {field.type === 'barcode' && (
-                            <canvas
-                              ref={(el) => {
-                                if (el && value && value.trim()) {
-                                  try {
-                                    JsBarcode(el, value, {
-                                      format: 'CODE128',
-                                      width: 1.5,
-                                      height: field.height - 10 || 40,
-                                      displayValue: false,
-                                      margin: 0,
-                                    });
-                                  } catch (error) {
-                                    console.error('Barcode generation error:', error);
+                            <div className="flex flex-col items-center justify-center w-full h-full">
+                              <canvas
+                                ref={(el) => {
+                                  if (el && value && value.trim()) {
+                                    try {
+                                      JsBarcode(el, value, {
+                                        format: 'CODE128',
+                                        width: 1.5,
+                                        height: Math.max(field.height - 30, 30),
+                                        displayValue: false,
+                                        margin: 0,
+                                      });
+                                    } catch (error) {
+                                      console.error('Barcode generation error:', error);
+                                    }
                                   }
-                                }
-                              }}
-                              style={{ maxWidth: '100%', maxHeight: '100%' }}
-                            />
+                                }}
+                                style={{ maxWidth: '100%', maxHeight: field.height - 25 }}
+                              />
+                              <div className="text-xs mt-1" style={{ fontSize: Math.max(field.fontSize * 0.6, 8) }}>
+                                {value}
+                              </div>
+                            </div>
                           )}
                           {field.type === 'qrcode' && (
                             <QRCodeSVG
