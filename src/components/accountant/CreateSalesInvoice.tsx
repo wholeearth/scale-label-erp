@@ -319,7 +319,7 @@ const CreateSalesInvoice = () => {
                       <SelectValue placeholder="Select order to create invoice from (Required)" />
                     </SelectTrigger>
                     <SelectContent className="bg-white z-50">
-                      {customerOrders.filter(order => order.status !== 'invoiced').map((order) => (
+                      {customerOrders.map((order) => (
                         <SelectItem key={order.id} value={order.id}>
                           Order #{order.order_number} - {order.status.toUpperCase()} - ₹{Number(order.total_amount).toFixed(2)} - {new Date(order.created_at).toLocaleDateString()}
                         </SelectItem>
@@ -328,7 +328,7 @@ const CreateSalesInvoice = () => {
                   </Select>
                 ) : (
                   <div className="h-8 bg-gray-50 border border-gray-400 rounded px-3 flex items-center text-sm text-gray-500">
-                    No uninvoiced orders found for this customer
+                    No orders found for this customer
                   </div>
                 )}
               </div>
