@@ -253,6 +253,7 @@ export const ReprintRequests = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reprint-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['reprint-requests-count'] });
       setSelectedRequests(new Set());
       toast({
         title: 'Success',
@@ -283,6 +284,7 @@ export const ReprintRequests = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reprint-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['reprint-requests-count'] });
       setSelectedRequests(new Set());
       toast({
         title: 'Success',
