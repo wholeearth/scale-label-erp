@@ -30,6 +30,72 @@ const AVAILABLE_FIELDS = [
   { id: 'barcode', name: 'Barcode' },
 ];
 
+const LABEL_TEMPLATES = {
+  product: {
+    name: 'Product Label',
+    description: 'Standard product label with item details',
+    config: {
+      label_width_mm: 100,
+      label_height_mm: 60,
+      orientation: 'landscape' as const,
+    },
+    fields: [
+      { id: 'company_name', name: 'Company Name', x: 10, y: 10, enabled: true },
+      { id: 'item_name', name: 'Item Name', x: 10, y: 50, enabled: true },
+      { id: 'item_code', name: 'Item Code', x: 10, y: 80, enabled: true },
+      { id: 'length', name: 'Length', x: 10, y: 110, enabled: true },
+      { id: 'width', name: 'Width', x: 10, y: 140, enabled: true },
+      { id: 'color', name: 'Color', x: 10, y: 170, enabled: true },
+      { id: 'quality', name: 'Quality', x: 10, y: 200, enabled: false },
+      { id: 'weight', name: 'Weight', x: 10, y: 230, enabled: true },
+      { id: 'serial_no', name: 'Serial Number', x: 10, y: 260, enabled: false },
+      { id: 'barcode', name: 'Barcode', x: 10, y: 290, enabled: false },
+    ],
+  },
+  shipping: {
+    name: 'Shipping Label',
+    description: 'Label optimized for shipping with serial and barcode',
+    config: {
+      label_width_mm: 100,
+      label_height_mm: 80,
+      orientation: 'portrait' as const,
+    },
+    fields: [
+      { id: 'company_name', name: 'Company Name', x: 10, y: 10, enabled: true },
+      { id: 'item_name', name: 'Item Name', x: 10, y: 50, enabled: true },
+      { id: 'item_code', name: 'Item Code', x: 10, y: 80, enabled: true },
+      { id: 'length', name: 'Length', x: 10, y: 110, enabled: false },
+      { id: 'width', name: 'Width', x: 10, y: 140, enabled: false },
+      { id: 'color', name: 'Color', x: 10, y: 170, enabled: false },
+      { id: 'quality', name: 'Quality', x: 10, y: 200, enabled: false },
+      { id: 'weight', name: 'Weight', x: 10, y: 230, enabled: true },
+      { id: 'serial_no', name: 'Serial Number', x: 10, y: 260, enabled: true },
+      { id: 'barcode', name: 'Barcode', x: 10, y: 290, enabled: true },
+    ],
+  },
+  barcode: {
+    name: 'Barcode Label',
+    description: 'Minimal label with barcode focus',
+    config: {
+      label_width_mm: 80,
+      label_height_mm: 40,
+      orientation: 'landscape' as const,
+    },
+    fields: [
+      { id: 'company_name', name: 'Company Name', x: 10, y: 10, enabled: false },
+      { id: 'item_name', name: 'Item Name', x: 10, y: 50, enabled: false },
+      { id: 'item_code', name: 'Item Code', x: 10, y: 80, enabled: true },
+      { id: 'length', name: 'Length', x: 10, y: 110, enabled: false },
+      { id: 'width', name: 'Width', x: 10, y: 140, enabled: false },
+      { id: 'color', name: 'Color', x: 10, y: 170, enabled: false },
+      { id: 'quality', name: 'Quality', x: 10, y: 200, enabled: false },
+      { id: 'weight', name: 'Weight', x: 10, y: 230, enabled: false },
+      { id: 'serial_no', name: 'Serial Number', x: 10, y: 260, enabled: true },
+      { id: 'barcode', name: 'Barcode', x: 10, y: 290, enabled: true },
+    ],
+  },
+};
+
 const LabelConfiguration = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -178,6 +244,24 @@ const LabelConfiguration = () => {
     ? 400 / config.label_width_mm 
     : 300 / config.label_width_mm;
 
+  const handleTemplateSelect = (templateKey: string) => {
+    if (templateKey === 'custom') return;
+    
+    const template = LABEL_TEMPLATES[templateKey as keyof typeof LABEL_TEMPLATES];
+    if (!template) return;
+
+    setConfig({
+      ...config,
+      ...template.config,
+    });
+    setFields(template.fields);
+    
+    toast({ 
+      title: 'Template applied', 
+      description: `${template.name} has been loaded. Customize as needed.` 
+    });
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -185,6 +269,35 @@ const LabelConfiguration = () => {
           <CardTitle>Label Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div>
+            <Label htmlFor="template">Quick Templates</Label>
+            <Select onValueChange={handleTemplateSelect}>
+              <SelectTrigger id="template">
+                <SelectValue placeholder="Select a template to start" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="custom">Custom Configuration</SelectItem>
+                <SelectItem value="product">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Product Label</span>
+                    <span className="text-xs text-muted-foreground">Standard product label with item details</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="shipping">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Shipping Label</span>
+                    <span className="text-xs text-muted-foreground">Optimized for shipping with serial and barcode</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="barcode">
+                  <div className="flex flex-col items-start">
+                    <span className="font-medium">Barcode Label</span>
+                    <span className="text-xs text-muted-foreground">Minimal label with barcode focus</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="company_name">Company Name</Label>
