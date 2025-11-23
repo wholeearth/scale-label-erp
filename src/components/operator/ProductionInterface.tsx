@@ -164,17 +164,20 @@ const ProductionInterface = () => {
     }
   }, [selectedItem, autoWeight]);
 
-  // Handle ENTER key press
+  // Handle ENTER and R key press
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && selectedItem && !isCapturingWeight) {
         e.preventDefault();
         handleProduction();
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        handleRequestLastReprint();
       }
     };
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [selectedItem, isCapturingWeight]);
+  }, [selectedItem, isCapturingWeight, productionHistory]);
 
   const captureWeight = async () => {
     if (isCapturingWeight) return;
@@ -549,32 +552,51 @@ const ProductionInterface = () => {
     };
   };
 
-  const handleReprint = async (record: any) => {
-    try {
-      // Generate barcode for reprint
-      if (barcodeCanvasRef.current) {
-        JsBarcode(barcodeCanvasRef.current, record.barcode_data, {
-          format: 'CODE128',
-          width: 2,
-          height: 50,
-          displayValue: false,
-        });
-      }
+  const requestReprintMutation = useMutation({
+    mutationFn: async (productionRecordId: string) => {
+      if (!profile) throw new Error('Not authenticated');
 
-      printLabel(record.serial_number, record.barcode_data, record.items, record.weight_kg);
-      
+      const { error } = await supabase
+        .from('reprint_requests')
+        .insert({
+          production_record_id: productionRecordId,
+          operator_id: profile.id,
+          status: 'pending',
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
       toast({
-        title: 'Label Reprinted',
-        description: `Reprinting label for ${record.serial_number}`,
+        title: 'Request Sent',
+        description: 'Reprint request sent to production manager',
       });
-    } catch (error) {
-      console.error('Error reprinting label:', error);
+    },
+    onError: (error: Error) => {
       toast({
-        title: 'Reprint Failed',
-        description: 'Could not reprint the label',
+        title: 'Request Failed',
+        description: error.message,
         variant: 'destructive',
       });
+    },
+  });
+
+  const handleRequestReprint = (record: any) => {
+    requestReprintMutation.mutate(record.id);
+  };
+
+  const handleRequestLastReprint = () => {
+    if (!productionHistory || productionHistory.length === 0) {
+      toast({
+        title: 'No Records',
+        description: 'No production history available',
+        variant: 'destructive',
+      });
+      return;
     }
+
+    const lastRecord = productionHistory[0];
+    requestReprintMutation.mutate(lastRecord.id);
   };
 
   const handleProduction = () => {
@@ -733,7 +755,7 @@ const ProductionInterface = () => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Production Interface</CardTitle>
-              <CardDescription>Press ENTER to record and print label</CardDescription>
+              <CardDescription>Press ENTER to record and print label | Press R to request reprint of last label</CardDescription>
             </div>
             <Button variant="outline" onClick={() => setSelectedItem(null)}>
               Change Item
@@ -913,11 +935,11 @@ const ProductionInterface = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleReprint(record)}
+                    onClick={() => handleRequestReprint(record)}
                     className="ml-4"
                   >
                     <Printer className="h-4 w-4 mr-2" />
-                    Reprint
+                    Request Reprint
                   </Button>
                 </div>
               ))}
