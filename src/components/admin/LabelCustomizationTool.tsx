@@ -124,8 +124,8 @@ const LabelCustomizationTool = () => {
   const [config, setConfig] = useState<LabelConfiguration>({
     company_name: '',
     logo_url: '',
-    label_width_mm: 100,
-    label_height_mm: 60,
+    label_width_mm: 60,
+    label_height_mm: 40,
     orientation: 'landscape',
     backgroundColor: '#ffffff',
     borderWidth: 1,
@@ -1000,95 +1000,147 @@ const LabelCustomizationTool = () => {
 
                 <div className="overflow-auto border rounded-lg p-8" style={{ backgroundColor: '#f5f5f5' }}>
                   <div
-                    className="relative mx-auto"
+                    className="relative mx-auto bg-white"
                     style={{
                       width: `${config.label_width_mm * labelScale * zoom}px`,
                       height: `${config.label_height_mm * labelScale * zoom}px`,
-                      backgroundColor: config.backgroundColor,
                       border: `${config.borderWidth}px solid ${config.borderColor}`,
+                      padding: `${4 * zoom}px`,
+                      fontFamily: 'Arial, sans-serif',
+                      display: 'flex',
+                      flexDirection: 'column',
                       backgroundImage: config.showGrid
                         ? `repeating-linear-gradient(0deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent ${config.gridSize * zoom}px),
                            repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent ${config.gridSize * zoom}px)`
                         : 'none',
                     }}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
                   >
-                    {/* Logo */}
-                    {config.logo_url && (
-                      <div
-                        className="absolute"
-                        style={{
-                          top: `${5 * zoom}px`,
-                          left: `${5 * zoom}px`,
-                          transform: `scale(${zoom})`,
-                          transformOrigin: 'top left',
+                    {/* Header Section */}
+                    <div 
+                      className="flex items-center justify-between"
+                      style={{
+                        marginBottom: `${2 * zoom}px`,
+                        paddingBottom: `${1 * zoom}px`,
+                        borderBottom: `1px solid #333`,
+                      }}
+                    >
+                      {config.logo_url && (
+                        <img 
+                          src={config.logo_url} 
+                          alt="Logo" 
+                          style={{ 
+                            width: `${12 * zoom}px`, 
+                            height: `${12 * zoom}px`, 
+                            objectFit: 'contain' 
+                          }} 
+                        />
+                      )}
+                      <div 
+                        style={{ 
+                          fontSize: `${8 * zoom}px`, 
+                          fontWeight: 'bold', 
+                          textAlign: 'center', 
+                          flex: 1,
+                          margin: `0 ${2 * zoom}px`,
                         }}
                       >
-                        <img src={config.logo_url} alt="Logo" style={{ height: '30px', width: 'auto' }} />
+                        {config.company_name || 'R. K. INTERLINING'}
+                      </div>
+                      {!config.logo_url && <div style={{ width: `${12 * zoom}px` }}></div>}
+                    </div>
+
+                    {/* Info Section */}
+                    <div 
+                      style={{
+                        flex: 1,
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: `${1 * zoom}px ${2 * zoom}px`,
+                        fontSize: `${7 * zoom}px`,
+                      }}
+                    >
+                      {fields.filter(f => f.enabled && f.id !== 'barcode' && f.id !== 'qrcode').map((field) => (
+                        <div 
+                          key={field.id}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => setSelectedField(field.id)}
+                          className={selectedField === field.id ? 'ring-2 ring-primary' : ''}
+                        >
+                          <span style={{ fontWeight: 'bold', marginRight: `${1 * zoom}px`, whiteSpace: 'nowrap' }}>
+                            {field.name}:
+                          </span>
+                          <span 
+                            style={{ 
+                              overflow: 'hidden', 
+                              textOverflow: 'ellipsis', 
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {getFieldValue(field.id)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Barcode Section */}
+                    {fields.find(f => f.enabled && (f.id === 'barcode' || f.id === 'qrcode')) && (
+                      <div 
+                        style={{
+                          marginTop: 'auto',
+                          paddingTop: `${1 * zoom}px`,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {fields.find(f => f.enabled && f.id === 'barcode') && (
+                          <div
+                            onClick={() => setSelectedField('barcode')}
+                            className={selectedField === 'barcode' ? 'ring-2 ring-primary' : ''}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div 
+                              className="flex items-end justify-center" 
+                              style={{ 
+                                height: `${12 * zoom}px`,
+                                marginBottom: `${0.5 * zoom}px`,
+                              }}
+                            >
+                              {Array.from({ length: 40 }).map((_, i) => (
+                                <div
+                                  key={i}
+                                  className="bg-black"
+                                  style={{ 
+                                    width: `${Math.max(1.5 * zoom, 2)}px`,
+                                    height: i % 3 === 0 ? '100%' : '80%',
+                                    marginRight: i < 39 ? `${Math.max(0.5 * zoom, 1)}px` : '0'
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <div style={{ fontSize: `${6 * zoom}px`, fontFamily: 'monospace' }}>
+                              {getFieldValue('serial_no')}
+                            </div>
+                          </div>
+                        )}
+                        {fields.find(f => f.enabled && f.id === 'qrcode') && !fields.find(f => f.enabled && f.id === 'barcode') && (
+                          <div
+                            onClick={() => setSelectedField('qrcode')}
+                            className={selectedField === 'qrcode' ? 'ring-2 ring-primary' : ''}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <QRCodeSVG 
+                              value={getFieldValue('qrcode')} 
+                              size={40 * zoom}
+                              level="M"
+                              includeMargin={false}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
-
-                    {/* Fields */}
-                    {fields.filter(f => f.enabled).map((field) => (
-                      <div
-                        key={field.id}
-                        draggable={!field.locked}
-                        onDragStart={(e) => handleDragStart(field.id, e)}
-                        onClick={() => setSelectedField(field.id)}
-                        className={`absolute cursor-move ${selectedField === field.id ? 'ring-2 ring-primary' : ''} ${field.locked ? 'cursor-not-allowed opacity-75' : ''}`}
-                        style={{
-                          left: `${field.x * zoom}px`,
-                          top: `${field.y * zoom}px`,
-                          width: `${field.width * zoom}px`,
-                          height: `${field.height * zoom}px`,
-                          fontSize: `${field.fontSize * zoom}px`,
-                          fontWeight: field.fontWeight === 'bold' ? 700 : field.fontWeight === 'semibold' ? 600 : 400,
-                          fontFamily: field.fontFamily,
-                          color: field.color,
-                          backgroundColor: field.backgroundColor,
-                          textAlign: field.textAlign,
-                          transform: `rotate(${field.rotation}deg)`,
-                          border: `${field.borderWidth}px solid ${field.borderColor}`,
-                          padding: `${field.padding * zoom}px`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          zIndex: field.zIndex,
-                          overflow: 'hidden',
-                          wordBreak: 'break-word',
-                        }}
-                       >
-                         {(field.codeType === 'qrcode' || field.id === 'qrcode') ? (
-                           <div className="flex flex-col items-center justify-center w-full h-full">
-                             <QRCodeSVG 
-                               value={getFieldValue(field.id)} 
-                               size={Math.min(field.width, field.height) * zoom * 0.9}
-                               level="M"
-                               includeMargin={false}
-                             />
-                           </div>
-                          ) : (field.codeType === 'barcode' || field.id === 'barcode') ? (
-                            <div className="flex flex-col items-center justify-center w-full h-full gap-1">
-                              <div style={{ fontSize: `${field.fontSize * zoom}px`, lineHeight: 1 }}>{getFieldValue(field.id)}</div>
-                              <div className="flex items-end justify-center" style={{ height: `${Math.max(30, field.height * zoom * 0.5)}px` }}>
-                                {Array.from({ length: 40 }).map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className="bg-black"
-                                    style={{ 
-                                      width: `${Math.max(1.5, (field.width * zoom) / 45)}px`,
-                                      height: i % 3 === 0 ? '100%' : '80%',
-                                      marginRight: i < 39 ? `${Math.max(0.5, (field.width * zoom) / 200)}px` : '0'
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                         ) : (
-                           <span className="w-full">{getFieldValue(field.id)}</span>
-                         )}
-                       </div>
-                    ))}
                   </div>
                 </div>
               </div>
