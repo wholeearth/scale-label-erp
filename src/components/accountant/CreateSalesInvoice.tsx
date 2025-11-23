@@ -23,6 +23,17 @@ interface SalesItem {
   amount: number;
 }
 
+interface SalesInvoice {
+  id: string;
+  invoice_number: string;
+  order_id: string;
+  customer_id: string;
+  invoice_date: string;
+  total_amount: number;
+  notes?: string;
+  status: string;
+}
+
 const salesItemSchema = z.object({
   item_id: z.string().uuid({ message: "Valid item must be selected" }),
   quantity: z.string()
@@ -130,25 +141,45 @@ const CreateSalesInvoice = () => {
         throw new Error('This order has already been invoiced. Please select a different order.');
       }
 
-      // Simply update the order status to 'invoiced'
-      // Don't modify the order_items - they remain as originally placed
-      const { data: updatedOrders, error: updateError } = await supabase
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Create sales invoice record with auto-generated invoice number
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('sales_invoices')
+        .insert({
+          order_id: selectedOrderId,
+          customer_id: customerId,
+          invoice_date: saleDate,
+          total_amount: selectedOrder?.total_amount || 0,
+          notes: narration,
+          status: 'posted',
+          created_by: user.id
+        } as any)
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+      if (!invoice) throw new Error('Failed to create invoice');
+
+      // Update the order status to 'invoiced'
+      const { error: updateError } = await supabase
         .from('orders')
         .update({ status: 'invoiced' })
-        .eq('id', selectedOrderId)
-        .select();
+        .eq('id', selectedOrderId);
 
       if (updateError) throw updateError;
-      if (!updatedOrders || updatedOrders.length === 0) throw new Error('Failed to update order');
       
-      return updatedOrders[0];
+      return invoice;
     },
-    onSuccess: (order) => {
+    onSuccess: (invoice: SalesInvoice) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['customer-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-invoices'] });
       toast({
         title: 'Success',
-        description: `Sales invoice created from order ${order.order_number}`,
+        description: `Sales invoice ${invoice.invoice_number} created successfully`,
       });
       resetForm();
     },
