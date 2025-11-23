@@ -116,7 +116,7 @@ const ProductionInterface = () => {
     },
   });
 
-  // Fetch label configuration
+  // Fetch label configuration with real-time sync
   const { data: labelConfig } = useQuery({
     queryKey: ['label-configuration'],
     queryFn: async () => {
@@ -129,7 +129,36 @@ const ProductionInterface = () => {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 5000, // Poll every 5 seconds for updates
   });
+
+  // Real-time subscription for label config changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('label-config-operator-sync')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'label_configurations',
+        },
+        (payload) => {
+          console.log('Label design synced from admin:', payload);
+          queryClient.invalidateQueries({ queryKey: ['label-configuration'] });
+          toast({ 
+            title: 'Label design updated', 
+            description: 'New label configuration received from admin',
+            duration: 3000 
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, toast]);
 
   // Fetch production history
   const { data: productionHistory } = useQuery({

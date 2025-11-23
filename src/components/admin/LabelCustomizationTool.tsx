@@ -12,23 +12,26 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Upload, Save, Download, Grid3x3, ZoomIn, ZoomOut, 
   RotateCw, AlignLeft, AlignCenter, AlignRight, Trash2,
-  Copy, Eye, EyeOff, Lock, Unlock, Undo, Redo, FileJson
+  Copy, Eye, EyeOff, Lock, Unlock, Undo, Redo, Plus,
+  Layers, Move, Type, Maximize2, Image as ImageIcon, Barcode
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface LabelField {
   id: string;
   name: string;
+  type: 'text' | 'barcode' | 'qrcode' | 'logo';
   x: number;
   y: number;
   width: number;
   height: number;
   enabled: boolean;
   fontSize: number;
-  fontWeight: 'normal' | 'bold' | 'semibold';
+  fontWeight: 'normal' | 'bold' | '600' | '700' | '800';
   fontFamily: string;
   color: string;
   backgroundColor: string;
@@ -36,10 +39,12 @@ interface LabelField {
   rotation: number;
   borderWidth: number;
   borderColor: string;
+  borderRadius: number;
   padding: number;
   locked: boolean;
   zIndex: number;
-  codeType?: 'barcode' | 'qrcode';
+  visible: boolean;
+  opacity: number;
 }
 
 interface LabelConfiguration {
@@ -51,127 +56,98 @@ interface LabelConfiguration {
   backgroundColor: string;
   borderWidth: number;
   borderColor: string;
+  borderRadius: number;
   showGrid: boolean;
   snapToGrid: boolean;
   gridSize: number;
 }
 
-const AVAILABLE_FIELDS = [
-  { id: 'company_name', name: 'Company Name', defaultValue: 'R. K. INTERLINING' },
-  { id: 'item_name', name: 'Item Name', defaultValue: '2565' },
-  { id: 'item_code', name: 'Item Code', defaultValue: '2565110' },
-  { id: 'length', name: 'Length', defaultValue: '65 meter' },
-  { id: 'width', name: 'Width', defaultValue: '40"' },
-  { id: 'color', name: 'Color', defaultValue: 'Normal White' },
-  { id: 'quality', name: 'Quality', defaultValue: 'Normal Hard' },
-  { id: 'weight', name: 'Weight', defaultValue: '2.5kg' },
-  { id: 'serial_no', name: 'Serial Number', defaultValue: '01-M1-041025-00152-0119' },
-  { id: 'barcode', name: 'Barcode', defaultValue: '00054321:2770:001234:1.25' },
-  { id: 'qrcode', name: 'QR Code', defaultValue: '00054321:2770:001234:1.25' },
+const FIELD_TEMPLATES = [
+  { id: 'company_name', name: 'Company Name', type: 'text' as const, defaultValue: 'R. K. INTERLINING' },
+  { id: 'item_name', name: 'Item Name', type: 'text' as const, defaultValue: '2565' },
+  { id: 'item_code', name: 'Item Code', type: 'text' as const, defaultValue: '2565110' },
+  { id: 'length', name: 'Length', type: 'text' as const, defaultValue: '65 meter' },
+  { id: 'width', name: 'Width', type: 'text' as const, defaultValue: '40"' },
+  { id: 'color', name: 'Color', type: 'text' as const, defaultValue: 'Normal White' },
+  { id: 'quality', name: 'Quality', type: 'text' as const, defaultValue: 'Normal Hard' },
+  { id: 'weight', name: 'Weight', type: 'text' as const, defaultValue: '2.5kg' },
+  { id: 'serial_no', name: 'Serial Number', type: 'text' as const, defaultValue: '01-M1-041025-00152-0119' },
+  { id: 'barcode', name: 'Barcode', type: 'barcode' as const, defaultValue: '00054321:2770:001234:1.25' },
+  { id: 'qrcode', name: 'QR Code', type: 'qrcode' as const, defaultValue: '00054321:2770:001234:1.25' },
+  { id: 'logo', name: 'Company Logo', type: 'logo' as const, defaultValue: '' },
 ];
 
 const FONT_FAMILIES = [
-  'Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana', 'Georgia', 'Comic Sans MS', 'Trebuchet MS', 'Impact'
+  'Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana', 
+  'Georgia', 'Trebuchet MS', 'Impact', 'Roboto', 'Open Sans'
 ];
-
-const LABEL_TEMPLATES = {
-  product: {
-    name: 'Product Label',
-    config: { label_width_mm: 100, label_height_mm: 60, orientation: 'landscape' as const },
-    fields: [
-      { x: 10, y: 10, width: 180, height: 25, fontSize: 16, enabled: true, fontWeight: 'bold' as const, id: 'company_name' },
-      { x: 10, y: 45, width: 180, height: 20, fontSize: 12, enabled: true, fontWeight: 'semibold' as const, id: 'item_name' },
-      { x: 10, y: 70, width: 180, height: 18, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'item_code' },
-      { x: 10, y: 95, width: 85, height: 18, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'length' },
-      { x: 105, y: 95, width: 85, height: 18, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'width' },
-      { x: 10, y: 120, width: 85, height: 18, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'color' },
-      { x: 105, y: 120, width: 85, height: 18, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'weight' },
-      { x: 10, y: 145, width: 180, height: 18, fontSize: 9, enabled: true, fontWeight: 'normal' as const, id: 'serial_no' },
-      { x: 10, y: 170, width: 180, height: 50, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'barcode', codeType: 'barcode' as const },
-    ],
-  },
-  shipping: {
-    name: 'Shipping Label',
-    config: { label_width_mm: 100, label_height_mm: 80, orientation: 'portrait' as const },
-    fields: [
-      { x: 10, y: 10, width: 180, height: 25, fontSize: 14, enabled: true, fontWeight: 'bold' as const, id: 'company_name' },
-      { x: 10, y: 45, width: 180, height: 20, fontSize: 12, enabled: true, fontWeight: 'normal' as const, id: 'item_code' },
-      { x: 10, y: 120, width: 180, height: 20, fontSize: 11, enabled: true, fontWeight: 'normal' as const, id: 'weight' },
-      { x: 10, y: 150, width: 180, height: 20, fontSize: 10, enabled: true, fontWeight: 'normal' as const, id: 'serial_no' },
-      { x: 10, y: 180, width: 80, height: 80, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'qrcode', codeType: 'qrcode' as const },
-    ],
-  },
-  minimal: {
-    name: 'Minimal Label',
-    config: { label_width_mm: 80, label_height_mm: 40, orientation: 'landscape' as const },
-    fields: [
-      { x: 10, y: 10, width: 140, height: 20, fontSize: 12, enabled: true, fontWeight: 'bold' as const, id: 'item_code' },
-      { x: 10, y: 35, width: 140, height: 40, fontSize: 8, enabled: true, fontWeight: 'normal' as const, id: 'barcode', codeType: 'barcode' as const },
-    ],
-  },
-};
 
 const LabelCustomizationTool = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingField, setDraggingField] = useState<string | null>(null);
+  const [resizingField, setResizingField] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [history, setHistory] = useState<{ fields: LabelField[], config: LabelConfiguration }[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   
   const [config, setConfig] = useState<LabelConfiguration>({
     company_name: '',
     logo_url: '',
-    label_width_mm: 100,
-    label_height_mm: 60,
+    label_width_mm: 60,
+    label_height_mm: 40,
     orientation: 'landscape',
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#000000',
-    showGrid: false,
-    snapToGrid: false,
-    gridSize: 10,
+    borderRadius: 0,
+    showGrid: true,
+    snapToGrid: true,
+    gridSize: 5,
   });
 
-  const [fields, setFields] = useState<LabelField[]>(
-    AVAILABLE_FIELDS.map((field, index) => ({
-      id: field.id,
-      name: field.name,
-      x: 10,
-      y: 10 + (index * 25),
-      width: field.id === 'qrcode' ? 80 : 180,
-      height: field.id === 'qrcode' ? 80 : 20,
-      enabled: index < 5,
-      fontSize: 12,
-      fontWeight: 'normal',
-      fontFamily: 'Arial',
-      color: '#000000',
-      backgroundColor: 'transparent',
-      textAlign: 'left',
-      rotation: 0,
-      borderWidth: 0,
-      borderColor: '#000000',
-      padding: 2,
-      locked: false,
-      zIndex: index,
-      codeType: field.id === 'barcode' ? 'barcode' : field.id === 'qrcode' ? 'qrcode' : undefined,
-    }))
-  );
+  const [fields, setFields] = useState<LabelField[]>([]);
+
+  // Real-time subscription to label config changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('label-config-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'label_configurations',
+        },
+        (payload) => {
+          console.log('Label config updated:', payload);
+          queryClient.invalidateQueries({ queryKey: ['label-config'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const saveToHistory = useCallback(() => {
-    setHistory(prevHistory => {
-      setHistoryIndex(prevIndex => {
-        const newHistory = prevHistory.slice(0, prevIndex + 1);
-        newHistory.push({ fields: JSON.parse(JSON.stringify(fields)), config: JSON.parse(JSON.stringify(config)) });
-        setHistoryIndex(newHistory.length - 1);
-        return prevIndex + 1;
-      });
-      const newHistory = prevHistory.slice(0, historyIndex + 1);
-      newHistory.push({ fields: JSON.parse(JSON.stringify(fields)), config: JSON.parse(JSON.stringify(config)) });
+    const newState = { 
+      fields: JSON.parse(JSON.stringify(fields)), 
+      config: JSON.parse(JSON.stringify(config)) 
+    };
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push(newState);
+      if (newHistory.length > 50) newHistory.shift(); // Keep last 50 states
       return newHistory;
     });
+    setHistoryIndex(prev => Math.min(prev + 1, 49));
   }, [fields, config, historyIndex]);
 
   const undo = useCallback(() => {
@@ -192,143 +168,7 @@ const LabelCustomizationTool = () => {
     }
   }, [history, historyIndex]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
-        return;
-      }
-
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
-
-      // Arrow keys - move selected field (or adjust size with Ctrl)
-      if (selectedField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.preventDefault();
-        setFields(currentFields => {
-          const field = currentFields.find(f => f.id === selectedField);
-          if (!field || field.locked) return currentFields;
-
-          if (cmdOrCtrl && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-            // Ctrl+Up/Down: Adjust field font size
-            const newSize = e.key === 'ArrowUp' 
-              ? Math.min(32, field.fontSize + 1)
-              : Math.max(8, field.fontSize - 1);
-            const updated = currentFields.map(f => f.id === selectedField ? { ...f, fontSize: newSize } : f);
-            saveToHistory();
-            return updated;
-          } else {
-            // Regular arrow keys: Move field
-            const step = e.shiftKey ? 10 : 1;
-            let updates: Partial<LabelField> = {};
-
-            switch (e.key) {
-              case 'ArrowUp': updates = { y: field.y - step }; break;
-              case 'ArrowDown': updates = { y: field.y + step }; break;
-              case 'ArrowLeft': updates = { x: field.x - step }; break;
-              case 'ArrowRight': updates = { x: field.x + step }; break;
-            }
-
-            const updated = currentFields.map(f => f.id === selectedField ? { ...f, ...updates } : f);
-            saveToHistory();
-            return updated;
-          }
-        });
-      }
-
-      // Delete - remove selected field
-      if (selectedField && e.key === 'Delete') {
-        e.preventDefault();
-        deleteField(selectedField);
-      }
-
-      // Escape - deselect
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setSelectedField(null);
-      }
-
-      // Ctrl/Cmd+D - duplicate
-      if (cmdOrCtrl && e.key === 'd') {
-        e.preventDefault();
-        if (selectedField) {
-          duplicateField(selectedField);
-        }
-      }
-
-      // Ctrl/Cmd+Z - undo
-      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      }
-
-      // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y - redo
-      if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
-        e.preventDefault();
-        redo();
-      }
-
-      // Tab - cycle through fields
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        setFields(currentFields => {
-          const enabledFields = currentFields.filter(f => f.enabled);
-          if (enabledFields.length === 0) return currentFields;
-
-          const currentIndex = enabledFields.findIndex(f => f.id === selectedField);
-          const nextIndex = e.shiftKey 
-            ? (currentIndex - 1 + enabledFields.length) % enabledFields.length
-            : (currentIndex + 1) % enabledFields.length;
-          
-          setSelectedField(enabledFields[nextIndex].id);
-          return currentFields;
-        });
-      }
-
-      // Plus/Minus - canvas zoom or field rotation (Shift)
-      if (e.key === '+' || e.key === '=') {
-        e.preventDefault();
-        if (e.shiftKey && selectedField) {
-          // Shift+Plus: Rotate field clockwise
-          setFields(currentFields => {
-            const field = currentFields.find(f => f.id === selectedField);
-            if (field && !field.locked) {
-              const updated = currentFields.map(f => f.id === selectedField ? { ...f, rotation: (f.rotation + 15) % 360 } : f);
-              saveToHistory();
-              return updated;
-            }
-            return currentFields;
-          });
-        } else {
-          // No modifier: Canvas zoom
-          setZoom(z => Math.min(2, z + 0.25));
-        }
-      }
-      if (e.key === '-') {
-        e.preventDefault();
-        if (e.shiftKey && selectedField) {
-          // Shift+Minus: Rotate field counter-clockwise
-          setFields(currentFields => {
-            const field = currentFields.find(f => f.id === selectedField);
-            if (field && !field.locked) {
-              const updated = currentFields.map(f => f.id === selectedField ? { ...f, rotation: (f.rotation - 15 + 360) % 360 } : f);
-              saveToHistory();
-              return updated;
-            }
-            return currentFields;
-          });
-        } else {
-          // No modifier: Canvas zoom
-          setZoom(z => Math.max(0.5, z - 0.25));
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedField, saveToHistory, undo, redo]);
-
+  // Load existing configuration
   const { data: existingConfig } = useQuery({
     queryKey: ['label-config'],
     queryFn: async () => {
@@ -342,18 +182,19 @@ const LabelCustomizationTool = () => {
       if (error && error.code !== 'PGRST116') throw error;
       
       if (data) {
-        const loadedConfig = {
+        const loadedConfig: LabelConfiguration = {
           company_name: data.company_name || '',
           logo_url: data.logo_url || '',
           label_width_mm: Number(data.label_width_mm),
           label_height_mm: Number(data.label_height_mm),
           orientation: data.orientation as 'landscape' | 'portrait',
           backgroundColor: '#ffffff',
-          borderWidth: 1,
+          borderWidth: 2,
           borderColor: '#000000',
-          showGrid: false,
-          snapToGrid: false,
-          gridSize: 10,
+          borderRadius: 0,
+          showGrid: true,
+          snapToGrid: true,
+          gridSize: 5,
         };
         setConfig(loadedConfig);
         
@@ -366,6 +207,7 @@ const LabelCustomizationTool = () => {
     },
   });
 
+  // Upload logo
   const uploadLogoMutation = useMutation({
     mutationFn: async (file: File) => {
       const fileExt = file.name.split('.').pop();
@@ -386,6 +228,7 @@ const LabelCustomizationTool = () => {
     },
     onSuccess: (url) => {
       setConfig({ ...config, logo_url: url });
+      saveToHistory();
       toast({ title: 'Logo uploaded successfully' });
     },
     onError: (error: Error) => {
@@ -393,6 +236,7 @@ const LabelCustomizationTool = () => {
     },
   });
 
+  // Save configuration
   const saveConfigMutation = useMutation({
     mutationFn: async () => {
       const configData = {
@@ -421,7 +265,7 @@ const LabelCustomizationTool = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['label-config'] });
-      toast({ title: 'Configuration saved successfully' });
+      toast({ title: 'Configuration saved - synced to all operators', duration: 3000 });
     },
     onError: (error: Error) => {
       toast({ title: 'Error saving configuration', description: error.message, variant: 'destructive' });
@@ -435,103 +279,110 @@ const LabelCustomizationTool = () => {
     }
   };
 
-  const handleDragStart = (fieldId: string, e: React.DragEvent) => {
+  const addField = (templateId: string) => {
+    const template = FIELD_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return;
+
+    const newField: LabelField = {
+      id: `${template.id}_${Date.now()}`,
+      name: template.name,
+      type: template.type,
+      x: 10,
+      y: 10,
+      width: template.type === 'qrcode' ? 60 : template.type === 'barcode' ? 120 : template.type === 'logo' ? 80 : 100,
+      height: template.type === 'qrcode' ? 60 : template.type === 'barcode' ? 40 : template.type === 'logo' ? 40 : 20,
+      enabled: true,
+      visible: true,
+      fontSize: 12,
+      fontWeight: 'normal',
+      fontFamily: 'Arial',
+      color: '#000000',
+      backgroundColor: 'transparent',
+      textAlign: 'left',
+      rotation: 270,
+      borderWidth: 0,
+      borderColor: '#000000',
+      borderRadius: 0,
+      padding: 2,
+      locked: false,
+      zIndex: fields.length,
+      opacity: 1,
+    };
+
+    setFields([...fields, newField]);
+    setSelectedField(newField.id);
+    saveToHistory();
+  };
+
+  const updateField = (id: string, updates: Partial<LabelField>) => {
+    setFields(fields.map(f => f.id === id ? { ...f, ...updates } : f));
+    saveToHistory();
+  };
+
+  const deleteField = (id: string) => {
+    setFields(fields.filter(f => f.id !== id));
+    if (selectedField === id) setSelectedField(null);
+    saveToHistory();
+  };
+
+  const duplicateField = (id: string) => {
+    const field = fields.find(f => f.id === id);
+    if (!field) return;
+
+    const newField: LabelField = {
+      ...field,
+      id: `${field.id}_copy_${Date.now()}`,
+      x: field.x + 10,
+      y: field.y + 10,
+    };
+
+    setFields([...fields, newField]);
+    setSelectedField(newField.id);
+    saveToHistory();
+  };
+
+  const handleMouseDown = (fieldId: string, e: React.MouseEvent) => {
     const field = fields.find(f => f.id === fieldId);
-    if (field?.locked) {
-      e.preventDefault();
-      return;
-    }
-    setDraggingField(fieldId);
+    if (!field || field.locked) return;
+
+    e.stopPropagation();
     setSelectedField(fieldId);
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    setDragOffset({
+      x: e.clientX / zoom - field.x,
+      y: e.clientY / zoom - field.y,
+    });
+    setDraggingField(fieldId);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggingField || !canvasRef.current) return;
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (!draggingField) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    let x = (e.clientX - rect.left) / zoom;
-    let y = (e.clientY - rect.top) / zoom;
+    const rect = canvasRef.current.getBoundingClientRect();
+    let x = (e.clientX - rect.left) / zoom - dragOffset.x;
+    let y = (e.clientY - rect.top) / zoom - dragOffset.y;
 
     if (config.snapToGrid) {
       x = Math.round(x / config.gridSize) * config.gridSize;
       y = Math.round(y / config.gridSize) * config.gridSize;
     }
 
-    setFields(fields.map(field => 
-      field.id === draggingField ? { ...field, x, y } : field
+    setFields(fields.map(f => 
+      f.id === draggingField ? { ...f, x, y } : f
     ));
-    setDraggingField(null);
-    saveToHistory();
   };
 
-  const handleTemplateSelect = (templateKey: string) => {
-    if (templateKey === 'custom') return;
-    
-    const template = LABEL_TEMPLATES[templateKey as keyof typeof LABEL_TEMPLATES];
-    if (!template) return;
-
-    setConfig({ ...config, ...template.config });
-    
-    const newFields = template.fields.map((tf, index) => {
-      const baseField = AVAILABLE_FIELDS.find(f => f.id === tf.id);
-      return {
-        id: tf.id,
-        name: baseField?.name || tf.id,
-        ...tf,
-        fontFamily: 'Arial',
-        color: '#000000',
-        backgroundColor: 'transparent',
-        textAlign: 'left' as const,
-        rotation: 0,
-        borderWidth: 0,
-        borderColor: '#000000',
-        padding: 2,
-        locked: false,
-        zIndex: index,
-        codeType: ('codeType' in tf) ? tf.codeType : undefined,
-      };
-    });
-    
-    setFields(newFields);
-    saveToHistory();
-    toast({ title: 'Template applied', description: `${template.name} loaded successfully` });
+  const handleMouseUp = () => {
+    if (draggingField) {
+      saveToHistory();
+      setDraggingField(null);
+    }
   };
 
-  const updateField = useCallback((fieldId: string, updates: Partial<LabelField>) => {
-    setFields(prevFields => prevFields.map(f => f.id === fieldId ? { ...f, ...updates } : f));
-  }, []);
-
-  const duplicateField = useCallback((fieldId: string) => {
-    setFields(prevFields => {
-      const field = prevFields.find(f => f.id === fieldId);
-      if (!field) return prevFields;
-      
-      const newField = { 
-        ...field, 
-        id: `${field.id}_${Date.now()}`,
-        x: field.x + 20, 
-        y: field.y + 20,
-        zIndex: Math.max(...prevFields.map(f => f.zIndex)) + 1,
-      };
-      return [...prevFields, newField];
-    });
-    saveToHistory();
-    toast({ title: 'Field duplicated' });
-  }, [saveToHistory, toast]);
-
-  const deleteField = useCallback((fieldId: string) => {
-    setFields(prevFields => prevFields.filter(f => f.id !== fieldId));
-    setSelectedField(prev => prev === fieldId ? null : prev);
-    saveToHistory();
-    toast({ title: 'Field deleted' });
-  }, [saveToHistory, toast]);
-
-  const exportConfiguration = () => {
+  const exportConfig = () => {
     const exportData = { config, fields };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -539,10 +390,9 @@ const LabelCustomizationTool = () => {
     a.href = url;
     a.download = 'label-config.json';
     a.click();
-    toast({ title: 'Configuration exported' });
   };
 
-  const importConfiguration = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const importConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -550,633 +400,649 @@ const LabelCustomizationTool = () => {
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        setConfig(data.config);
-        setFields(data.fields);
+        if (data.config) setConfig(data.config);
+        if (data.fields) setFields(data.fields);
         saveToHistory();
         toast({ title: 'Configuration imported successfully' });
       } catch (error) {
-        toast({ title: 'Invalid configuration file', variant: 'destructive' });
+        toast({ title: 'Error importing configuration', variant: 'destructive' });
       }
     };
     reader.readAsText(file);
   };
 
-  const labelScale = config.orientation === 'landscape' 
-    ? 500 / config.label_width_mm 
-    : 400 / config.label_width_mm;
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+
+      const cmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      if (selectedField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const field = fields.find(f => f.id === selectedField);
+        if (!field || field.locked) return;
+
+        const step = e.shiftKey ? 10 : 1;
+        let updates: Partial<LabelField> = {};
+
+        switch (e.key) {
+          case 'ArrowUp': updates = { y: field.y - step }; break;
+          case 'ArrowDown': updates = { y: field.y + step }; break;
+          case 'ArrowLeft': updates = { x: field.x - step }; break;
+          case 'ArrowRight': updates = { x: field.x + step }; break;
+        }
+
+        updateField(selectedField, updates);
+      }
+
+      if (selectedField && e.key === 'Delete') {
+        e.preventDefault();
+        deleteField(selectedField);
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedField(null);
+      }
+
+      if (cmdOrCtrl && e.key === 'd') {
+        e.preventDefault();
+        if (selectedField) duplicateField(selectedField);
+      }
+
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+
+      if ((cmdOrCtrl && e.shiftKey && e.key === 'z') || (cmdOrCtrl && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedField, fields, config, undo, redo]);
+
+  const mmToPx = (mm: number) => mm * 3.7795275591; // Convert mm to pixels (96 DPI)
+
+  const canvasWidth = mmToPx(config.label_width_mm);
+  const canvasHeight = mmToPx(config.label_height_mm);
 
   const selectedFieldData = fields.find(f => f.id === selectedField);
 
-  const getFieldValue = (fieldId: string) => {
-    return AVAILABLE_FIELDS.find(f => f.id === fieldId)?.defaultValue || fieldId;
-  };
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Label Customization Tool</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Keyboard: Arrow keys to move • Ctrl+Up/Down for size • Shift+/- for rotation • Delete to remove • Ctrl+D to duplicate • Tab to cycle • Esc to deselect • +/- canvas zoom
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex <= 0}>
-                <Undo className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={redo} disabled={historyIndex >= history.length - 1}>
-                <Redo className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportConfiguration}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Label htmlFor="import-config" className="cursor-pointer">
-                <Button variant="outline" size="sm" asChild>
-                  <span>
-                    <FileJson className="h-4 w-4 mr-2" />
-                    Import
-                  </span>
-                </Button>
-              </Label>
-              <input
-                id="import-config"
-                type="file"
-                accept=".json"
-                onChange={importConfiguration}
-                className="hidden"
-              />
-              <Button onClick={() => saveConfigMutation.mutate()} disabled={saveConfigMutation.isPending}>
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
+    <div className="h-screen flex flex-col bg-background">
+      {/* Toolbar */}
+      <div className="border-b bg-card p-2 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button onClick={() => saveConfigMutation.mutate()} size="sm" className="gap-2">
+            <Save className="h-4 w-4" />
+            Save & Sync
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
+          <Button onClick={undo} disabled={historyIndex <= 0} size="sm" variant="outline">
+            <Undo className="h-4 w-4" />
+          </Button>
+          <Button onClick={redo} disabled={historyIndex >= history.length - 1} size="sm" variant="outline">
+            <Redo className="h-4 w-4" />
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
+          <Button onClick={exportConfig} size="sm" variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <Button onClick={() => document.getElementById('import-input')?.click()} size="sm" variant="outline" className="gap-2">
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <input id="import-input" type="file" accept=".json" onChange={importConfig} className="hidden" />
+          <Separator orientation="vertical" className="h-6" />
+          <Button onClick={() => setIsPreviewing(!isPreviewing)} size="sm" variant={isPreviewing ? "default" : "outline"}>
+            <Eye className="h-4 w-4 mr-2" />
+            {isPreviewing ? 'Exit Preview' : 'Preview'}
+          </Button>
+        </div>
+        
+        <div className="ml-auto flex items-center gap-2">
+          <Badge variant="outline" className="gap-1">
+            <ZoomIn className="h-3 w-3" />
+            {Math.round(zoom * 100)}%
+          </Badge>
+          <Button onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} size="sm" variant="outline">
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => setZoom(z => Math.min(3, z + 0.25))} size="sm" variant="outline">
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Field Library */}
+        <div className="w-64 border-r bg-card overflow-auto">
+          <div className="p-4">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Elements
+            </h3>
+            <ScrollArea className="h-[calc(100vh-200px)]">
+              <div className="space-y-2">
+                {FIELD_TEMPLATES.map(template => (
+                  <Button
+                    key={template.id}
+                    onClick={() => addField(template.id)}
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    size="sm"
+                  >
+                    {template.type === 'text' && <Type className="h-4 w-4" />}
+                    {template.type === 'barcode' && <Barcode className="h-4 w-4" />}
+                    {template.type === 'qrcode' && <Grid3x3 className="h-4 w-4" />}
+                    {template.type === 'logo' && <ImageIcon className="h-4 w-4" />}
+                    {template.name}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+
+        {/* Center Canvas */}
+        <div className="flex-1 overflow-auto bg-muted/30 p-8">
+          <div className="flex items-center justify-center min-h-full">
+            <div
+              ref={canvasRef}
+              className="relative bg-white shadow-2xl"
+              style={{
+                width: canvasWidth * zoom,
+                height: canvasHeight * zoom,
+                transform: `scale(${zoom})`,
+                transformOrigin: 'center',
+                border: `${config.borderWidth}px solid ${config.borderColor}`,
+                borderRadius: config.borderRadius,
+                backgroundColor: config.backgroundColor,
+              }}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
+              {/* Grid */}
+              {config.showGrid && !isPreviewing && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <pattern id="grid" width={config.gridSize} height={config.gridSize} patternUnits="userSpaceOnUse">
+                        <path d={`M ${config.gridSize} 0 L 0 0 0 ${config.gridSize}`} fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
+                      </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                  </svg>
+                </div>
+              )}
+
+              {/* Fields */}
+              {fields
+                .filter(f => f.visible)
+                .sort((a, b) => a.zIndex - b.zIndex)
+                .map(field => (
+                  <div
+                    key={field.id}
+                    className={`absolute cursor-move ${
+                      selectedField === field.id && !isPreviewing
+                        ? 'ring-2 ring-primary'
+                        : ''
+                    } ${field.locked ? 'cursor-not-allowed' : ''}`}
+                    style={{
+                      left: field.x,
+                      top: field.y,
+                      width: field.width,
+                      height: field.height,
+                      transform: `rotate(${field.rotation}deg)`,
+                      transformOrigin: 'center',
+                      opacity: field.opacity,
+                    }}
+                    onMouseDown={(e) => !isPreviewing && handleMouseDown(field.id, e)}
+                  >
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{
+                        fontSize: field.fontSize,
+                        fontWeight: field.fontWeight,
+                        fontFamily: field.fontFamily,
+                        color: field.color,
+                        backgroundColor: field.backgroundColor,
+                        textAlign: field.textAlign,
+                        border: `${field.borderWidth}px solid ${field.borderColor}`,
+                        borderRadius: field.borderRadius,
+                        padding: field.padding,
+                      }}
+                    >
+                      {field.type === 'text' && (
+                        <span className="truncate w-full">{field.name}</span>
+                      )}
+                      {field.type === 'barcode' && (
+                        <div className="text-xs">Barcode</div>
+                      )}
+                      {field.type === 'qrcode' && (
+                        <QRCodeSVG value="QR" size={field.width - 4} />
+                      )}
+                      {field.type === 'logo' && config.logo_url && (
+                        <img src={config.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                      )}
+                      {field.type === 'logo' && !config.logo_url && (
+                        <div className="text-xs text-muted-foreground">Logo</div>
+                      )}
+                    </div>
+                    
+                    {/* Selection handles */}
+                    {selectedField === field.id && !isPreviewing && !field.locked && (
+                      <>
+                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-primary rounded-full" />
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                        <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary rounded-full" />
+                        <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-primary rounded-full" />
+                      </>
+                    )}
+                  </div>
+                ))}
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="fields">Fields</TabsTrigger>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-              <TabsTrigger value="styling">Styling</TabsTrigger>
+        </div>
+
+        {/* Right Sidebar - Properties */}
+        <div className="w-80 border-l bg-card overflow-auto">
+          <Tabs defaultValue="layers" className="h-full">
+            <TabsList className="w-full grid grid-cols-3">
+              <TabsTrigger value="layers">Layers</TabsTrigger>
+              <TabsTrigger value="properties">Properties</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="general" className="space-y-4 mt-4">
-              <div>
-                <Label htmlFor="template">Quick Templates</Label>
-                <Select onValueChange={handleTemplateSelect}>
-                  <SelectTrigger id="template">
-                    <SelectValue placeholder="Select a template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="custom">Custom Configuration</SelectItem>
-                    <SelectItem value="product">Product Label (100x60mm)</SelectItem>
-                    <SelectItem value="shipping">Shipping Label (100x80mm)</SelectItem>
-                    <SelectItem value="minimal">Minimal Label (80x40mm)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="company_name">Company Name</Label>
-                  <Input
-                    id="company_name"
-                    value={config.company_name}
-                    onChange={(e) => setConfig({ ...config, company_name: e.target.value })}
-                    placeholder="Enter company name"
-                  />
-                </div>
-
-                <div>
-                  <Label>Company Logo</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadLogoMutation.isPending}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {uploadLogoMutation.isPending ? 'Uploading...' : 'Upload'}
-                    </Button>
-                    {config.logo_url && (
-                      <img src={config.logo_url} alt="Logo" className="h-10 w-auto border rounded" />
-                    )}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="label_width">Width (mm)</Label>
-                  <Input
-                    id="label_width"
-                    type="number"
-                    min="10"
-                    max="300"
-                    value={config.label_width_mm}
-                    onChange={(e) => setConfig({ ...config, label_width_mm: Number(e.target.value) })}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="label_height">Height (mm)</Label>
-                  <Input
-                    id="label_height"
-                    type="number"
-                    min="10"
-                    max="300"
-                    value={config.label_height_mm}
-                    onChange={(e) => setConfig({ ...config, label_height_mm: Number(e.target.value) })}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="orientation">Orientation</Label>
-                  <Select
-                    value={config.orientation}
-                    onValueChange={(value: 'landscape' | 'portrait') => 
-                      setConfig({ ...config, orientation: value })
-                    }
-                  >
-                    <SelectTrigger id="orientation">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="landscape">Landscape</SelectItem>
-                      <SelectItem value="portrait">Portrait</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="show-grid"
-                    checked={config.showGrid}
-                    onCheckedChange={(checked) => setConfig({ ...config, showGrid: checked })}
-                  />
-                  <Label htmlFor="show-grid" className="cursor-pointer">Show Grid</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="snap-grid"
-                    checked={config.snapToGrid}
-                    onCheckedChange={(checked) => setConfig({ ...config, snapToGrid: checked })}
-                  />
-                  <Label htmlFor="snap-grid" className="cursor-pointer">Snap to Grid</Label>
-                </div>
-
-                <div>
-                  <Label htmlFor="grid-size">Grid Size</Label>
-                  <Input
-                    id="grid-size"
-                    type="number"
-                    min="5"
-                    max="50"
-                    value={config.gridSize}
-                    onChange={(e) => setConfig({ ...config, gridSize: Number(e.target.value) })}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="fields" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                {fields.map((field) => (
-                  <Card key={field.id} className={selectedField === field.id ? 'border-primary' : ''}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => updateField(field.id, { enabled: !field.enabled })}
-                          >
-                            {field.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => updateField(field.id, { locked: !field.locked })}
-                          >
-                            {field.locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                          </Button>
-                          <span className="font-medium">{field.name}</span>
-                          <Badge variant={field.enabled ? 'default' : 'secondary'}>
-                            {field.enabled ? 'Visible' : 'Hidden'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedField(field.id)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => duplicateField(field.id)}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => deleteField(field.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {selectedField === field.id && (
-                        <div className="mt-4 grid grid-cols-2 gap-4 border-t pt-4">
-                          <div>
-                            <Label>Position X</Label>
-                            <Input
-                              type="number"
-                              value={field.x}
-                              onChange={(e) => updateField(field.id, { x: Number(e.target.value) })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Position Y</Label>
-                            <Input
-                              type="number"
-                              value={field.y}
-                              onChange={(e) => updateField(field.id, { y: Number(e.target.value) })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Width</Label>
-                            <Input
-                              type="number"
-                              value={field.width}
-                              onChange={(e) => updateField(field.id, { width: Number(e.target.value) })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Height</Label>
-                            <Input
-                              type="number"
-                              value={field.height}
-                              onChange={(e) => updateField(field.id, { height: Number(e.target.value) })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Font Size</Label>
-                            <Slider
-                              value={[field.fontSize]}
-                              onValueChange={([value]) => updateField(field.id, { fontSize: value })}
-                              min={8}
-                              max={32}
-                              step={1}
-                            />
-                            <span className="text-xs text-muted-foreground">{field.fontSize}px</span>
-                          </div>
-                          <div>
-                            <Label>Font Weight</Label>
-                            <Select
-                              value={field.fontWeight}
-                              onValueChange={(value: 'normal' | 'bold' | 'semibold') => 
-                                updateField(field.id, { fontWeight: value })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="normal">Normal</SelectItem>
-                                <SelectItem value="semibold">Semi Bold</SelectItem>
-                                <SelectItem value="bold">Bold</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Font Family</Label>
-                            <Select
-                              value={field.fontFamily}
-                              onValueChange={(value) => updateField(field.id, { fontFamily: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {FONT_FAMILIES.map(font => (
-                                  <SelectItem key={font} value={font}>{font}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Text Align</Label>
-                            <div className="flex gap-2">
-                              <Button
-                                variant={field.textAlign === 'left' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => updateField(field.id, { textAlign: 'left' })}
-                              >
-                                <AlignLeft className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant={field.textAlign === 'center' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => updateField(field.id, { textAlign: 'center' })}
-                              >
-                                <AlignCenter className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant={field.textAlign === 'right' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => updateField(field.id, { textAlign: 'right' })}
-                              >
-                                <AlignRight className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                          <div>
-                            <Label>Text Color</Label>
-                            <Input
-                              type="color"
-                              value={field.color}
-                              onChange={(e) => updateField(field.id, { color: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Background</Label>
-                            <Input
-                              type="color"
-                              value={field.backgroundColor}
-                              onChange={(e) => updateField(field.id, { backgroundColor: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <Label>Rotation</Label>
-                            <Slider
-                              value={[field.rotation]}
-                              onValueChange={([value]) => updateField(field.id, { rotation: value })}
-                              min={0}
-                              max={360}
-                              step={15}
-                            />
-                            <span className="text-xs text-muted-foreground">{field.rotation}°</span>
-                          </div>
-                           <div>
-                             <Label>Border Width</Label>
-                             <Slider
-                               value={[field.borderWidth]}
-                               onValueChange={([value]) => updateField(field.id, { borderWidth: value })}
-                               min={0}
-                               max={5}
-                               step={1}
-                             />
-                             <span className="text-xs text-muted-foreground">{field.borderWidth}px</span>
-                           </div>
-                           {(field.id === 'barcode' || field.id === 'qrcode' || field.codeType) && (
-                             <div className="col-span-2">
-                               <Label>Code Type</Label>
-                               <Select
-                                 value={field.codeType || (field.id === 'barcode' ? 'barcode' : 'qrcode')}
-                                 onValueChange={(value: 'barcode' | 'qrcode') => 
-                                   updateField(field.id, { codeType: value })
-                                 }
-                               >
-                                 <SelectTrigger>
-                                   <SelectValue />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                   <SelectItem value="barcode">Barcode</SelectItem>
-                                   <SelectItem value="qrcode">QR Code</SelectItem>
-                                 </SelectContent>
-                               </Select>
-                             </div>
-                           )}
-                         </div>
-                       )}
-                     </CardContent>
-                   </Card>
-                 ))}
-               </div>
-             </TabsContent>
-
-            <TabsContent value="preview" className="mt-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Label>Zoom</Label>
-                    <Button variant="outline" size="sm" onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}>
-                      <ZoomOut className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm font-medium w-16 text-center">{Math.round(zoom * 100)}%</span>
-                    <Button variant="outline" size="sm" onClick={() => setZoom(Math.min(2, zoom + 0.25))}>
-                      <ZoomIn className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => setConfig({ ...config, showGrid: !config.showGrid })}>
-                    <Grid3x3 className="h-4 w-4 mr-2" />
-                    {config.showGrid ? 'Hide' : 'Show'} Grid
-                  </Button>
-                </div>
-
-                <div className="overflow-auto border rounded-lg p-8" style={{ backgroundColor: '#f5f5f5' }}>
-                  <div
-                    className="relative mx-auto"
-                    style={{
-                      width: `${config.label_width_mm * labelScale * zoom}px`,
-                      height: `${config.label_height_mm * labelScale * zoom}px`,
-                      backgroundColor: config.backgroundColor,
-                      border: `${config.borderWidth}px solid ${config.borderColor}`,
-                      backgroundImage: config.showGrid
-                        ? `repeating-linear-gradient(0deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent ${config.gridSize * zoom}px),
-                           repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 1px, transparent 1px, transparent ${config.gridSize * zoom}px)`
-                        : 'none',
-                    }}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                  >
-                    {/* Logo */}
-                    {config.logo_url && (
-                      <div
-                        className="absolute"
-                        style={{
-                          top: `${5 * zoom}px`,
-                          left: `${5 * zoom}px`,
-                          transform: `scale(${zoom})`,
-                          transformOrigin: 'top left',
-                        }}
-                      >
-                        <img src={config.logo_url} alt="Logo" style={{ height: '30px', width: 'auto' }} />
-                      </div>
-                    )}
-
-                    {/* Fields */}
-                    {fields.filter(f => f.enabled).map((field) => (
+            <TabsContent value="layers" className="p-4 space-y-2">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                Layers ({fields.length})
+              </h3>
+              <ScrollArea className="h-[calc(100vh-200px)]">
+                <div className="space-y-1">
+                  {fields
+                    .sort((a, b) => b.zIndex - a.zIndex)
+                    .map(field => (
                       <div
                         key={field.id}
-                        draggable={!field.locked}
-                        onDragStart={(e) => handleDragStart(field.id, e)}
+                        className={`p-2 rounded border cursor-pointer hover:bg-accent transition-colors ${
+                          selectedField === field.id ? 'bg-accent border-primary' : 'border-border'
+                        }`}
                         onClick={() => setSelectedField(field.id)}
-                        className={`absolute cursor-move ${selectedField === field.id ? 'ring-2 ring-primary' : ''} ${field.locked ? 'cursor-not-allowed opacity-75' : ''}`}
-                        style={{
-                          left: `${field.x * zoom}px`,
-                          top: `${field.y * zoom}px`,
-                          width: `${field.width * zoom}px`,
-                          height: `${field.height * zoom}px`,
-                          fontSize: `${field.fontSize * zoom}px`,
-                          fontWeight: field.fontWeight === 'bold' ? 700 : field.fontWeight === 'semibold' ? 600 : 400,
-                          fontFamily: field.fontFamily,
-                          color: field.color,
-                          backgroundColor: field.backgroundColor,
-                          textAlign: field.textAlign,
-                          transform: `rotate(${field.rotation}deg)`,
-                          border: `${field.borderWidth}px solid ${field.borderColor}`,
-                          padding: `${field.padding * zoom}px`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          zIndex: field.zIndex,
-                          overflow: 'hidden',
-                          wordBreak: 'break-word',
-                        }}
-                       >
-                         {(field.codeType === 'qrcode' || field.id === 'qrcode') ? (
-                           <div className="flex flex-col items-center justify-center w-full h-full">
-                             <QRCodeSVG 
-                               value={getFieldValue(field.id)} 
-                               size={Math.min(field.width, field.height) * zoom * 0.9}
-                               level="M"
-                               includeMargin={false}
-                             />
-                           </div>
-                          ) : (field.codeType === 'barcode' || field.id === 'barcode') ? (
-                            <div className="flex flex-col items-center justify-center w-full h-full gap-1">
-                              <div style={{ fontSize: `${field.fontSize * zoom}px`, lineHeight: 1 }}>{getFieldValue(field.id)}</div>
-                              <div className="flex items-end justify-center" style={{ height: `${Math.max(30, field.height * zoom * 0.5)}px` }}>
-                                {Array.from({ length: 40 }).map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className="bg-black"
-                                    style={{ 
-                                      width: `${Math.max(1.5, (field.width * zoom) / 45)}px`,
-                                      height: i % 3 === 0 ? '100%' : '80%',
-                                      marginRight: i < 39 ? `${Math.max(0.5, (field.width * zoom) / 200)}px` : '0'
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                         ) : (
-                           <span className="w-full">{getFieldValue(field.id)}</span>
-                         )}
-                       </div>
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <Move className="h-3 w-3 flex-shrink-0" />
+                            <span className="text-sm truncate">{field.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateField(field.id, { visible: !field.visible });
+                              }}
+                            >
+                              {field.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateField(field.id, { locked: !field.locked });
+                              }}
+                            >
+                              {field.locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                duplicateField(field.id);
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteField(field.id);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     ))}
-                  </div>
                 </div>
-              </div>
+              </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="styling" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Label Background Color</Label>
-                  <Input
-                    type="color"
-                    value={config.backgroundColor}
-                    onChange={(e) => setConfig({ ...config, backgroundColor: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Label Border Color</Label>
-                  <Input
-                    type="color"
-                    value={config.borderColor}
-                    onChange={(e) => setConfig({ ...config, borderColor: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Border Width</Label>
-                  <Slider
-                    value={[config.borderWidth]}
-                    onValueChange={([value]) => setConfig({ ...config, borderWidth: value })}
-                    min={0}
-                    max={10}
-                    step={1}
-                  />
-                  <span className="text-xs text-muted-foreground">{config.borderWidth}px</span>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label>Selected Field: {selectedFieldData?.name || 'None'}</Label>
-                {selectedFieldData && (
-                  <div className="p-4 border rounded-lg space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateField(selectedFieldData.id, { rotation: (selectedFieldData.rotation - 15) % 360 })}
-                      >
-                        <RotateCw className="h-4 w-4 transform -scale-x-100" />
-                      </Button>
-                      <span className="text-sm">Rotate: {selectedFieldData.rotation}°</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateField(selectedFieldData.id, { rotation: (selectedFieldData.rotation + 15) % 360 })}
-                      >
-                        <RotateCw className="h-4 w-4" />
-                      </Button>
+            <TabsContent value="properties" className="p-4">
+              {selectedFieldData ? (
+                <ScrollArea className="h-[calc(100vh-200px)]">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs">Field Name</Label>
+                      <Input
+                        value={selectedFieldData.name}
+                        onChange={(e) => updateField(selectedFieldData.id, { name: e.target.value })}
+                        className="mt-1"
+                      />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <Separator />
+
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label>Padding</Label>
-                        <Slider
-                          value={[selectedFieldData.padding]}
-                          onValueChange={([value]) => updateField(selectedFieldData.id, { padding: value })}
-                          min={0}
-                          max={20}
-                          step={1}
-                        />
-                        <span className="text-xs text-muted-foreground">{selectedFieldData.padding}px</span>
-                      </div>
-                      <div>
-                        <Label>Z-Index</Label>
+                        <Label className="text-xs">X Position</Label>
                         <Input
                           type="number"
-                          value={selectedFieldData.zIndex}
-                          onChange={(e) => updateField(selectedFieldData.id, { zIndex: Number(e.target.value) })}
+                          value={selectedFieldData.x}
+                          onChange={(e) => updateField(selectedFieldData.id, { x: Number(e.target.value) })}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Y Position</Label>
+                        <Input
+                          type="number"
+                          value={selectedFieldData.y}
+                          onChange={(e) => updateField(selectedFieldData.id, { y: Number(e.target.value) })}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Width</Label>
+                        <Input
+                          type="number"
+                          value={selectedFieldData.width}
+                          onChange={(e) => updateField(selectedFieldData.id, { width: Number(e.target.value) })}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Height</Label>
+                        <Input
+                          type="number"
+                          value={selectedFieldData.height}
+                          onChange={(e) => updateField(selectedFieldData.id, { height: Number(e.target.value) })}
+                          className="mt-1"
                         />
                       </div>
                     </div>
+
+                    {selectedFieldData.type === 'text' && (
+                      <>
+                        <Separator />
+                        <div>
+                          <Label className="text-xs">Font Size</Label>
+                          <Slider
+                            value={[selectedFieldData.fontSize]}
+                            onValueChange={(v) => updateField(selectedFieldData.id, { fontSize: v[0] })}
+                            min={8}
+                            max={48}
+                            step={1}
+                            className="mt-2"
+                          />
+                          <span className="text-xs text-muted-foreground">{selectedFieldData.fontSize}px</span>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Font Family</Label>
+                          <Select
+                            value={selectedFieldData.fontFamily}
+                            onValueChange={(v) => updateField(selectedFieldData.id, { fontFamily: v })}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FONT_FAMILIES.map(font => (
+                                <SelectItem key={font} value={font}>{font}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Font Weight</Label>
+                          <Select
+                            value={selectedFieldData.fontWeight}
+                            onValueChange={(v) => updateField(selectedFieldData.id, { fontWeight: v as any })}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="normal">Normal</SelectItem>
+                              <SelectItem value="600">Semi Bold</SelectItem>
+                              <SelectItem value="700">Bold</SelectItem>
+                              <SelectItem value="800">Extra Bold</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Text Align</Label>
+                          <div className="flex gap-1 mt-1">
+                            <Button
+                              size="sm"
+                              variant={selectedFieldData.textAlign === 'left' ? 'default' : 'outline'}
+                              onClick={() => updateField(selectedFieldData.id, { textAlign: 'left' })}
+                            >
+                              <AlignLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={selectedFieldData.textAlign === 'center' ? 'default' : 'outline'}
+                              onClick={() => updateField(selectedFieldData.id, { textAlign: 'center' })}
+                            >
+                              <AlignCenter className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={selectedFieldData.textAlign === 'right' ? 'default' : 'outline'}
+                              onClick={() => updateField(selectedFieldData.id, { textAlign: 'right' })}
+                            >
+                              <AlignRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">Text Color</Label>
+                          <Input
+                            type="color"
+                            value={selectedFieldData.color}
+                            onChange={(e) => updateField(selectedFieldData.id, { color: e.target.value })}
+                            className="mt-1 h-10"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <Separator />
+
+                    <div>
+                      <Label className="text-xs">Rotation</Label>
+                      <Slider
+                        value={[selectedFieldData.rotation]}
+                        onValueChange={(v) => updateField(selectedFieldData.id, { rotation: v[0] })}
+                        min={0}
+                        max={360}
+                        step={15}
+                        className="mt-2"
+                      />
+                      <span className="text-xs text-muted-foreground">{selectedFieldData.rotation}°</span>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Opacity</Label>
+                      <Slider
+                        value={[selectedFieldData.opacity * 100]}
+                        onValueChange={(v) => updateField(selectedFieldData.id, { opacity: v[0] / 100 })}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="mt-2"
+                      />
+                      <span className="text-xs text-muted-foreground">{Math.round(selectedFieldData.opacity * 100)}%</span>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Background Color</Label>
+                      <Input
+                        type="color"
+                        value={selectedFieldData.backgroundColor === 'transparent' ? '#ffffff' : selectedFieldData.backgroundColor}
+                        onChange={(e) => updateField(selectedFieldData.id, { backgroundColor: e.target.value })}
+                        className="mt-1 h-10"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Border Width</Label>
+                      <Slider
+                        value={[selectedFieldData.borderWidth]}
+                        onValueChange={(v) => updateField(selectedFieldData.id, { borderWidth: v[0] })}
+                        min={0}
+                        max={5}
+                        step={1}
+                        className="mt-2"
+                      />
+                      <span className="text-xs text-muted-foreground">{selectedFieldData.borderWidth}px</span>
+                    </div>
+
+                    {selectedFieldData.borderWidth > 0 && (
+                      <div>
+                        <Label className="text-xs">Border Color</Label>
+                        <Input
+                          type="color"
+                          value={selectedFieldData.borderColor}
+                          onChange={(e) => updateField(selectedFieldData.id, { borderColor: e.target.value })}
+                          className="mt-1 h-10"
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </ScrollArea>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                  Select a field to edit properties
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="settings" className="p-4">
+              <ScrollArea className="h-[calc(100vh-200px)]">
+                <div className="space-y-4">
+                  <div>
+                    <Label>Company Name</Label>
+                    <Input
+                      value={config.company_name}
+                      onChange={(e) => setConfig({ ...config, company_name: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Company Logo</Label>
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      variant="outline"
+                      className="w-full mt-1"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Logo
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    {config.logo_url && (
+                      <img src={config.logo_url} alt="Logo" className="mt-2 h-16 object-contain" />
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Width (mm)</Label>
+                      <Input
+                        type="number"
+                        value={config.label_width_mm}
+                        onChange={(e) => setConfig({ ...config, label_width_mm: Number(e.target.value) })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label>Height (mm)</Label>
+                      <Input
+                        type="number"
+                        value={config.label_height_mm}
+                        onChange={(e) => setConfig({ ...config, label_height_mm: Number(e.target.value) })}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between">
+                    <Label>Show Grid</Label>
+                    <Switch
+                      checked={config.showGrid}
+                      onCheckedChange={(checked) => setConfig({ ...config, showGrid: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label>Snap to Grid</Label>
+                    <Switch
+                      checked={config.snapToGrid}
+                      onCheckedChange={(checked) => setConfig({ ...config, snapToGrid: checked })}
+                    />
+                  </div>
+
+                  {config.snapToGrid && (
+                    <div>
+                      <Label>Grid Size</Label>
+                      <Input
+                        type="number"
+                        value={config.gridSize}
+                        onChange={(e) => setConfig({ ...config, gridSize: Number(e.target.value) })}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
