@@ -161,11 +161,18 @@ const LabelCustomizationTool = () => {
   );
 
   const saveToHistory = useCallback(() => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({ fields: JSON.parse(JSON.stringify(fields)), config: JSON.parse(JSON.stringify(config)) });
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [fields, config, history, historyIndex]);
+    setHistory(prevHistory => {
+      setHistoryIndex(prevIndex => {
+        const newHistory = prevHistory.slice(0, prevIndex + 1);
+        newHistory.push({ fields: JSON.parse(JSON.stringify(fields)), config: JSON.parse(JSON.stringify(config)) });
+        setHistoryIndex(newHistory.length - 1);
+        return prevIndex + 1;
+      });
+      const newHistory = prevHistory.slice(0, historyIndex + 1);
+      newHistory.push({ fields: JSON.parse(JSON.stringify(fields)), config: JSON.parse(JSON.stringify(config)) });
+      return newHistory;
+    });
+  }, [fields, config, historyIndex]);
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -199,31 +206,35 @@ const LabelCustomizationTool = () => {
       // Arrow keys - move selected field (or adjust size with Ctrl)
       if (selectedField && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
-        const field = fields.find(f => f.id === selectedField);
-        if (!field || field.locked) return;
+        setFields(currentFields => {
+          const field = currentFields.find(f => f.id === selectedField);
+          if (!field || field.locked) return currentFields;
 
-        if (cmdOrCtrl && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-          // Ctrl+Up/Down: Adjust field font size
-          const newSize = e.key === 'ArrowUp' 
-            ? Math.min(32, field.fontSize + 1)
-            : Math.max(8, field.fontSize - 1);
-          updateField(selectedField, { fontSize: newSize });
-          saveToHistory();
-        } else {
-          // Regular arrow keys: Move field
-          const step = e.shiftKey ? 10 : 1;
-          let updates: Partial<LabelField> = {};
+          if (cmdOrCtrl && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            // Ctrl+Up/Down: Adjust field font size
+            const newSize = e.key === 'ArrowUp' 
+              ? Math.min(32, field.fontSize + 1)
+              : Math.max(8, field.fontSize - 1);
+            const updated = currentFields.map(f => f.id === selectedField ? { ...f, fontSize: newSize } : f);
+            saveToHistory();
+            return updated;
+          } else {
+            // Regular arrow keys: Move field
+            const step = e.shiftKey ? 10 : 1;
+            let updates: Partial<LabelField> = {};
 
-          switch (e.key) {
-            case 'ArrowUp': updates = { y: field.y - step }; break;
-            case 'ArrowDown': updates = { y: field.y + step }; break;
-            case 'ArrowLeft': updates = { x: field.x - step }; break;
-            case 'ArrowRight': updates = { x: field.x + step }; break;
+            switch (e.key) {
+              case 'ArrowUp': updates = { y: field.y - step }; break;
+              case 'ArrowDown': updates = { y: field.y + step }; break;
+              case 'ArrowLeft': updates = { x: field.x - step }; break;
+              case 'ArrowRight': updates = { x: field.x + step }; break;
+            }
+
+            const updated = currentFields.map(f => f.id === selectedField ? { ...f, ...updates } : f);
+            saveToHistory();
+            return updated;
           }
-
-          updateField(selectedField, updates);
-          saveToHistory();
-        }
+        });
       }
 
       // Delete - remove selected field
@@ -261,15 +272,18 @@ const LabelCustomizationTool = () => {
       // Tab - cycle through fields
       if (e.key === 'Tab') {
         e.preventDefault();
-        const enabledFields = fields.filter(f => f.enabled);
-        if (enabledFields.length === 0) return;
+        setFields(currentFields => {
+          const enabledFields = currentFields.filter(f => f.enabled);
+          if (enabledFields.length === 0) return currentFields;
 
-        const currentIndex = enabledFields.findIndex(f => f.id === selectedField);
-        const nextIndex = e.shiftKey 
-          ? (currentIndex - 1 + enabledFields.length) % enabledFields.length
-          : (currentIndex + 1) % enabledFields.length;
-        
-        setSelectedField(enabledFields[nextIndex].id);
+          const currentIndex = enabledFields.findIndex(f => f.id === selectedField);
+          const nextIndex = e.shiftKey 
+            ? (currentIndex - 1 + enabledFields.length) % enabledFields.length
+            : (currentIndex + 1) % enabledFields.length;
+          
+          setSelectedField(enabledFields[nextIndex].id);
+          return currentFields;
+        });
       }
 
       // Plus/Minus - canvas zoom or field rotation (Shift)
@@ -277,35 +291,43 @@ const LabelCustomizationTool = () => {
         e.preventDefault();
         if (e.shiftKey && selectedField) {
           // Shift+Plus: Rotate field clockwise
-          const field = fields.find(f => f.id === selectedField);
-          if (field && !field.locked) {
-            updateField(selectedField, { rotation: (field.rotation + 15) % 360 });
-            saveToHistory();
-          }
+          setFields(currentFields => {
+            const field = currentFields.find(f => f.id === selectedField);
+            if (field && !field.locked) {
+              const updated = currentFields.map(f => f.id === selectedField ? { ...f, rotation: (f.rotation + 15) % 360 } : f);
+              saveToHistory();
+              return updated;
+            }
+            return currentFields;
+          });
         } else {
           // No modifier: Canvas zoom
-          setZoom(Math.min(2, zoom + 0.25));
+          setZoom(z => Math.min(2, z + 0.25));
         }
       }
       if (e.key === '-') {
         e.preventDefault();
         if (e.shiftKey && selectedField) {
           // Shift+Minus: Rotate field counter-clockwise
-          const field = fields.find(f => f.id === selectedField);
-          if (field && !field.locked) {
-            updateField(selectedField, { rotation: (field.rotation - 15 + 360) % 360 });
-            saveToHistory();
-          }
+          setFields(currentFields => {
+            const field = currentFields.find(f => f.id === selectedField);
+            if (field && !field.locked) {
+              const updated = currentFields.map(f => f.id === selectedField ? { ...f, rotation: (f.rotation - 15 + 360) % 360 } : f);
+              saveToHistory();
+              return updated;
+            }
+            return currentFields;
+          });
         } else {
           // No modifier: Canvas zoom
-          setZoom(Math.max(0.5, zoom - 0.25));
+          setZoom(z => Math.max(0.5, z - 0.25));
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedField, fields, zoom, historyIndex, history.length]);
+  }, [selectedField, saveToHistory, undo, redo]);
 
   const { data: existingConfig } = useQuery({
     queryKey: ['label-config'],
