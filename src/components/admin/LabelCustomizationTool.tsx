@@ -1067,22 +1067,22 @@ const LabelCustomizationTool = () => {
                                includeMargin={false}
                              />
                            </div>
-                         ) : (field.codeType === 'barcode' || field.id === 'barcode') ? (
-                           <div className="flex flex-col items-center w-full">
-                             <div className="text-[10px] mb-1">{getFieldValue(field.id)}</div>
-                             <div className="flex gap-0.5">
-                               {Array.from({ length: 30 }).map((_, i) => (
-                                 <div
-                                   key={i}
-                                   className="bg-black"
-                                   style={{ 
-                                     width: `${1 * zoom}px`, 
-                                     height: i % 3 === 0 ? `${20 * zoom}px` : `${16 * zoom}px` 
-                                   }}
-                                 />
-                               ))}
-                             </div>
-                           </div>
+                          ) : (field.codeType === 'barcode' || field.id === 'barcode') ? (
+                            <div className="flex flex-col items-center w-full">
+                              <div style={{ fontSize: `${field.fontSize * zoom * 0.6}px` }} className="mb-1">{getFieldValue(field.id)}</div>
+                              <div className="flex gap-0.5">
+                                {Array.from({ length: 30 }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className="bg-black"
+                                    style={{ 
+                                      width: `${(field.width / 30) * zoom * 0.8}px`, 
+                                      height: i % 3 === 0 ? `${field.height * zoom * 0.6}px` : `${field.height * zoom * 0.5}px` 
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
                          ) : (
                            <span className="w-full">{getFieldValue(field.id)}</span>
                          )}
