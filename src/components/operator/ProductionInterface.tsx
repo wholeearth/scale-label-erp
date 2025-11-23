@@ -462,8 +462,6 @@ const ProductionInterface = () => {
     const printWindow = window.open('', '', 'width=400,height=300');
     if (!printWindow) return;
 
-    const barcodeCanvas = barcodeCanvasRef.current;
-    const qrcodeCanvas = qrcodeCanvasRef.current;
     const logoUrl = labelConfig?.logo_url || '';
     const companyName = labelConfig?.company_name || 'Company Name';
     
@@ -483,14 +481,50 @@ const ProductionInterface = () => {
       company_name: companyName,
       item_name: item?.product_name || '-',
       item_code: item?.product_code || '-',
-      length: `${item?.length_yards || '-'} ${item?.length_yards ? 'meter' : ''}`,
-      width: `${item?.width_inches || '-'} ${item?.width_inches ? '"' : ''}`,
+      length: `${item?.length_yards || '-'} yds`,
+      width: `${item?.width_inches || '-'}"`,
       color: item?.color || '-',
       quality: '-',
       weight: `${itemWeight.toFixed(2)} kg`,
       serial_no: serialNumber,
       barcode: barcodeData,
       qrcode: barcodeData,
+    };
+
+    // Generate barcode image
+    const generateBarcode = (data: string, width: number, height: number): string => {
+      const canvas = document.createElement('canvas');
+      try {
+        JsBarcode(canvas, data, {
+          format: 'CODE128',
+          width: 1.5,
+          height: height - 10 || 40,
+          displayValue: false,
+          margin: 0,
+        });
+        return canvas.toDataURL();
+      } catch (error) {
+        console.error('Barcode generation error:', error);
+        return '';
+      }
+    };
+
+    // Generate QR code image  
+    const generateQRCode = async (data: string, size: number): Promise<string> => {
+      try {
+        const qrDataUrl = await QRCode.toDataURL(data, {
+          width: size,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          }
+        });
+        return qrDataUrl;
+      } catch (error) {
+        console.error('QR code generation error:', error);
+        return '';
+      }
     };
 
     // Sort fields by zIndex for proper layering
@@ -501,79 +535,83 @@ const ProductionInterface = () => {
       sortedFields
         .filter((field: any) => field.enabled !== false && field.visible !== false)
         .map(async (field: any) => {
-          const fieldType = field.type || 'text';
-          const rotation = field.rotation || 0;
-          const fontSize = field.fontSize || 12;
-          const fontFamily = field.fontFamily || 'Arial';
-          const fontWeight = field.fontWeight || 'normal';
-          const color = field.color || '#000000';
-          const backgroundColor = field.backgroundColor || 'transparent';
-          const textAlign = field.textAlign || 'left';
-          const borderWidth = field.borderWidth || 0;
-          const borderColor = field.borderColor || '#000000';
-          const borderRadius = field.borderRadius || 0;
-          const padding = field.padding || 0;
-          const opacity = field.opacity !== undefined ? field.opacity : 1;
-          const width = field.width || 'auto';
-          const height = field.height || 'auto';
-          const zIndex = field.zIndex || 0;
+        const fieldType = field.type || 'text';
+        const rotation = field.rotation || 0;
+        const fontSize = field.fontSize || 12;
+        const fontFamily = field.fontFamily || 'Arial';
+        const fontWeight = field.fontWeight || 'normal';
+        const color = field.color || '#000000';
+        const backgroundColor = field.backgroundColor || 'transparent';
+        const textAlign = field.textAlign || 'left';
+        const borderWidth = field.borderWidth || 0;
+        const borderColor = field.borderColor || '#000000';
+        const borderRadius = field.borderRadius || 0;
+        const padding = field.padding || 0;
+        const opacity = field.opacity !== undefined ? field.opacity : 1;
+        const width = field.width || 'auto';
+        const height = field.height || 'auto';
+        const zIndex = field.zIndex || 0;
 
-          const baseStyle = `
-            position: absolute;
-            left: ${field.x || 0}px;
-            top: ${field.y || 0}px;
-            transform: rotate(${rotation}deg);
-            transform-origin: center;
-            font-size: ${fontSize}px;
-            font-family: ${fontFamily};
-            font-weight: ${fontWeight};
-            color: ${color};
-            background-color: ${backgroundColor};
-            text-align: ${textAlign};
-            border: ${borderWidth}px solid ${borderColor};
-            border-radius: ${borderRadius}px;
-            padding: ${padding}px;
-            opacity: ${opacity};
-            width: ${typeof width === 'number' ? `${width}px` : width};
-            height: ${typeof height === 'number' ? `${height}px` : height};
-            z-index: ${zIndex};
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: ${textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start'};
+        const baseStyle = `
+          position: absolute;
+          left: ${field.x || 0}px;
+          top: ${field.y || 0}px;
+          transform: rotate(${rotation}deg);
+          transform-origin: center;
+          font-size: ${fontSize}px;
+          font-family: ${fontFamily};
+          font-weight: ${fontWeight};
+          color: ${color};
+          background-color: ${backgroundColor};
+          text-align: ${textAlign};
+          border: ${borderWidth}px solid ${borderColor};
+          border-radius: ${borderRadius}px;
+          padding: ${padding}px;
+          opacity: ${opacity};
+          width: ${typeof width === 'number' ? `${width}px` : width};
+          height: ${typeof height === 'number' ? `${height}px` : height};
+          z-index: ${zIndex};
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          justify-content: ${textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start'};
+        `;
+
+        // Get field value
+        const value = fieldValues[field.id] || fieldValues[field.name?.toLowerCase().replace(/\s+/g, '_')] || '';
+
+        // Handle different field types
+        if (fieldType === 'logo') {
+          return `
+            <div style="${baseStyle}">
+              ${logoUrl ? `<img src="${logoUrl}" style="width: 100%; height: 100%; object-fit: contain;" alt="Logo" />` : ''}
+            </div>
           `;
-
-          // Handle different field types
-          if (fieldType === 'logo') {
-            return `
-              <div style="${baseStyle}">
-                ${logoUrl ? `<img src="${logoUrl}" style="width: 100%; height: 100%; object-fit: contain;" alt="Logo" />` : ''}
-              </div>
-            `;
-          } else if (fieldType === 'barcode' && field.id === 'barcode') {
-            return `
-              <div style="${baseStyle} display: flex; flex-direction: column; align-items: center;">
-                ${barcodeCanvas ? `<img src="${barcodeCanvas.toDataURL()}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
-              </div>
-            `;
-          } else if (fieldType === 'qrcode' && field.id === 'qrcode') {
-            return `
-              <div style="${baseStyle} display: flex; align-items: center; justify-content: center;">
-                ${qrcodeCanvas ? `<img src="${qrcodeCanvas.toDataURL()}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
-              </div>
-            `;
-          } else {
-            // Text field
-            const value = fieldValues[field.id] || field.name || '';
-            return `
-              <div style="${baseStyle}">
-                <span style="white-space: pre-wrap; word-break: break-word;">${value}</span>
-              </div>
-            `;
-          }
-        })
-    );
-
+        } else if (fieldType === 'barcode') {
+          const barcodeImg = generateBarcode(value || barcodeData, field.width, field.height);
+          return `
+            <div style="${baseStyle}">
+              ${barcodeImg ? `<img src="${barcodeImg}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
+            </div>
+          `;
+        } else if (fieldType === 'qrcode') {
+          const qrSize = Math.min(field.width || 100, field.height || 100);
+          const qrImg = await generateQRCode(value || barcodeData, qrSize);
+          return `
+            <div style="${baseStyle}">
+              ${qrImg ? `<img src="${qrImg}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />` : ''}
+            </div>
+          `;
+        } else {
+          // Text field
+          return `
+            <div style="${baseStyle}">
+              <span style="white-space: pre-wrap; word-break: break-word;">${value}</span>
+          </div>
+        `;
+      }
+    })
+  );
     const content = `
       <html>
         <head>
@@ -601,7 +639,7 @@ const ProductionInterface = () => {
         </head>
         <body>
           <div class="label">
-            ${(await Promise.all(fieldsHtml)).join('')}
+            ${fieldsHtml.join('')}
           </div>
         </body>
       </html>
