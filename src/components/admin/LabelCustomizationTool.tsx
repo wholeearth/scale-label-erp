@@ -99,6 +99,10 @@ const LabelCustomizationTool = () => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const barcodePreviewRef = useRef<HTMLCanvasElement>(null);
+  const [alignmentGuides, setAlignmentGuides] = useState<{
+    vertical: number[];
+    horizontal: number[];
+  }>({ vertical: [], horizontal: [] });
   
   // Sample production data for preview
   const previewData = {
@@ -424,13 +428,99 @@ const LabelCustomizationTool = () => {
     let x = (e.clientX - rect.left) / zoom - dragOffset.x;
     let y = (e.clientY - rect.top) / zoom - dragOffset.y;
 
-    if (config.snapToGrid) {
-      x = Math.round(x / config.gridSize) * config.gridSize;
-      y = Math.round(y / config.gridSize) * config.gridSize;
+    const draggingFieldData = fields.find(f => f.id === draggingField);
+    if (!draggingFieldData) return;
+
+    // Detect alignment with other fields
+    const snapThreshold = 3; // pixels
+    const guides = { vertical: [] as number[], horizontal: [] as number[] };
+    let snappedX = x;
+    let snappedY = y;
+
+    // Get other fields for alignment
+    const otherFields = fields.filter(f => f.id !== draggingField && f.visible);
+
+    // Calculate dragging field edges and center
+    const draggingLeft = x;
+    const draggingRight = x + draggingFieldData.width;
+    const draggingCenterX = x + draggingFieldData.width / 2;
+    const draggingTop = y;
+    const draggingBottom = y + draggingFieldData.height;
+    const draggingCenterY = y + draggingFieldData.height / 2;
+
+    // Check alignment with other fields
+    otherFields.forEach(field => {
+      const fieldLeft = field.x;
+      const fieldRight = field.x + field.width;
+      const fieldCenterX = field.x + field.width / 2;
+      const fieldTop = field.y;
+      const fieldBottom = field.y + field.height;
+      const fieldCenterY = field.y + field.height / 2;
+
+      // Vertical alignment (X-axis)
+      // Left edge alignment
+      if (Math.abs(draggingLeft - fieldLeft) < snapThreshold) {
+        snappedX = fieldLeft;
+        guides.vertical.push(fieldLeft);
+      }
+      // Right edge alignment
+      if (Math.abs(draggingRight - fieldRight) < snapThreshold) {
+        snappedX = fieldRight - draggingFieldData.width;
+        guides.vertical.push(fieldRight);
+      }
+      // Center alignment
+      if (Math.abs(draggingCenterX - fieldCenterX) < snapThreshold) {
+        snappedX = fieldCenterX - draggingFieldData.width / 2;
+        guides.vertical.push(fieldCenterX);
+      }
+      // Left to right edge alignment
+      if (Math.abs(draggingLeft - fieldRight) < snapThreshold) {
+        snappedX = fieldRight;
+        guides.vertical.push(fieldRight);
+      }
+      // Right to left edge alignment
+      if (Math.abs(draggingRight - fieldLeft) < snapThreshold) {
+        snappedX = fieldLeft - draggingFieldData.width;
+        guides.vertical.push(fieldLeft);
+      }
+
+      // Horizontal alignment (Y-axis)
+      // Top edge alignment
+      if (Math.abs(draggingTop - fieldTop) < snapThreshold) {
+        snappedY = fieldTop;
+        guides.horizontal.push(fieldTop);
+      }
+      // Bottom edge alignment
+      if (Math.abs(draggingBottom - fieldBottom) < snapThreshold) {
+        snappedY = fieldBottom - draggingFieldData.height;
+        guides.horizontal.push(fieldBottom);
+      }
+      // Center alignment
+      if (Math.abs(draggingCenterY - fieldCenterY) < snapThreshold) {
+        snappedY = fieldCenterY - draggingFieldData.height / 2;
+        guides.horizontal.push(fieldCenterY);
+      }
+      // Top to bottom edge alignment
+      if (Math.abs(draggingTop - fieldBottom) < snapThreshold) {
+        snappedY = fieldBottom;
+        guides.horizontal.push(fieldBottom);
+      }
+      // Bottom to top edge alignment
+      if (Math.abs(draggingBottom - fieldTop) < snapThreshold) {
+        snappedY = fieldTop - draggingFieldData.height;
+        guides.horizontal.push(fieldTop);
+      }
+    });
+
+    // Apply grid snapping if no alignment snap occurred
+    if (config.snapToGrid && guides.vertical.length === 0 && guides.horizontal.length === 0) {
+      snappedX = Math.round(snappedX / config.gridSize) * config.gridSize;
+      snappedY = Math.round(snappedY / config.gridSize) * config.gridSize;
     }
 
+    setAlignmentGuides(guides);
     setFields(fields.map(f => 
-      f.id === draggingField ? { ...f, x, y } : f
+      f.id === draggingField ? { ...f, x: snappedX, y: snappedY } : f
     ));
   };
 
@@ -438,6 +528,7 @@ const LabelCustomizationTool = () => {
     if (draggingField) {
       saveToHistory();
       setDraggingField(null);
+      setAlignmentGuides({ vertical: [], horizontal: [] });
     }
   };
 
@@ -695,6 +786,40 @@ const LabelCustomizationTool = () => {
                       </pattern>
                     </defs>
                     <rect width="100%" height="100%" fill="url(#grid)" />
+                  </svg>
+                </div>
+              )}
+
+              {/* Alignment Guides */}
+              {!isPreviewing && (alignmentGuides.vertical.length > 0 || alignmentGuides.horizontal.length > 0) && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    {alignmentGuides.vertical.map((x, i) => (
+                      <line
+                        key={`v-${i}`}
+                        x1={x}
+                        y1={0}
+                        x2={x}
+                        y2={canvasHeight}
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="1"
+                        strokeDasharray="4 4"
+                        opacity="0.8"
+                      />
+                    ))}
+                    {alignmentGuides.horizontal.map((y, i) => (
+                      <line
+                        key={`h-${i}`}
+                        x1={0}
+                        y1={y}
+                        x2={canvasWidth}
+                        y2={y}
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="1"
+                        strokeDasharray="4 4"
+                        opacity="0.8"
+                      />
+                    ))}
                   </svg>
                 </div>
               )}
