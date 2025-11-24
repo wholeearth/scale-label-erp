@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
+import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,9 +40,18 @@ interface Assignment {
     color: string | null;
     use_predefined_weight: boolean | null;
     predefined_weight_kg: number | null;
+    manual_weight_entry: boolean | null;
+    manual_length_entry: boolean | null;
+    is_intermediate_product: boolean | null;
     expected_weight_kg: number | null;
     weight_tolerance_percentage: number | null;
   };
+}
+
+interface ConsumptionEntry {
+  serialNumber: string;
+  weight?: number;
+  length?: number;
 }
 
 interface Machine {
@@ -56,6 +67,7 @@ const ProductionInterface = () => {
   const [selectedItem, setSelectedItem] = useState<Assignment | null>(null);
   const [selectedMachine, setSelectedMachine] = useState<string>('');
   const [currentWeight, setCurrentWeight] = useState<number>(0);
+  const [currentLength, setCurrentLength] = useState<number>(0);
   const [isCapturingWeight, setIsCapturingWeight] = useState(false);
   const [autoWeight, setAutoWeight] = useState(true);
   const [showWeightWarning, setShowWeightWarning] = useState(false);
@@ -63,6 +75,8 @@ const ProductionInterface = () => {
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [printPreviewEnabled, setPrintPreviewEnabled] = useState(false);
   const [previewData, setPreviewData] = useState<{ serialNumber: string; barcodeData: string } | null>(null);
+  const [showConsumptionDialog, setShowConsumptionDialog] = useState(false);
+  const [consumptionEntries, setConsumptionEntries] = useState<ConsumptionEntry[]>([]);
   const barcodeCanvasRef = useRef<HTMLCanvasElement>(null);
   const qrcodeCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -183,13 +197,17 @@ const ProductionInterface = () => {
     enabled: !!profile,
   });
 
-  // Auto-capture weight when item is selected (only if not using predefined weight)
+  // Auto-capture weight when item is selected (only if not using predefined/manual weight)
   useEffect(() => {
     if (selectedItem) {
       // If item uses predefined weight, set it immediately and disable scale
       if (selectedItem.items.use_predefined_weight && selectedItem.items.predefined_weight_kg) {
         setCurrentWeight(selectedItem.items.predefined_weight_kg);
         setAutoWeight(false);
+      } else if (selectedItem.items.manual_weight_entry) {
+        // Manual weight entry, disable auto scale
+        setAutoWeight(false);
+        setCurrentWeight(0);
       } else if (autoWeight) {
         const interval = setInterval(() => {
           captureWeight();
@@ -323,6 +341,7 @@ const ProductionInterface = () => {
           item_id: selectedItem.item_id,
           machine_id: selectedMachine,
           weight_kg: currentWeight,
+          length_yards: selectedItem.items.manual_length_entry ? currentLength : null,
           global_serial: globalSerial,
           item_serial: itemSerial,
           operator_sequence: operatorSequence,
@@ -333,6 +352,25 @@ const ProductionInterface = () => {
         .single();
 
       if (insertError) throw insertError;
+
+      // Record raw material consumption if any
+      if (consumptionEntries.length > 0 && productionRecord) {
+        const consumptionRecords = consumptionEntries.map(entry => ({
+          production_record_id: productionRecord.id,
+          consumed_serial_number: entry.serialNumber,
+          consumed_weight_kg: entry.weight || null,
+          consumed_length_yards: entry.length || null,
+        }));
+
+        const { error: consumptionError } = await supabase
+          .from('raw_material_consumption')
+          .insert(consumptionRecords);
+
+        if (consumptionError) {
+          console.error('Consumption tracking error:', consumptionError);
+          throw new Error('Failed to record raw material consumption');
+        }
+      }
 
       // Update counters
       await supabase
@@ -416,6 +454,10 @@ const ProductionInterface = () => {
         title: 'Success',
         description: `Item ${serialNumber} recorded successfully`,
       });
+      
+      // Reset consumption entries for next production
+      setConsumptionEntries([]);
+      setCurrentLength(0);
     },
     onError: (error: Error) => {
       toast({
@@ -740,10 +782,11 @@ const ProductionInterface = () => {
   };
 
   const handleProduction = () => {
-    // Skip weight validation if item uses predefined weight
+    // Skip weight validation if item uses predefined weight or manual entry
     const usePredefinedWeight = selectedItem?.items.use_predefined_weight;
+    const useManualWeight = selectedItem?.items.manual_weight_entry;
     
-    if (currentWeight === 0 && !usePredefinedWeight) {
+    if (currentWeight === 0 && !usePredefinedWeight && !useManualWeight) {
       toast({
         title: 'Warning',
         description: 'Please wait for weight measurement',
@@ -752,8 +795,34 @@ const ProductionInterface = () => {
       return;
     }
 
+    // Check if manual weight entry is required
+    if (useManualWeight && currentWeight <= 0) {
+      toast({
+        title: 'Weight Required',
+        description: 'Please enter a weight manually',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if manual length entry is required
+    if (selectedItem?.items.manual_length_entry && currentLength <= 0) {
+      toast({
+        title: 'Length Required',
+        description: 'Please enter a length manually',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if raw material consumption tracking is needed for intermediate products
+    if (selectedItem?.items.is_intermediate_product && consumptionEntries.length === 0) {
+      setShowConsumptionDialog(true);
+      return;
+    }
+
     // Check weight variance before proceeding
-    if (selectedItem?.items.expected_weight_kg && selectedItem?.items.weight_tolerance_percentage) {
+    if (selectedItem?.items.expected_weight_kg && selectedItem?.items.weight_tolerance_percentage && !useManualWeight) {
       const expectedWeight = selectedItem.items.expected_weight_kg;
       const tolerance = selectedItem.items.weight_tolerance_percentage;
       const minWeight = expectedWeight * (1 - tolerance / 100);
@@ -765,6 +834,13 @@ const ProductionInterface = () => {
       }
     }
 
+    productionMutation.mutate();
+  };
+
+  const handleConsumptionSubmit = (entries: ConsumptionEntry[]) => {
+    setConsumptionEntries(entries);
+    setShowConsumptionDialog(false);
+    // Now proceed with production
     productionMutation.mutate();
   };
 
@@ -790,6 +866,8 @@ const ProductionInterface = () => {
 
   const handleSelectItem = (assignment: Assignment) => {
     setSelectedItem(assignment);
+    setConsumptionEntries([]); // Reset consumption entries for new item
+    setCurrentLength(0); // Reset length
     // Reset weight unless item uses predefined weight
     if (assignment.items.use_predefined_weight && assignment.items.predefined_weight_kg) {
       setCurrentWeight(assignment.items.predefined_weight_kg);
@@ -1108,16 +1186,31 @@ const ProductionInterface = () => {
             <Card className="border-2 border-primary">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">
-                      Current Weight {selectedItem.items.use_predefined_weight && <span className="text-xs">(Predefined)</span>}
+                      Current Weight
+                      {selectedItem.items.use_predefined_weight && <span className="text-xs ml-1">(Predefined)</span>}
+                      {selectedItem.items.manual_weight_entry && <span className="text-xs ml-1">(Manual)</span>}
                     </p>
-                    <p className="text-3xl font-bold text-primary">{currentWeight.toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">kg</p>
+                    {selectedItem.items.manual_weight_entry ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Enter weight"
+                        value={currentWeight || ''}
+                        onChange={(e) => setCurrentWeight(parseFloat(e.target.value) || 0)}
+                        className="mt-2 text-xl font-bold"
+                      />
+                    ) : (
+                      <>
+                        <p className="text-3xl font-bold text-primary">{currentWeight.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">kg</p>
+                      </>
+                    )}
                   </div>
                   <Weight className="h-10 w-10 text-primary" />
                 </div>
-                {!selectedItem.items.use_predefined_weight && (
+                {!selectedItem.items.use_predefined_weight && !selectedItem.items.manual_weight_entry && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1129,11 +1222,35 @@ const ProductionInterface = () => {
                     Refresh
                   </Button>
                 )}
-                {selectedItem.items.use_predefined_weight && (
-                  <p className="text-xs text-center mt-3 text-muted-foreground">Scale disabled for this item</p>
+                {(selectedItem.items.use_predefined_weight || selectedItem.items.manual_weight_entry) && (
+                  <p className="text-xs text-center mt-3 text-muted-foreground">
+                    {selectedItem.items.use_predefined_weight ? 'Scale disabled' : 'Manual entry mode'}
+                  </p>
                 )}
               </CardContent>
             </Card>
+
+            {selectedItem.items.manual_length_entry && (
+              <Card className="border-2 border-accent">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">Length (Manual)</p>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Enter length"
+                        value={currentLength || ''}
+                        onChange={(e) => setCurrentLength(parseFloat(e.target.value) || 0)}
+                        className="mt-2 text-xl font-bold"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">yards</p>
+                    </div>
+                    <Package className="h-10 w-10 text-accent" />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardContent className="pt-6">
@@ -1410,6 +1527,15 @@ const ProductionInterface = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Raw Material Consumption Dialog */}
+      <RawMaterialConsumptionDialog
+        open={showConsumptionDialog}
+        onOpenChange={setShowConsumptionDialog}
+        onSubmit={handleConsumptionSubmit}
+        requiresWeight={selectedItem?.items.manual_weight_entry || false}
+        requiresLength={selectedItem?.items.manual_length_entry || false}
+      />
     </div>
   );
 };
