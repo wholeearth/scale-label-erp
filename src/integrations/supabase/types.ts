@@ -518,8 +518,11 @@ export type Database = {
           created_at: string | null
           expected_weight_kg: number | null
           id: string
+          is_intermediate_product: boolean | null
           item_type: string
           length_yards: number | null
+          manual_length_entry: boolean | null
+          manual_weight_entry: boolean | null
           predefined_weight_kg: number | null
           product_code: string
           product_name: string
@@ -534,8 +537,11 @@ export type Database = {
           created_at?: string | null
           expected_weight_kg?: number | null
           id?: string
+          is_intermediate_product?: boolean | null
           item_type: string
           length_yards?: number | null
+          manual_length_entry?: boolean | null
+          manual_weight_entry?: boolean | null
           predefined_weight_kg?: number | null
           product_code: string
           product_name: string
@@ -550,8 +556,11 @@ export type Database = {
           created_at?: string | null
           expected_weight_kg?: number | null
           id?: string
+          is_intermediate_product?: boolean | null
           item_type?: string
           length_yards?: number | null
+          manual_length_entry?: boolean | null
+          manual_weight_entry?: boolean | null
           predefined_weight_kg?: number | null
           product_code?: string
           product_name?: string
@@ -881,6 +890,7 @@ export type Database = {
           id: string
           item_id: string
           item_serial: number
+          length_yards: number | null
           machine_id: string | null
           operator_id: string
           operator_sequence: number
@@ -896,6 +906,7 @@ export type Database = {
           id?: string
           item_id: string
           item_serial: number
+          length_yards?: number | null
           machine_id?: string | null
           operator_id: string
           operator_sequence: number
@@ -911,6 +922,7 @@ export type Database = {
           id?: string
           item_id?: string
           item_serial?: number
+          length_yards?: number | null
           machine_id?: string | null
           operator_id?: string
           operator_sequence?: number
@@ -1056,6 +1068,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      raw_material_consumption: {
+        Row: {
+          consumed_length_yards: number | null
+          consumed_serial_number: string
+          consumed_weight_kg: number | null
+          created_at: string | null
+          id: string
+          production_record_id: string
+        }
+        Insert: {
+          consumed_length_yards?: number | null
+          consumed_serial_number: string
+          consumed_weight_kg?: number | null
+          created_at?: string | null
+          id?: string
+          production_record_id: string
+        }
+        Update: {
+          consumed_length_yards?: number | null
+          consumed_serial_number?: string
+          consumed_weight_kg?: number | null
+          created_at?: string | null
+          id?: string
+          production_record_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_material_consumption_production_record_id_fkey"
+            columns: ["production_record_id"]
+            isOneToOne: false
+            referencedRelation: "production_records"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       raw_material_usage: {
         Row: {

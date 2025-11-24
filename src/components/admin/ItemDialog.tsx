@@ -26,6 +26,9 @@ const itemSchema = z.object({
   unit_id: z.string().optional(),
   predefined_weight_kg: z.string().optional(),
   use_predefined_weight: z.boolean().default(false),
+  manual_weight_entry: z.boolean().default(false),
+  manual_length_entry: z.boolean().default(false),
+  is_intermediate_product: z.boolean().default(false),
   expected_weight_kg: z.string().optional(),
   weight_tolerance_percentage: z.string().optional(),
 });
@@ -55,6 +58,9 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
       unit_id: '',
       predefined_weight_kg: '',
       use_predefined_weight: false,
+      manual_weight_entry: false,
+      manual_length_entry: false,
+      is_intermediate_product: false,
       expected_weight_kg: '',
       weight_tolerance_percentage: '10',
     },
@@ -72,6 +78,9 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         unit_id: item.unit_id || '',
         predefined_weight_kg: item.predefined_weight_kg?.toString() || '',
         use_predefined_weight: item.use_predefined_weight || false,
+        manual_weight_entry: (item as any).manual_weight_entry || false,
+        manual_length_entry: (item as any).manual_length_entry || false,
+        is_intermediate_product: (item as any).is_intermediate_product || false,
         expected_weight_kg: (item as any).expected_weight_kg?.toString() || '',
         weight_tolerance_percentage: (item as any).weight_tolerance_percentage?.toString() || '10',
       });
@@ -86,6 +95,9 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         unit_id: '',
         predefined_weight_kg: '',
         use_predefined_weight: false,
+        manual_weight_entry: false,
+        manual_length_entry: false,
+        is_intermediate_product: false,
         expected_weight_kg: '',
         weight_tolerance_percentage: '10',
       });
@@ -104,6 +116,9 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
         unit_id: data.unit_id || null,
         predefined_weight_kg: data.predefined_weight_kg ? parseFloat(data.predefined_weight_kg) : null,
         use_predefined_weight: data.use_predefined_weight,
+        manual_weight_entry: data.manual_weight_entry,
+        manual_length_entry: data.manual_length_entry,
+        is_intermediate_product: data.is_intermediate_product,
         expected_weight_kg: data.expected_weight_kg ? parseFloat(data.expected_weight_kg) : null,
         weight_tolerance_percentage: data.weight_tolerance_percentage ? parseFloat(data.weight_tolerance_percentage) : 10,
       };
@@ -303,6 +318,63 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-semibold mb-4">Production Entry Options</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="manual_weight_entry"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-start gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Manual weight entry
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="manual_length_entry"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-start gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Manual length entry
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="is_intermediate_product"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-start gap-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Intermediate product (jumbo roll)
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <div className="border-t pt-4 mt-4">
