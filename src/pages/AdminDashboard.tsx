@@ -26,6 +26,7 @@ import OrderManagement from '@/components/admin/OrderManagement';
 import SystemSettings from '@/components/admin/SystemSettings';
 import MachineManagement from '@/components/admin/MachineManagement';
 import InventoryManagement from '@/components/admin/InventoryManagement';
+import JumboRollInventory from '@/components/admin/JumboRollInventory';
 import PurchaseManagement from '@/components/admin/PurchaseManagement';
 import { CommissionAgentManagement } from '@/components/admin/CommissionAgentManagement';
 import LabelConfiguration from '@/components/admin/LabelConfiguration';
@@ -194,6 +195,7 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="inventory" className="space-y-6">
+            <JumboRollInventory />
             <InventoryManagement />
           </TabsContent>
 
