@@ -3,8 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Factory, LogOut } from 'lucide-react';
 import ProductionInterface from '@/components/operator/ProductionInterface';
-import ShiftManagement from '@/components/operator/ShiftManagement';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const OperatorDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -38,20 +36,7 @@ const OperatorDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="production" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="production">Production</TabsTrigger>
-            <TabsTrigger value="shift">Shift Management</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="production">
-            <ProductionInterface />
-          </TabsContent>
-
-          <TabsContent value="shift">
-            <ShiftManagement />
-          </TabsContent>
-        </Tabs>
+        <ProductionInterface />
       </main>
     </div>
   );

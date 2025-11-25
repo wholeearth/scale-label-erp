@@ -11,7 +11,6 @@ import { ProductionCalendar } from '@/components/production-manager/ProductionCa
 import { ReprintRequests } from '@/components/production-manager/ReprintRequests';
 import { ReprintRequestHistory } from '@/components/production-manager/ReprintRequestHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import ShiftDataManagement from '@/components/accountant/ShiftDataManagement';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -112,7 +111,7 @@ const ProductionManagerDashboard = () => {
         </Card>
 
         <Tabs defaultValue="orders" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 max-w-6xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-6xl">
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" />
               Orders
@@ -149,10 +148,6 @@ const ProductionManagerDashboard = () => {
               <TrendingUp className="h-4 w-4" />
               Metrics
             </TabsTrigger>
-            <TabsTrigger value="shift-data" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Shift Data
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="orders" className="space-y-4">
@@ -181,10 +176,6 @@ const ProductionManagerDashboard = () => {
 
           <TabsContent value="metrics" className="space-y-4">
             <EfficiencyMetrics />
-          </TabsContent>
-
-          <TabsContent value="shift-data" className="space-y-4">
-            <ShiftDataManagement />
           </TabsContent>
         </Tabs>
       </main>
