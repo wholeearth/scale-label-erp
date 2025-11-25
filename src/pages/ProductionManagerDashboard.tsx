@@ -148,6 +148,10 @@ const ProductionManagerDashboard = () => {
               <TrendingUp className="h-4 w-4" />
               Metrics
             </TabsTrigger>
+            <TabsTrigger value="shift-data" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Shift Data
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="orders" className="space-y-4">
