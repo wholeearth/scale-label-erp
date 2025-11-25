@@ -19,7 +19,7 @@ type Unit = Tables<'units'>;
 const itemSchema = z.object({
   product_code: z.string().min(1, 'Product code is required').max(50),
   product_name: z.string().min(1, 'Product name is required').max(200),
-  item_type: z.enum(['finished_good', 'raw_material']),
+  item_type: z.enum(['finished_good', 'raw_material', 'intermediate_type_1', 'intermediate_type_2']),
   color: z.string().max(50).optional(),
   length_yards: z.string().optional(),
   width_inches: z.string().optional(),
@@ -71,7 +71,7 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
       form.reset({
         product_code: item.product_code,
         product_name: item.product_name,
-        item_type: item.item_type as 'finished_good' | 'raw_material',
+        item_type: item.item_type as 'finished_good' | 'raw_material' | 'intermediate_type_1' | 'intermediate_type_2',
         color: item.color || '',
         length_yards: item.length_yards?.toString() || '',
         width_inches: item.width_inches?.toString() || '',
@@ -196,6 +196,8 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
                       <SelectContent>
                         <SelectItem value="finished_good">Finished Good</SelectItem>
                         <SelectItem value="raw_material">Raw Material</SelectItem>
+                        <SelectItem value="intermediate_type_1">Intermediate Type 1 (Non-Fused Interlining)</SelectItem>
+                        <SelectItem value="intermediate_type_2">Intermediate Type 2 (Fusible Interlining)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
