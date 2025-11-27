@@ -38,6 +38,7 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
   const [intermediateProducts, setIntermediateProducts] = useState<IntermediateProductEntry[]>([
     { itemId: '', quantity: '', weightKg: '', lengthYards: '' },
   ]);
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
 
   // Fetch intermediate items
   const { data: items } = useQuery({
@@ -107,9 +108,9 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
     enabled: open && !!shiftId,
   });
 
-  // Update intermediate products when produced items are loaded
+  // Update intermediate products when produced items are loaded (only once)
   useEffect(() => {
-    if (producedItems && producedItems.length > 0 && step === 'input') {
+    if (producedItems && producedItems.length > 0 && step === 'input' && !hasLoadedInitialData) {
       setIntermediateProducts(
         producedItems.map((item: any) => ({
           itemId: item.itemId,
@@ -118,8 +119,19 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
           lengthYards: item.totalLength.toFixed(2),
         }))
       );
+      setHasLoadedInitialData(true);
     }
-  }, [producedItems, step]);
+  }, [producedItems, step, hasLoadedInitialData]);
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setStep('prompt');
+      setRawMaterials([{ serialNumber: '', weightKg: '', lengthYards: '' }]);
+      setIntermediateProducts([{ itemId: '', quantity: '', weightKg: '', lengthYards: '' }]);
+      setHasLoadedInitialData(false);
+    }
+  }, [open]);
 
   const handleYes = () => {
     setStep('input');
@@ -290,7 +302,14 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
             {/* Intermediate Products Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Intermediate Products Produced</h3>
+                <div>
+                  <h3 className="text-lg font-semibold">Intermediate Products Produced</h3>
+                  {hasLoadedInitialData && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Pre-filled from production records. Edit if needed.
+                    </p>
+                  )}
+                </div>
                 <Button type="button" variant="outline" size="sm" onClick={addIntermediateProduct}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Product
