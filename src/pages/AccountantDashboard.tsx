@@ -18,6 +18,8 @@ import { ProductReturns } from '@/components/accountant/ProductReturns';
 import { PurchaseReturnForm } from '@/components/accountant/PurchaseReturnForm';
 import { AllVouchersReport } from '@/components/accountant/AllVouchersReport';
 import CreatePurchaseInvoice from '@/components/admin/CreatePurchaseInvoice';
+import ShiftDataManagement from '@/components/accountant/ShiftDataManagement';
+import { Clock } from 'lucide-react';
 
 const AccountantDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -54,7 +56,7 @@ const AccountantDashboard = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 gap-2">
+          <TabsList className="grid w-full grid-cols-5 gap-2">
             <TabsTrigger value="ledger">
               <BookOpen className="h-4 w-4 mr-2" />
               Ledger
@@ -70,6 +72,10 @@ const AccountantDashboard = () => {
             <TabsTrigger value="reports">
               <Receipt className="h-4 w-4 mr-2" />
               Reports
+            </TabsTrigger>
+            <TabsTrigger value="shift-data">
+              <Clock className="h-4 w-4 mr-2" />
+              Shift Data
             </TabsTrigger>
           </TabsList>
 
@@ -115,6 +121,10 @@ const AccountantDashboard = () => {
 
           <TabsContent value="reports" className="space-y-6">
             <AllVouchersReport />
+          </TabsContent>
+
+          <TabsContent value="shift-data" className="space-y-6">
+            <ShiftDataManagement />
           </TabsContent>
         </Tabs>
       </main>
