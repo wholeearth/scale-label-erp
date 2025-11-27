@@ -76,13 +76,9 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
 
       if (error) throw error;
 
-      // Group by item_id and calculate totals for intermediate products only
+      // Group by item_id and calculate totals for all produced items
       const grouped = data
-        ?.filter(record => 
-          record.items?.item_type === 'intermediate_type_1' || 
-          record.items?.item_type === 'intermediate_type_2'
-        )
-        .reduce((acc, record) => {
+        ?.reduce((acc, record) => {
           if (!record.item_id || !record.items) return acc;
           
           if (!acc[record.item_id]) {
@@ -303,7 +299,7 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">Intermediate Products Produced</h3>
+                  <h3 className="text-lg font-semibold">Items Produced</h3>
                   {hasLoadedInitialData && (
                     <p className="text-xs text-muted-foreground mt-1">
                       Pre-filled from production records. Edit if needed.
