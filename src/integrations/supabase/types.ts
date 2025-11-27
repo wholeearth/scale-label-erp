@@ -1355,6 +1355,137 @@ export type Database = {
         }
         Relationships: []
       }
+      shift_intermediate_production: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          quantity_produced: number
+          shift_record_id: string
+          total_length_yards: number | null
+          total_weight_kg: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          quantity_produced: number
+          shift_record_id: string
+          total_length_yards?: number | null
+          total_weight_kg?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          quantity_produced?: number
+          shift_record_id?: string
+          total_length_yards?: number | null
+          total_weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_intermediate_production_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_intermediate_production_shift_record_id_fkey"
+            columns: ["shift_record_id"]
+            isOneToOne: false
+            referencedRelation: "shift_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_raw_material_consumption: {
+        Row: {
+          consumed_length_yards: number | null
+          consumed_serial_number: string
+          consumed_weight_kg: number | null
+          created_at: string
+          id: string
+          shift_record_id: string
+        }
+        Insert: {
+          consumed_length_yards?: number | null
+          consumed_serial_number: string
+          consumed_weight_kg?: number | null
+          created_at?: string
+          id?: string
+          shift_record_id: string
+        }
+        Update: {
+          consumed_length_yards?: number | null
+          consumed_serial_number?: string
+          consumed_weight_kg?: number | null
+          created_at?: string
+          id?: string
+          shift_record_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_raw_material_consumption_shift_record_id_fkey"
+            columns: ["shift_record_id"]
+            isOneToOne: false
+            referencedRelation: "shift_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_records: {
+        Row: {
+          created_at: string
+          data_input_at: string | null
+          data_input_by: string | null
+          data_input_completed: boolean
+          id: string
+          operator_id: string
+          shift_date: string
+          shift_end: string | null
+          shift_start: string
+        }
+        Insert: {
+          created_at?: string
+          data_input_at?: string | null
+          data_input_by?: string | null
+          data_input_completed?: boolean
+          id?: string
+          operator_id: string
+          shift_date: string
+          shift_end?: string | null
+          shift_start?: string
+        }
+        Update: {
+          created_at?: string
+          data_input_at?: string | null
+          data_input_by?: string | null
+          data_input_completed?: boolean
+          id?: string
+          operator_id?: string
+          shift_date?: string
+          shift_end?: string | null
+          shift_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_records_data_input_by_fkey"
+            columns: ["data_input_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_records_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_payments: {
         Row: {
           amount: number
