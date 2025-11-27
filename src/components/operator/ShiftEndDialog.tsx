@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -53,6 +53,73 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
       return data;
     },
   });
+
+  // Fetch items produced in current shift
+  const { data: producedItems } = useQuery({
+    queryKey: ['shift-produced-items', shiftId],
+    queryFn: async () => {
+      const { data: shiftData, error: shiftError } = await supabase
+        .from('shift_records')
+        .select('operator_id, shift_start, shift_end')
+        .eq('id', shiftId)
+        .single();
+
+      if (shiftError) throw shiftError;
+
+      const { data, error } = await supabase
+        .from('production_records')
+        .select('item_id, weight_kg, length_yards, items(id, product_code, product_name, item_type)')
+        .eq('operator_id', shiftData.operator_id)
+        .gte('created_at', shiftData.shift_start)
+        .lte('created_at', shiftData.shift_end || new Date().toISOString());
+
+      if (error) throw error;
+
+      // Group by item_id and calculate totals for intermediate products only
+      const grouped = data
+        ?.filter(record => 
+          record.items?.item_type === 'intermediate_type_1' || 
+          record.items?.item_type === 'intermediate_type_2'
+        )
+        .reduce((acc, record) => {
+          if (!record.item_id || !record.items) return acc;
+          
+          if (!acc[record.item_id]) {
+            acc[record.item_id] = {
+              itemId: record.item_id,
+              productCode: record.items.product_code,
+              productName: record.items.product_name,
+              quantity: 0,
+              totalWeight: 0,
+              totalLength: 0,
+            };
+          }
+          
+          acc[record.item_id].quantity += 1;
+          acc[record.item_id].totalWeight += record.weight_kg || 0;
+          acc[record.item_id].totalLength += record.length_yards || 0;
+          
+          return acc;
+        }, {} as Record<string, any>);
+
+      return Object.values(grouped || {});
+    },
+    enabled: open && !!shiftId,
+  });
+
+  // Update intermediate products when produced items are loaded
+  useEffect(() => {
+    if (producedItems && producedItems.length > 0 && step === 'input') {
+      setIntermediateProducts(
+        producedItems.map((item: any) => ({
+          itemId: item.itemId,
+          quantity: item.quantity.toString(),
+          weightKg: item.totalWeight.toFixed(2),
+          lengthYards: item.totalLength.toFixed(2),
+        }))
+      );
+    }
+  }, [producedItems, step]);
 
   const handleYes = () => {
     setStep('input');
