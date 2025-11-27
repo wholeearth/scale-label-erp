@@ -40,14 +40,13 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
   ]);
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
 
-  // Fetch intermediate items
+  // Fetch all items (final goods + intermediate types)
   const { data: items } = useQuery({
-    queryKey: ['intermediate-items'],
+    queryKey: ['all-items-for-shift'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('items')
-        .select('id, product_code, product_name')
-        .in('item_type', ['intermediate_type_1', 'intermediate_type_2'])
+        .select('id, product_code, product_name, item_type')
         .order('product_name');
 
       if (error) throw error;
