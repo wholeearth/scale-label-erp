@@ -1407,6 +1407,7 @@ export type Database = {
           consumed_weight_kg: number | null
           created_at: string
           id: string
+          item_id: string | null
           shift_record_id: string
         }
         Insert: {
@@ -1415,6 +1416,7 @@ export type Database = {
           consumed_weight_kg?: number | null
           created_at?: string
           id?: string
+          item_id?: string | null
           shift_record_id: string
         }
         Update: {
@@ -1423,9 +1425,17 @@ export type Database = {
           consumed_weight_kg?: number | null
           created_at?: string
           id?: string
+          item_id?: string | null
           shift_record_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shift_raw_material_consumption_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shift_raw_material_consumption_shift_record_id_fkey"
             columns: ["shift_record_id"]

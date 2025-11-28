@@ -179,6 +179,7 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
           .insert(
             validRawMaterials.map(rm => ({
               shift_record_id: shiftId,
+              item_id: rm.itemId || null,
               consumed_serial_number: rm.serialNumber,
               consumed_weight_kg: rm.weightKg ? parseFloat(rm.weightKg) : null,
               consumed_length_yards: rm.lengthYards ? parseFloat(rm.lengthYards) : null,

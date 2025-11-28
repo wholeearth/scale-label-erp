@@ -70,7 +70,7 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
         setRawMaterials(
           data.map(rm => ({
             id: rm.id,
-            itemId: '',
+            itemId: rm.item_id || '',
             serialNumber: rm.consumed_serial_number,
             weightKg: rm.consumed_weight_kg?.toString() || '',
             lengthYards: rm.consumed_length_yards?.toString() || '',
@@ -143,6 +143,7 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
           .insert(
             validRawMaterials.map(rm => ({
               shift_record_id: shiftId,
+              item_id: rm.itemId || null,
               consumed_serial_number: rm.serialNumber,
               consumed_weight_kg: rm.weightKg ? parseFloat(rm.weightKg) : null,
               consumed_length_yards: rm.lengthYards ? parseFloat(rm.lengthYards) : null,
