@@ -18,6 +18,7 @@ interface ShiftEndDialogProps {
 }
 
 interface RawMaterialEntry {
+  itemId: string;
   serialNumber: string;
   weightKg: string;
   lengthYards: string;
@@ -33,7 +34,7 @@ interface IntermediateProductEntry {
 const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDialogProps) => {
   const [step, setStep] = useState<'prompt' | 'input'>('prompt');
   const [rawMaterials, setRawMaterials] = useState<RawMaterialEntry[]>([
-    { serialNumber: '', weightKg: '', lengthYards: '' },
+    { itemId: '', serialNumber: '', weightKg: '', lengthYards: '' },
   ]);
   const [intermediateProducts, setIntermediateProducts] = useState<IntermediateProductEntry[]>([
     { itemId: '', quantity: '', weightKg: '', lengthYards: '' },
@@ -122,7 +123,7 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
   useEffect(() => {
     if (!open) {
       setStep('prompt');
-      setRawMaterials([{ serialNumber: '', weightKg: '', lengthYards: '' }]);
+      setRawMaterials([{ itemId: '', serialNumber: '', weightKg: '', lengthYards: '' }]);
       setIntermediateProducts([{ itemId: '', quantity: '', weightKg: '', lengthYards: '' }]);
       setHasLoadedInitialData(false);
     }
@@ -137,7 +138,7 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
   };
 
   const addRawMaterial = () => {
-    setRawMaterials([...rawMaterials, { serialNumber: '', weightKg: '', lengthYards: '' }]);
+    setRawMaterials([...rawMaterials, { itemId: '', serialNumber: '', weightKg: '', lengthYards: '' }]);
   };
 
   const removeRawMaterial = (index: number) => {
@@ -259,7 +260,25 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
                         </Button>
                       )}
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-4 gap-3">
+                      <div>
+                        <Label>Item *</Label>
+                        <Select
+                          value={material.itemId}
+                          onValueChange={(value) => updateRawMaterial(index, 'itemId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select item" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {items?.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.product_code} - {item.product_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div>
                         <Label>Serial Number *</Label>
                         <Input
