@@ -17,6 +17,7 @@ interface ShiftDataEntryFormProps {
 
 interface RawMaterialEntry {
   id?: string;
+  itemId: string;
   serialNumber: string;
   weightKg: string;
   lengthYards: string;
@@ -69,13 +70,14 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
         setRawMaterials(
           data.map(rm => ({
             id: rm.id,
+            itemId: '',
             serialNumber: rm.consumed_serial_number,
             weightKg: rm.consumed_weight_kg?.toString() || '',
             lengthYards: rm.consumed_length_yards?.toString() || '',
           }))
         );
       } else {
-        setRawMaterials([{ serialNumber: '', weightKg: '', lengthYards: '' }]);
+        setRawMaterials([{ itemId: '', serialNumber: '', weightKg: '', lengthYards: '' }]);
       }
       
       return data;
@@ -111,14 +113,13 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
     },
   });
 
-  // Fetch intermediate items
+  // Fetch all items
   const { data: items } = useQuery({
-    queryKey: ['intermediate-items'],
+    queryKey: ['all-items-for-shift'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('items')
-        .select('id, product_code, product_name')
-        .in('item_type', ['intermediate_type_1', 'intermediate_type_2'])
+        .select('id, product_code, product_name, item_type')
         .order('product_name');
 
       if (error) throw error;
@@ -193,7 +194,7 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
   });
 
   const addRawMaterial = () => {
-    setRawMaterials([...rawMaterials, { serialNumber: '', weightKg: '', lengthYards: '' }]);
+    setRawMaterials([...rawMaterials, { itemId: '', serialNumber: '', weightKg: '', lengthYards: '' }]);
   };
 
   const removeRawMaterial = (index: number) => {
@@ -266,36 +267,54 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
                     </Button>
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Serial Number *</Label>
-                    <Input
-                      placeholder="e.g., 01-M1-041025-00152-0119"
-                      value={material.serialNumber}
-                      onChange={(e) => updateRawMaterial(index, 'serialNumber', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Weight (kg)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="e.g., 15.5"
-                      value={material.weightKg}
-                      onChange={(e) => updateRawMaterial(index, 'weightKg', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Length (yards)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="e.g., 100"
-                      value={material.lengthYards}
-                      onChange={(e) => updateRawMaterial(index, 'lengthYards', e.target.value)}
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div>
+                        <Label>Item *</Label>
+                        <Select
+                          value={material.itemId}
+                          onValueChange={(value) => updateRawMaterial(index, 'itemId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select item" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {items?.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.product_code} - {item.product_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Serial Number *</Label>
+                        <Input
+                          placeholder="e.g., 01-M1-041025-00152-0119"
+                          value={material.serialNumber}
+                          onChange={(e) => updateRawMaterial(index, 'serialNumber', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Weight (kg)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="e.g., 15.5"
+                          value={material.weightKg}
+                          onChange={(e) => updateRawMaterial(index, 'weightKg', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Length (yards)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="e.g., 100"
+                          value={material.lengthYards}
+                          onChange={(e) => updateRawMaterial(index, 'lengthYards', e.target.value)}
+                        />
+                      </div>
+                    </div>
               </div>
             </Card>
           ))}
@@ -304,7 +323,7 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
         {/* Intermediate Products Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Intermediate Products Produced</h3>
+            <h3 className="text-lg font-semibold">Items Produced</h3>
             <Button type="button" variant="outline" size="sm" onClick={addIntermediateProduct}>
               <Plus className="h-4 w-4 mr-2" />
               Add Product
