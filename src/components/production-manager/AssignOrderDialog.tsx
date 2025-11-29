@@ -107,6 +107,35 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
     enabled: open,
   });
 
+  // Fetch inventory stock levels for items in this order
+  const { data: inventoryStock } = useQuery({
+    queryKey: ['inventory-stock', order.order_items.map(i => i.item_id)],
+    queryFn: async () => {
+      const itemIds = order.order_items.map(i => i.item_id);
+      
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('item_id, quantity, transaction_type')
+        .in('item_id', itemIds);
+
+      if (error) throw error;
+
+      // Calculate net stock per item
+      const stockMap = new Map<string, number>();
+      data?.forEach(inv => {
+        const current = stockMap.get(inv.item_id) || 0;
+        if (inv.transaction_type === 'production' || inv.transaction_type === 'purchase') {
+          stockMap.set(inv.item_id, current + inv.quantity);
+        } else if (inv.transaction_type === 'sales' || inv.transaction_type === 'consumption') {
+          stockMap.set(inv.item_id, current - inv.quantity);
+        }
+      });
+
+      return stockMap;
+    },
+    enabled: open,
+  });
+
   // Calculate remaining quantities for each item considering pending assignments
   const getItemRemaining = (itemId: string) => {
     const orderItem = order.order_items.find(item => item.item_id === itemId);
@@ -117,6 +146,18 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
       .reduce((sum, a) => sum + a.quantity, 0);
     
     return orderItem.quantity - orderItem.produced_quantity - pendingTotal;
+  };
+
+  // Get available stock for an item
+  const getAvailableStock = (itemId: string) => {
+    return inventoryStock?.get(itemId) || 0;
+  };
+
+  // Auto-fill quantity suggestion based on stock
+  const getSuggestedQuantity = (itemId: string) => {
+    const remaining = getItemRemaining(itemId);
+    const stock = getAvailableStock(itemId);
+    return Math.min(remaining, stock);
   };
 
   // Check if all items are fully assigned
@@ -224,29 +265,57 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
           </DialogDescription>
         </DialogHeader>
 
-        {/* Order Items Summary */}
-        <div className="space-y-2 border rounded-lg p-3 bg-muted/30">
-          <h3 className="font-semibold text-sm flex items-center gap-2">
+        {/* Order Items Summary with Stock Info */}
+        <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+          <h3 className="font-semibold flex items-center gap-2">
             <Package className="h-4 w-4" />
-            Order Items Status
+            Order Items & Stock Status
           </h3>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {order.order_items.map((item) => {
               const remaining = getItemRemaining(item.item_id);
+              const stock = getAvailableStock(item.item_id);
               const isComplete = remaining === 0;
+              const hasStock = stock > 0;
+              
               return (
-                <div key={item.id} className="flex items-center justify-between text-sm py-1">
-                  <span className="text-muted-foreground">
-                    {item.items.product_code} - {item.items.product_name}
-                    {item.items.color && ` (${item.items.color})`}
-                  </span>
-                  <Badge variant={isComplete ? "default" : "outline"} className="gap-1">
+                <div key={item.id} className="flex items-center justify-between p-2 rounded bg-background/50 border">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">
+                      {item.items.product_code} - {item.items.product_name}
+                      {item.items.color && <span className="text-muted-foreground"> ({item.items.color})</span>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      <span>Ordered: {item.quantity}</span>
+                      <span>•</span>
+                      <span>Remaining: {remaining}</span>
+                      {hasStock && (
+                        <>
+                          <span>•</span>
+                          <span className="text-green-600 dark:text-green-500 font-medium">
+                            Stock: {stock} available
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant={isComplete ? "default" : hasStock ? "secondary" : "outline"} className="gap-1 ml-2">
                     {isComplete ? (
-                      <CheckCircle2 className="h-3 w-3" />
+                      <>
+                        <CheckCircle2 className="h-3 w-3" />
+                        Complete
+                      </>
+                    ) : hasStock ? (
+                      <>
+                        <Package className="h-3 w-3" />
+                        {Math.min(remaining, stock)} from stock
+                      </>
                     ) : (
-                      <AlertCircle className="h-3 w-3" />
+                      <>
+                        <AlertCircle className="h-3 w-3" />
+                        Need {remaining}
+                      </>
                     )}
-                    {remaining} / {item.quantity - item.produced_quantity} remaining
                   </Badge>
                 </div>
               );
@@ -286,74 +355,113 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
           </div>
         )}
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="item">
-              <Package className="inline h-4 w-4 mr-2" />
-              Select Item
-            </Label>
-            <Select 
-              value={selectedItemId} 
-              onValueChange={(value) => {
-                setSelectedItemId(value);
-                setErrors(prev => ({ ...prev, itemId: undefined }));
-              }}
-            >
-              <SelectTrigger id="item" className={errors.itemId ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Choose an item from the order" />
-              </SelectTrigger>
-              <SelectContent className="z-50 bg-popover">
-                {order.order_items.map((item) => (
-                  <SelectItem key={item.id} value={item.item_id}>
-                    {item.items.product_code} - {item.items.product_name}
-                    {item.items.color && ` (${item.items.color})`}
-                    {' - '}
-                    {item.quantity - item.produced_quantity} remaining
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.itemId && (
-              <p className="text-sm text-destructive">{errors.itemId}</p>
-            )}
-            {selectedItem && (
-              <div className="text-sm font-medium text-foreground">
-                Available to assign: {remainingForSelected} units
+        <div className="space-y-4 py-2 border rounded-lg p-4 bg-background">
+          <h3 className="font-semibold text-sm">Add Assignment</h3>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="item" className="text-xs font-medium">
+                <Package className="inline h-3 w-3 mr-1" />
+                Item *
+              </Label>
+              <Select 
+                value={selectedItemId} 
+                onValueChange={(value) => {
+                  setSelectedItemId(value);
+                  const suggested = getSuggestedQuantity(value);
+                  if (suggested > 0) {
+                    setQuantity(suggested);
+                  }
+                  setErrors(prev => ({ ...prev, itemId: undefined }));
+                }}
+              >
+                <SelectTrigger id="item" className={errors.itemId ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select item..." />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  {order.order_items.map((item) => {
+                    const remaining = getItemRemaining(item.item_id);
+                    const stock = getAvailableStock(item.item_id);
+                    return (
+                      <SelectItem key={item.id} value={item.item_id} disabled={remaining === 0}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>
+                            {item.items.product_code}
+                            {item.items.color && ` (${item.items.color})`}
+                          </span>
+                          {stock > 0 && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              {stock} in stock
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {errors.itemId && (
+                <p className="text-xs text-destructive">{errors.itemId}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="operator" className="text-xs font-medium">
+                <Users className="inline h-3 w-3 mr-1" />
+                Operator *
+              </Label>
+              <Select 
+                value={selectedOperatorId} 
+                onValueChange={(value) => {
+                  setSelectedOperatorId(value);
+                  setErrors(prev => ({ ...prev, operatorId: undefined }));
+                }}
+              >
+                <SelectTrigger id="operator" className={errors.operatorId ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select operator..." />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  {operators?.map((operator) => (
+                    <SelectItem key={operator.id} value={operator.id}>
+                      {operator.full_name}
+                      {operator.employee_code && ` (${operator.employee_code})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.operatorId && (
+                <p className="text-xs text-destructive">{errors.operatorId}</p>
+              )}
+            </div>
+          </div>
+
+          {selectedItem && (
+            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Needed:</span>
+                  <span className="ml-1 font-semibold">{remainingForSelected}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">In Stock:</span>
+                  <span className="ml-1 font-semibold text-green-600 dark:text-green-500">
+                    {getAvailableStock(selectedItem.item_id)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">To Produce:</span>
+                  <span className="ml-1 font-semibold text-orange-600 dark:text-orange-500">
+                    {Math.max(0, remainingForSelected - getAvailableStock(selectedItem.item_id))}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="space-y-2">
-            <Label htmlFor="operator">
-              <Users className="inline h-4 w-4 mr-2" />
-              Select Operator
+            <Label htmlFor="quantity" className="text-xs font-medium">
+              Quantity to Assign *
             </Label>
-            <Select 
-              value={selectedOperatorId} 
-              onValueChange={(value) => {
-                setSelectedOperatorId(value);
-                setErrors(prev => ({ ...prev, operatorId: undefined }));
-              }}
-            >
-              <SelectTrigger id="operator" className={errors.operatorId ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Choose an operator" />
-              </SelectTrigger>
-              <SelectContent className="z-50 bg-popover">
-                {operators?.map((operator) => (
-                  <SelectItem key={operator.id} value={operator.id}>
-                    {operator.full_name}
-                    {operator.employee_code && ` (${operator.employee_code})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.operatorId && (
-              <p className="text-sm text-destructive">{errors.operatorId}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="quantity">Quantity to Assign</Label>
             <div className="flex gap-2">
               <Input
                 id="quantity"
@@ -368,18 +476,25 @@ export const AssignOrderDialog = ({ order, open, onOpenChange }: AssignOrderDial
                 }}
                 disabled={!selectedItemId}
                 className={errors.quantity ? 'border-destructive' : ''}
+                placeholder="Enter quantity..."
               />
               <Button
                 onClick={addAssignment}
                 disabled={!selectedItemId || !selectedOperatorId || quantity < 1}
-                size="icon"
                 type="button"
+                className="shrink-0"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-1" />
+                Add
               </Button>
             </div>
             {errors.quantity && (
-              <p className="text-sm text-destructive">{errors.quantity}</p>
+              <p className="text-xs text-destructive">{errors.quantity}</p>
+            )}
+            {selectedItem && getSuggestedQuantity(selectedItem.item_id) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Suggested: {getSuggestedQuantity(selectedItem.item_id)} units (from stock)
+              </p>
             )}
           </div>
         </div>
