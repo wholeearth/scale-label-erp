@@ -243,8 +243,18 @@ export const OrdersList = () => {
   }, [orders, productionCounts]);
 
   const getProducedForItem = (item: OrderItem) => {
-    const allocated = producedAllocation.get(item.id);
-    return typeof allocated === 'number' ? allocated : (item.produced_quantity || 0);
+    // Only count production if there are actual assignments for this item
+    const hasAssignments = allAssignments?.some(a => a.item_id === item.item_id) || false;
+    if (!hasAssignments) {
+      return 0; // No assignments = no production yet
+    }
+    
+    // Sum quantity_produced from all assignments for this item
+    const totalProduced = activeAssignments
+      ?.filter(a => a.item_id === item.item_id)
+      .reduce((sum, a) => sum + (a.quantity_produced || 0), 0) || 0;
+    
+    return Math.min(totalProduced, item.quantity); // Don't exceed ordered quantity
   };
 
   // Calculate estimated completion date for an order item
