@@ -204,6 +204,19 @@ export const OrdersList = () => {
       return data;
     },
   });
+
+  // Fetch all assignments to check if orders are fully assigned
+  const { data: allAssignments } = useQuery({
+    queryKey: ['all-assignments-for-orders'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('operator_assignments')
+        .select('item_id, quantity_assigned');
+
+      if (error) throw error;
+      return data;
+    },
+  });
   // Allocate produced units to orders per item (FIFO by order date)
   const producedAllocation = useMemo(() => {
     const map = new Map<string, number>(); // order_item.id -> produced count
@@ -256,6 +269,31 @@ export const OrdersList = () => {
     const daysToComplete = Math.ceil(remainingQuantity / effectiveRate);
     return addDays(new Date(), daysToComplete);
   };
+
+  // Check if an order is fully assigned
+  const isOrderFullyAssigned = useMemo(() => {
+    if (!orders || !allAssignments) return new Map<string, boolean>();
+    
+    const assignmentMap = new Map<string, boolean>();
+    
+    orders.forEach(order => {
+      let fullyAssigned = true;
+      
+      order.order_items.forEach(item => {
+        const totalAssigned = allAssignments
+          .filter(a => a.item_id === item.item_id)
+          .reduce((sum, a) => sum + a.quantity_assigned, 0);
+        
+        if (totalAssigned < item.quantity) {
+          fullyAssigned = false;
+        }
+      });
+      
+      assignmentMap.set(order.id, fullyAssigned);
+    });
+    
+    return assignmentMap;
+  }, [orders, allAssignments]);
 
   // Calculate overall order completion estimate
   const orderCompletionEstimates = useMemo(() => {
@@ -317,6 +355,7 @@ export const OrdersList = () => {
           const totalQuantity = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
           const totalProduced = order.order_items.reduce((sum, item) => sum + getProducedForItem(item), 0);
           const overallProgress = totalQuantity > 0 ? Math.round((totalProduced / totalQuantity) * 100) : 0;
+          const fullyAssigned = isOrderFullyAssigned.get(order.id) || false;
           
           return (
             <Card key={order.id} className="hover:shadow-md transition-shadow">
@@ -436,8 +475,9 @@ export const OrdersList = () => {
                   onClick={() => setSelectedOrder(order)}
                   className="w-full"
                   variant="outline"
+                  disabled={fullyAssigned}
                 >
-                  Assign to Operators
+                  {fullyAssigned ? 'Already Assigned' : 'Assign to Operators'}
                 </Button>
               </div>
             </CardContent>
