@@ -242,11 +242,11 @@ export const OrdersList = () => {
     return map;
   }, [orders, productionCounts]);
 
-  const getProducedForItem = (item: OrderItem) => {
-    // Only count production if there are actual assignments for this item
-    const hasAssignments = allAssignments?.some(a => a.item_id === item.item_id) || false;
-    if (!hasAssignments) {
-      return 0; // No assignments = no production yet
+  const getProducedForItem = (item: OrderItem, orderId: string) => {
+    // Only show progress if this specific order has been fully assigned
+    const orderFullyAssigned = isOrderFullyAssigned.get(orderId) || false;
+    if (!orderFullyAssigned) {
+      return 0; // Don't show progress for unassigned orders
     }
     
     // Sum quantity_produced from all assignments for this item
@@ -315,7 +315,7 @@ export const OrdersList = () => {
         let latestDate: Date | null = null;
         
         order.order_items.forEach(item => {
-          const produced = getProducedForItem(item);
+          const produced = getProducedForItem(item, order.id);
           const remaining = Math.max(0, item.quantity - produced);
           const itemEstimate = calculateEstimatedCompletion(item.item_id, remaining);
           
@@ -363,7 +363,7 @@ export const OrdersList = () => {
         {orders?.map((order) => {
           const estimatedCompletion = orderCompletionEstimates.get(order.id);
           const totalQuantity = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
-          const totalProduced = order.order_items.reduce((sum, item) => sum + getProducedForItem(item), 0);
+          const totalProduced = order.order_items.reduce((sum, item) => sum + getProducedForItem(item, order.id), 0);
           const overallProgress = totalQuantity > 0 ? Math.round((totalProduced / totalQuantity) * 100) : 0;
           const fullyAssigned = isOrderFullyAssigned.get(order.id) || false;
           
@@ -445,7 +445,7 @@ export const OrdersList = () => {
                     Order Items:
                   </div>
                   {order.order_items.map((item) => {
-                     const produced = getProducedForItem(item);
+                     const produced = getProducedForItem(item, order.id);
                      const progress = Math.round((produced / item.quantity) * 100);
                     return (
                       <div
