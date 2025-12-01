@@ -77,6 +77,7 @@ const ProductionInterface = () => {
   const [previewData, setPreviewData] = useState<{ serialNumber: string; barcodeData: string } | null>(null);
   const [showConsumptionDialog, setShowConsumptionDialog] = useState(false);
   const [consumptionEntries, setConsumptionEntries] = useState<ConsumptionEntry[]>([]);
+  const [isUsingMockWeight, setIsUsingMockWeight] = useState(false);
   const barcodeCanvasRef = useRef<HTMLCanvasElement>(null);
   const qrcodeCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -258,7 +259,14 @@ const ProductionInterface = () => {
       checkWeightVariance(data.weight);
       
       if (data.mock) {
-        console.log('Using mock weight data');
+        setIsUsingMockWeight(true);
+        toast({
+          title: 'Warning: Mock Weight Data',
+          description: 'Scale not connected. Using simulated weight. Connect the scale for real measurements.',
+          variant: 'destructive',
+        });
+      } else {
+        setIsUsingMockWeight(false);
       }
     } catch (error) {
       console.error('Weight capture error:', error);
@@ -1203,8 +1211,12 @@ const ProductionInterface = () => {
                       />
                     ) : (
                       <>
-                        <p className="text-3xl font-bold text-primary">{currentWeight.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground">kg</p>
+                        <p className={`text-3xl font-bold ${isUsingMockWeight ? 'text-destructive' : 'text-primary'}`}>
+                          {currentWeight.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          kg {isUsingMockWeight && <span className="text-destructive font-semibold">(MOCK)</span>}
+                        </p>
                       </>
                     )}
                   </div>
