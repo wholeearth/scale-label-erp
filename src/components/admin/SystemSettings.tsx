@@ -18,8 +18,11 @@ interface ScaleTestResult {
 }
 
 const SystemSettings = () => {
+  const [connectionType, setConnectionType] = useState<'tcp' | 'serial'>('tcp');
   const [ipAddress, setIpAddress] = useState('192.168.1.239');
   const [port, setPort] = useState('20301');
+  const [serialPort, setSerialPort] = useState('');
+  const [baudRate, setBaudRate] = useState('9600');
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<ScaleTestResult | null>(null);
@@ -40,8 +43,11 @@ const SystemSettings = () => {
       if (error) throw error;
 
       if (data) {
-        setIpAddress(data.ip_address);
-        setPort(data.port.toString());
+        setConnectionType((data.connection_type as 'tcp' | 'serial') || 'tcp');
+        setIpAddress(data.ip_address || '192.168.1.239');
+        setPort(data.port?.toString() || '20301');
+        setSerialPort(data.serial_port || '');
+        setBaudRate(data.baud_rate?.toString() || '9600');
       }
     } catch (error) {
       console.error('Error fetching scale config:', error);
@@ -51,14 +57,34 @@ const SystemSettings = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data: existing } = await supabase
         .from('scale_config')
-        .update({
-          ip_address: ipAddress,
-          port: parseInt(port),
-          updated_at: new Date().toISOString()
-        })
-        .eq('ip_address', ipAddress);
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+
+      const configData = {
+        connection_type: connectionType,
+        ip_address: connectionType === 'tcp' ? ipAddress : null,
+        port: connectionType === 'tcp' ? parseInt(port) : null,
+        serial_port: connectionType === 'serial' ? serialPort : null,
+        baud_rate: connectionType === 'serial' ? parseInt(baudRate) : null,
+        updated_at: new Date().toISOString(),
+      };
+
+      let error;
+      if (existing) {
+        const result = await supabase
+          .from('scale_config')
+          .update(configData)
+          .eq('id', existing.id);
+        error = result.error;
+      } else {
+        const result = await supabase
+          .from('scale_config')
+          .insert([configData]);
+        error = result.error;
+      }
 
       if (error) throw error;
 
@@ -127,26 +153,71 @@ const SystemSettings = () => {
           <CardDescription>Configure connection settings for the weighing scale</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="ip">IP Address</Label>
-              <Input
-                id="ip"
-                value={ipAddress}
-                onChange={(e) => setIpAddress(e.target.value)}
-                placeholder="192.168.1.239"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="port">Port</Label>
-              <Input
-                id="port"
-                value={port}
-                onChange={(e) => setPort(e.target.value)}
-                placeholder="20301"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="connectionType">Connection Type</Label>
+            <select
+              id="connectionType"
+              className="w-full p-2 border rounded-md bg-background"
+              value={connectionType}
+              onChange={(e) => setConnectionType(e.target.value as 'tcp' | 'serial')}
+            >
+              <option value="tcp">TCP/IP</option>
+              <option value="serial">Serial Port</option>
+            </select>
           </div>
+
+          {connectionType === 'tcp' ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ip">IP Address</Label>
+                <Input
+                  id="ip"
+                  value={ipAddress}
+                  onChange={(e) => setIpAddress(e.target.value)}
+                  placeholder="192.168.1.239"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="port">Port</Label>
+                <Input
+                  id="port"
+                  value={port}
+                  onChange={(e) => setPort(e.target.value)}
+                  placeholder="20301"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="serialPort">Serial Port</Label>
+                <Input
+                  id="serialPort"
+                  value={serialPort}
+                  onChange={(e) => setSerialPort(e.target.value)}
+                  placeholder="/dev/ttyUSB0 or COM3"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Linux/Mac: /dev/ttyUSB0 or /dev/ttyS0 | Windows: COM1, COM3, etc.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="baudRate">Baud Rate</Label>
+                <select
+                  id="baudRate"
+                  className="w-full p-2 border rounded-md bg-background"
+                  value={baudRate}
+                  onChange={(e) => setBaudRate(e.target.value)}
+                >
+                  <option value="9600">9600</option>
+                  <option value="19200">19200</option>
+                  <option value="38400">38400</option>
+                  <option value="57600">57600</option>
+                  <option value="115200">115200</option>
+                </select>
+              </div>
+            </div>
+          )}
           <div className="flex gap-2">
             <Button onClick={handleSave} disabled={loading}>
               <Save className="h-4 w-4 mr-2" />
@@ -209,7 +280,7 @@ const SystemSettings = () => {
                       {testResult.mock && !testResult.error && (
                         <div className="mt-2 pt-2 border-t">
                           <p className="text-xs text-muted-foreground">
-                            The scale at {ipAddress}:{port} is not accessible. 
+                            The scale at {connectionType === 'tcp' ? `${ipAddress}:${port}` : serialPort} is not accessible. 
                             Production can continue using generated weight values for testing purposes.
                           </p>
                         </div>

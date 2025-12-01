@@ -1336,21 +1336,39 @@ export type Database = {
       }
       scale_config: {
         Row: {
+          baud_rate: number | null
+          connection_type: string | null
+          data_bits: number | null
           id: string
           ip_address: string
+          parity: string | null
           port: number
+          serial_port: string | null
+          stop_bits: number | null
           updated_at: string | null
         }
         Insert: {
+          baud_rate?: number | null
+          connection_type?: string | null
+          data_bits?: number | null
           id?: string
           ip_address: string
+          parity?: string | null
           port: number
+          serial_port?: string | null
+          stop_bits?: number | null
           updated_at?: string | null
         }
         Update: {
+          baud_rate?: number | null
+          connection_type?: string | null
+          data_bits?: number | null
           id?: string
           ip_address?: string
+          parity?: string | null
           port?: number
+          serial_port?: string | null
+          stop_bits?: number | null
           updated_at?: string | null
         }
         Relationships: []

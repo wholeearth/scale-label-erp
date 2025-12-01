@@ -42,39 +42,71 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Connecting to scale:', scaleConfig.ip_address, scaleConfig.port);
+    const connectionType = scaleConfig.connection_type || 'tcp';
+    console.log(`Connecting to scale via ${connectionType}:`, 
+      connectionType === 'tcp' 
+        ? `${scaleConfig.ip_address}:${scaleConfig.port}` 
+        : scaleConfig.serial_port
+    );
 
-    // Connect to the CAS CN1 scale via TCP
+    // Connect to the scale
     try {
-      const conn = await Deno.connect({
-        hostname: scaleConfig.ip_address,
-        port: scaleConfig.port,
-      });
-
-      // Read weight data from scale
-      const buffer = new Uint8Array(1024);
-      const bytesRead = await conn.read(buffer);
+      let data = '';
       
-      if (bytesRead === null) {
-        conn.close();
-        return new Response(
-          JSON.stringify({ error: 'No data from scale' }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
-          }
-        );
-      }
+      if (connectionType === 'serial') {
+        // Serial port connection
+        const serialPort = await Deno.open(scaleConfig.serial_port, { read: true, write: true });
+        
+        // Configure serial port (if supported by Deno in the future)
+        // For now, assume port is pre-configured at OS level
+        
+        const buffer = new Uint8Array(1024);
+        const bytesRead = await serialPort.read(buffer);
+        
+        if (bytesRead === null) {
+          serialPort.close();
+          return new Response(
+            JSON.stringify({ error: 'No data from scale' }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 500,
+            }
+          );
+        }
+        
+        data = new TextDecoder().decode(buffer.subarray(0, bytesRead));
+        serialPort.close();
+      } else {
+        // TCP/IP connection
+        const conn = await Deno.connect({
+          hostname: scaleConfig.ip_address,
+          port: scaleConfig.port,
+        });
 
-      const data = new TextDecoder().decode(buffer.subarray(0, bytesRead));
+        const buffer = new Uint8Array(1024);
+        const bytesRead = await conn.read(buffer);
+        
+        if (bytesRead === null) {
+          conn.close();
+          return new Response(
+            JSON.stringify({ error: 'No data from scale' }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 500,
+            }
+          );
+        }
+
+        data = new TextDecoder().decode(buffer.subarray(0, bytesRead));
+        conn.close();
+      }
+      
       console.log('Raw scale data:', data);
       
       // Parse weight from scale data (format may vary by scale model)
       // CAS CN1 typically sends data in format like: "ST,GS,   12.34 kg"
       const weightMatch = data.match(/(\d+\.\d+)/);
       const weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
-
-      conn.close();
 
       return new Response(
         JSON.stringify({ 
