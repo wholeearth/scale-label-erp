@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Wifi, WifiOff, RefreshCw, CheckCircle2, Search, X } from 'lucide-react';
+import { Save, Wifi, WifiOff, RefreshCw, CheckCircle2, Search, X, Activity, Pause, Play } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 
 interface ScaleTestResult {
   weight: number;
@@ -27,12 +28,16 @@ interface PortScanResult {
   error?: string;
 }
 
+type ConnectionStatus = 'connected' | 'disconnected' | 'checking' | 'unknown';
+
 const COMMON_PORTS = [
   'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'COM10',
   '/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyUSB2',
   '/dev/ttyS0', '/dev/ttyS1',
   '/dev/ttyACM0', '/dev/ttyACM1',
 ];
+
+const MONITOR_INTERVAL = 5000; // 5 seconds
 
 const SystemSettings = () => {
   const [connectionType, setConnectionType] = useState<'tcp' | 'serial'>('tcp');
@@ -48,7 +53,82 @@ const SystemSettings = () => {
   const [scanProgress, setScanProgress] = useState(0);
   const [scanResults, setScanResults] = useState<PortScanResult[]>([]);
   const [currentScanPort, setCurrentScanPort] = useState('');
+  
+  // Connection monitoring state
+  const [monitoringEnabled, setMonitoringEnabled] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('unknown');
+  const [lastWeight, setLastWeight] = useState<number | null>(null);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
+  const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
   const { toast } = useToast();
+
+  const checkConnection = useCallback(async (silent = true) => {
+    if (!silent) setConnectionStatus('checking');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('read-scale-weight', {
+        body: {}
+      });
+
+      setLastCheckTime(new Date());
+
+      if (error || data?.mock || data?.error) {
+        setConnectionStatus('disconnected');
+        setConsecutiveFailures(prev => prev + 1);
+        setLastWeight(null);
+        return false;
+      } else {
+        setConnectionStatus('connected');
+        setConsecutiveFailures(0);
+        setLastWeight(data.weight);
+        return true;
+      }
+    } catch (error) {
+      setConnectionStatus('disconnected');
+      setConsecutiveFailures(prev => prev + 1);
+      setLastWeight(null);
+      return false;
+    }
+  }, []);
+
+  // Start/stop monitoring
+  useEffect(() => {
+    if (monitoringEnabled) {
+      // Initial check
+      checkConnection(false);
+      
+      // Set up interval
+      monitorIntervalRef.current = setInterval(() => {
+        checkConnection(true);
+      }, MONITOR_INTERVAL);
+    } else {
+      // Clear interval
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+        monitorIntervalRef.current = null;
+      }
+      setConnectionStatus('unknown');
+    }
+
+    return () => {
+      if (monitorIntervalRef.current) {
+        clearInterval(monitorIntervalRef.current);
+      }
+    };
+  }, [monitoringEnabled, checkConnection]);
+
+  // Auto-reconnect notification
+  useEffect(() => {
+    if (consecutiveFailures === 3 && monitoringEnabled) {
+      toast({
+        title: 'Connection Lost',
+        description: 'Scale connection lost after 3 consecutive failures. Check your connection settings.',
+        variant: 'destructive'
+      });
+    }
+  }, [consecutiveFailures, monitoringEnabled, toast]);
 
   useEffect(() => {
     fetchScaleConfig();
@@ -229,12 +309,87 @@ const SystemSettings = () => {
     setScanProgress(0);
   };
 
+  const getStatusColor = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'bg-green-500';
+      case 'disconnected': return 'bg-destructive';
+      case 'checking': return 'bg-yellow-500 animate-pulse';
+      default: return 'bg-muted-foreground';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'Connected';
+      case 'disconnected': return 'Disconnected';
+      case 'checking': return 'Checking...';
+      default: return 'Not Monitoring';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>CAS CN1 Scale Configuration</CardTitle>
-          <CardDescription>Configure connection settings for the weighing scale</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>CAS CN1 Scale Configuration</CardTitle>
+              <CardDescription>Configure connection settings for the weighing scale</CardDescription>
+            </div>
+            {/* Connection Status Indicator */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
+                <span className="text-sm font-medium">{getStatusText()}</span>
+                {connectionStatus === 'connected' && lastWeight !== null && (
+                  <Badge variant="outline" className="ml-2">
+                    {lastWeight.toFixed(2)} kg
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2 border-l pl-4">
+                <Label htmlFor="monitoring" className="text-sm cursor-pointer">
+                  <Activity className="h-4 w-4 inline mr-1" />
+                  Monitor
+                </Label>
+                <Switch
+                  id="monitoring"
+                  checked={monitoringEnabled}
+                  onCheckedChange={setMonitoringEnabled}
+                />
+              </div>
+            </div>
+          </div>
+          {/* Monitoring Details */}
+          {monitoringEnabled && (
+            <div className="mt-3 p-3 bg-muted rounded-md text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="text-muted-foreground">
+                    Checking every {MONITOR_INTERVAL / 1000}s
+                  </span>
+                  {lastCheckTime && (
+                    <span className="text-muted-foreground">
+                      Last check: {lastCheckTime.toLocaleTimeString()}
+                    </span>
+                  )}
+                  {consecutiveFailures > 0 && (
+                    <Badge variant="destructive" className="text-xs">
+                      {consecutiveFailures} failure{consecutiveFailures > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => checkConnection(false)}
+                  disabled={connectionStatus === 'checking'}
+                >
+                  <RefreshCw className={`h-3 w-3 ${connectionStatus === 'checking' ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
