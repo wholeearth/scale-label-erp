@@ -24,6 +24,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Parse request body for optional port override (used for testing specific ports)
+    let testPort: string | null = null;
+    let testConnectionType: string | null = null;
+    try {
+      const body = await req.json();
+      testPort = body?.testPort || null;
+      testConnectionType = body?.testConnectionType || null;
+    } catch {
+      // No body or invalid JSON, use config from database
+    }
+
     // Get scale configuration from database
     const { data: scaleConfig, error: configError } = await supabase
       .from('scale_config')
@@ -42,11 +53,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const connectionType = scaleConfig.connection_type || 'tcp';
+    // Use test port override if provided, otherwise use config
+    const connectionType = testConnectionType || scaleConfig.connection_type || 'tcp';
+    const serialPort = testPort || scaleConfig.serial_port;
+    const ipAddress = scaleConfig.ip_address;
+    const port = scaleConfig.port;
+
     console.log(`Connecting to scale via ${connectionType}:`, 
       connectionType === 'tcp' 
-        ? `${scaleConfig.ip_address}:${scaleConfig.port}` 
-        : scaleConfig.serial_port
+        ? `${ipAddress}:${port}` 
+        : serialPort
     );
 
     // Connect to the scale
@@ -55,32 +71,33 @@ Deno.serve(async (req) => {
       
       if (connectionType === 'serial') {
         // Serial port connection
-        const serialPort = await Deno.open(scaleConfig.serial_port, { read: true, write: true });
-        
-        // Configure serial port (if supported by Deno in the future)
-        // For now, assume port is pre-configured at OS level
+        const serialConn = await Deno.open(serialPort, { read: true, write: true });
         
         const buffer = new Uint8Array(1024);
-        const bytesRead = await serialPort.read(buffer);
+        const bytesRead = await serialConn.read(buffer);
         
         if (bytesRead === null) {
-          serialPort.close();
+          serialConn.close();
           return new Response(
-            JSON.stringify({ error: 'No data from scale' }),
+            JSON.stringify({ 
+              error: 'No data from scale',
+              port: serialPort,
+              success: false 
+            }),
             {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 500,
+              status: 200,
             }
           );
         }
         
         data = new TextDecoder().decode(buffer.subarray(0, bytesRead));
-        serialPort.close();
+        serialConn.close();
       } else {
         // TCP/IP connection
         const conn = await Deno.connect({
-          hostname: scaleConfig.ip_address,
-          port: scaleConfig.port,
+          hostname: ipAddress,
+          port: port,
         });
 
         const buffer = new Uint8Array(1024);
@@ -112,7 +129,9 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           weight,
           unit: 'kg',
-          raw: data.trim()
+          raw: data.trim(),
+          port: connectionType === 'serial' ? serialPort : `${ipAddress}:${port}`,
+          success: true
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -121,6 +140,21 @@ Deno.serve(async (req) => {
       );
     } catch (scaleError) {
       console.error('Scale connection error:', scaleError);
+      
+      // If testing a specific port, return failure info
+      if (testPort) {
+        return new Response(
+          JSON.stringify({ 
+            port: testPort,
+            success: false,
+            error: scaleError instanceof Error ? scaleError.message : 'Connection failed'
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
       
       // Return mock weight for development/testing
       const mockWeight = (Math.random() * 50 + 10).toFixed(2);
