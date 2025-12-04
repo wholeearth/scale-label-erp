@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Wifi, WifiOff, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Save, Wifi, WifiOff, RefreshCw, CheckCircle2, Search, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 
 interface ScaleTestResult {
   weight: number;
@@ -15,7 +16,23 @@ interface ScaleTestResult {
   mock?: boolean;
   error?: string;
   raw?: string;
+  port?: string;
+  success?: boolean;
 }
+
+interface PortScanResult {
+  port: string;
+  success: boolean;
+  weight?: number;
+  error?: string;
+}
+
+const COMMON_PORTS = [
+  'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'COM10',
+  '/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyUSB2',
+  '/dev/ttyS0', '/dev/ttyS1',
+  '/dev/ttyACM0', '/dev/ttyACM1',
+];
 
 const SystemSettings = () => {
   const [connectionType, setConnectionType] = useState<'tcp' | 'serial'>('tcp');
@@ -27,6 +44,10 @@ const SystemSettings = () => {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<ScaleTestResult | null>(null);
   const [lastTestTime, setLastTestTime] = useState<Date | null>(null);
+  const [scanningPorts, setScanningPorts] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanResults, setScanResults] = useState<PortScanResult[]>([]);
+  const [currentScanPort, setCurrentScanPort] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -145,6 +166,69 @@ const SystemSettings = () => {
     }
   };
 
+  const scanAllPorts = async () => {
+    setScanningPorts(true);
+    setScanProgress(0);
+    setScanResults([]);
+    setCurrentScanPort('');
+
+    const results: PortScanResult[] = [];
+    let foundPort: string | null = null;
+
+    for (let i = 0; i < COMMON_PORTS.length; i++) {
+      const portToTest = COMMON_PORTS[i];
+      setCurrentScanPort(portToTest);
+      setScanProgress(((i + 1) / COMMON_PORTS.length) * 100);
+
+      try {
+        const { data, error } = await supabase.functions.invoke('read-scale-weight', {
+          body: { testPort: portToTest, testConnectionType: 'serial' }
+        });
+
+        if (error) {
+          results.push({ port: portToTest, success: false, error: error.message });
+        } else if (data.success) {
+          results.push({ port: portToTest, success: true, weight: data.weight });
+          foundPort = portToTest;
+          // Found a working port, stop scanning
+          break;
+        } else {
+          results.push({ port: portToTest, success: false, error: data.error || 'No response' });
+        }
+      } catch (err: any) {
+        results.push({ port: portToTest, success: false, error: err.message });
+      }
+
+      // Small delay between tests to not overwhelm
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    setScanResults(results);
+    setScanProgress(100);
+    setCurrentScanPort('');
+    setScanningPorts(false);
+
+    if (foundPort) {
+      setSerialPort(foundPort);
+      toast({
+        title: 'Scale Found!',
+        description: `Scale detected on ${foundPort}. Port has been selected.`,
+      });
+    } else {
+      toast({
+        title: 'Scan Complete',
+        description: 'No scale found on any port. Make sure the scale is connected and powered on.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const cancelScan = () => {
+    setScanningPorts(false);
+    setCurrentScanPort('');
+    setScanProgress(0);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -190,12 +274,33 @@ const SystemSettings = () => {
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="serialPort">Serial Port</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="serialPort">Serial Port</Label>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={scanAllPorts}
+                    disabled={scanningPorts}
+                  >
+                    {scanningPorts ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Scanning...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="h-3 w-3 mr-1" />
+                        Auto-Detect
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <select
                   id="serialPort"
                   className="w-full p-2 border rounded-md bg-background"
                   value={serialPort}
                   onChange={(e) => setSerialPort(e.target.value)}
+                  disabled={scanningPorts}
                 >
                   <option value="">Select a port...</option>
                   <optgroup label="Windows">
@@ -225,10 +330,50 @@ const SystemSettings = () => {
                     <option value="/dev/cu.usbserial">/dev/cu.usbserial</option>
                   </optgroup>
                 </select>
+
+                {/* Port Scan Progress */}
+                {scanningPorts && (
+                  <div className="space-y-2 p-3 bg-muted rounded-md">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Testing: {currentScanPort}</span>
+                      <Button size="sm" variant="ghost" onClick={cancelScan}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <Progress value={scanProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground">
+                      {Math.round(scanProgress)}% complete
+                    </p>
+                  </div>
+                )}
+
+                {/* Scan Results */}
+                {scanResults.length > 0 && !scanningPorts && (
+                  <div className="space-y-1 p-3 bg-muted rounded-md max-h-32 overflow-y-auto">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Scan Results:</p>
+                    {scanResults.map((result, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs">
+                        <span className="font-mono">{result.port}</span>
+                        {result.success ? (
+                          <Badge variant="default" className="text-xs">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Found ({result.weight}kg)
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs text-muted-foreground">
+                            No response
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2 mt-2">
                   <Input
                     placeholder="Or enter custom port..."
                     className="flex-1"
+                    disabled={scanningPorts}
                     onChange={(e) => {
                       if (e.target.value) setSerialPort(e.target.value);
                     }}
@@ -242,6 +387,7 @@ const SystemSettings = () => {
                   className="w-full p-2 border rounded-md bg-background"
                   value={baudRate}
                   onChange={(e) => setBaudRate(e.target.value)}
+                  disabled={scanningPorts}
                 >
                   <option value="9600">9600</option>
                   <option value="19200">19200</option>
