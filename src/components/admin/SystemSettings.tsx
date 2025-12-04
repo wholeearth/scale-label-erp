@@ -191,15 +191,49 @@ const SystemSettings = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="serialPort">Serial Port</Label>
-                <Input
+                <select
                   id="serialPort"
+                  className="w-full p-2 border rounded-md bg-background"
                   value={serialPort}
                   onChange={(e) => setSerialPort(e.target.value)}
-                  placeholder="/dev/ttyUSB0 or COM3"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Linux/Mac: /dev/ttyUSB0 or /dev/ttyS0 | Windows: COM1, COM3, etc.
-                </p>
+                >
+                  <option value="">Select a port...</option>
+                  <optgroup label="Windows">
+                    <option value="COM1">COM1</option>
+                    <option value="COM2">COM2</option>
+                    <option value="COM3">COM3</option>
+                    <option value="COM4">COM4</option>
+                    <option value="COM5">COM5</option>
+                    <option value="COM6">COM6</option>
+                    <option value="COM7">COM7</option>
+                    <option value="COM8">COM8</option>
+                    <option value="COM9">COM9</option>
+                    <option value="COM10">COM10</option>
+                  </optgroup>
+                  <optgroup label="Linux">
+                    <option value="/dev/ttyUSB0">/dev/ttyUSB0</option>
+                    <option value="/dev/ttyUSB1">/dev/ttyUSB1</option>
+                    <option value="/dev/ttyUSB2">/dev/ttyUSB2</option>
+                    <option value="/dev/ttyS0">/dev/ttyS0</option>
+                    <option value="/dev/ttyS1">/dev/ttyS1</option>
+                    <option value="/dev/ttyACM0">/dev/ttyACM0</option>
+                    <option value="/dev/ttyACM1">/dev/ttyACM1</option>
+                  </optgroup>
+                  <optgroup label="Mac">
+                    <option value="/dev/tty.usbserial">/dev/tty.usbserial</option>
+                    <option value="/dev/tty.usbmodem">/dev/tty.usbmodem</option>
+                    <option value="/dev/cu.usbserial">/dev/cu.usbserial</option>
+                  </optgroup>
+                </select>
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    placeholder="Or enter custom port..."
+                    className="flex-1"
+                    onChange={(e) => {
+                      if (e.target.value) setSerialPort(e.target.value);
+                    }}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="baudRate">Baud Rate</Label>
