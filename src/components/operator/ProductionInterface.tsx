@@ -8,13 +8,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye } from 'lucide-react';
+import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye, QrCode } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
 import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
+import { TraceabilityDialog } from '@/components/traceability/TraceabilityDialog';
+import { LineageData } from '@/hooks/useTraceability';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,10 +76,12 @@ const ProductionInterface = () => {
   const [weightVariance, setWeightVariance] = useState<{ deviation: number; isOver: boolean } | null>(null);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [printPreviewEnabled, setPrintPreviewEnabled] = useState(false);
-  const [previewData, setPreviewData] = useState<{ serialNumber: string; barcodeData: string } | null>(null);
+  const [previewData, setPreviewData] = useState<{ serialNumber: string; barcodeData: string; qrCodeData: string } | null>(null);
   const [showConsumptionDialog, setShowConsumptionDialog] = useState(false);
   const [consumptionEntries, setConsumptionEntries] = useState<ConsumptionEntry[]>([]);
   const [isUsingMockWeight, setIsUsingMockWeight] = useState(false);
+  const [showTraceabilityDialog, setShowTraceabilityDialog] = useState(false);
+  const [traceabilitySerial, setTraceabilitySerial] = useState<string | null>(null);
   const barcodeCanvasRef = useRef<HTMLCanvasElement>(null);
   const qrcodeCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -334,10 +338,55 @@ const ProductionInterface = () => {
 
       const serialNumber = `${operatorCode}-${machineCode}-${ddmmyy}-${opSeq}-${hhmm}`;
 
-      // Generate barcode data: 00054321:2770:001234:1.25
+      // Build lineage data for QR code
+      const parentLineage: LineageData[] = [];
+      for (const entry of consumptionEntries) {
+        // Fetch parent production record data
+        const { data: parentRecord } = await supabase
+          .from('production_records')
+          .select(`
+            serial_number,
+            weight_kg,
+            length_yards,
+            production_date,
+            items!inner (
+              product_code,
+              item_type
+            )
+          `)
+          .eq('serial_number', entry.serialNumber)
+          .maybeSingle();
+        
+        if (parentRecord) {
+          parentLineage.push({
+            serial: parentRecord.serial_number,
+            code: (parentRecord.items as any)?.product_code || 'N/A',
+            type: (parentRecord.items as any)?.item_type || 'unknown',
+            weight: entry.weight || parentRecord.weight_kg,
+            length: entry.length || parentRecord.length_yards || undefined,
+            date: parentRecord.production_date,
+          });
+        }
+      }
+
+      // Build QR code data with lineage
+      const qrData: LineageData = {
+        serial: serialNumber,
+        code: selectedItem.items.product_code,
+        type: selectedItem.items.is_intermediate_product ? 'intermediate' : 'finished_product',
+        weight: currentWeight,
+        length: selectedItem.items.manual_length_entry ? currentLength : undefined,
+        date: now.toISOString().split('T')[0],
+        parents: parentLineage.length > 0 ? parentLineage : undefined,
+      };
+
+      // Generate barcode data: simple format for 1D barcode
       const globalSerialStr = String(globalSerial).padStart(8, '0');
       const itemSerialStr = String(itemSerial).padStart(6, '0');
       const barcodeData = `${globalSerialStr}:${selectedItem.items.product_code}:${itemSerialStr}:${currentWeight.toFixed(2)}`;
+
+      // QR code will contain full lineage JSON
+      const qrCodeData = JSON.stringify(qrData);
 
       // Insert production record
       const { data: productionRecord, error: insertError } = await supabase
@@ -425,19 +474,19 @@ const ProductionInterface = () => {
         throw new Error('Failed to update inventory');
       }
 
-      return { serialNumber, barcodeData };
+      return { serialNumber, barcodeData, qrCodeData };
     },
-    onSuccess: async ({ serialNumber, barcodeData }) => {
+    onSuccess: async ({ serialNumber, barcodeData, qrCodeData }) => {
       // Check if print preview is enabled
       if (printPreviewEnabled) {
         // Generate label codes first for preview
-        await generateLabel(serialNumber, barcodeData);
+        await generateLabel(serialNumber, barcodeData, qrCodeData);
         // Show preview dialog
-        setPreviewData({ serialNumber, barcodeData });
+        setPreviewData({ serialNumber, barcodeData, qrCodeData });
         setShowPrintPreview(true);
       } else {
         // Auto-print mode: print immediately without preview
-        await printLabel(serialNumber, barcodeData);
+        await printLabel(serialNumber, barcodeData, undefined, undefined, qrCodeData);
         
         // Reset weight immediately for next production
         setCurrentWeight(0);
@@ -476,7 +525,7 @@ const ProductionInterface = () => {
     },
   });
 
-  const generateLabel = async (serialNumber: string, barcodeData: string) => {
+  const generateLabel = async (serialNumber: string, barcodeData: string, qrCodeData?: string) => {
     try {
       // Generate 1D Barcode for serial number
       if (barcodeCanvasRef.current) {
@@ -488,9 +537,10 @@ const ProductionInterface = () => {
         });
       }
 
-      // Generate QR Code for barcode data
+      // Generate QR Code with lineage data
       if (qrcodeCanvasRef.current) {
-        await QRCode.toCanvas(qrcodeCanvasRef.current, barcodeData, {
+        const qrContent = qrCodeData || barcodeData;
+        await QRCode.toCanvas(qrcodeCanvasRef.current, qrContent, {
           width: 200,
           margin: 1,
         });
@@ -518,7 +568,7 @@ const ProductionInterface = () => {
     return fieldValues[fieldId] || '';
   };
 
-  const printLabel = async (serialNumber: string, barcodeData: string, itemData?: any, weight?: number) => {
+  const printLabel = async (serialNumber: string, barcodeData: string, itemData?: any, weight?: number, qrCodeData?: string) => {
     const printWindow = window.open('', '', 'width=400,height=300');
     if (!printWindow) return;
 
@@ -536,7 +586,8 @@ const ProductionInterface = () => {
     const labelHeight = labelHeightMm * 3.78;
     const fields = (labelConfig?.fields_config as any[]) || [];
 
-    // Field value mapping
+    // Field value mapping - QR code uses lineage data when available
+    const qrContent = qrCodeData || barcodeData;
     const fieldValues: Record<string, string> = {
       company_name: companyName,
       item_name: item?.product_name || '-',
@@ -549,7 +600,7 @@ const ProductionInterface = () => {
       serial_no: serialNumber,
       serial_number: serialNumber, // Alias for serial_no
       barcode: barcodeData,
-      qrcode: barcodeData,
+      qrcode: qrContent, // QR code with full lineage data
     };
 
     // Generate barcode image
@@ -859,11 +910,16 @@ const ProductionInterface = () => {
 
   const handleConfirmPrint = async () => {
     if (previewData) {
-      await printLabel(previewData.serialNumber, previewData.barcodeData);
+      await printLabel(previewData.serialNumber, previewData.barcodeData, undefined, undefined, previewData.qrCodeData);
       setShowPrintPreview(false);
       setPreviewData(null);
       setCurrentWeight(0);
     }
+  };
+
+  const handleViewTraceability = (serial: string) => {
+    setTraceabilitySerial(serial);
+    setShowTraceabilityDialog(true);
   };
 
   const handleCancelPrint = () => {
@@ -1524,21 +1580,37 @@ const ProductionInterface = () => {
                       </span>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleRequestReprint(record)}
-                    className="ml-4"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Request Reprint
-                  </Button>
+                  <div className="flex gap-2 ml-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewTraceability(record.serial_number)}
+                    >
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Traceability
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRequestReprint(record)}
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Request Reprint
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Traceability Dialog */}
+      <TraceabilityDialog
+        open={showTraceabilityDialog}
+        onOpenChange={setShowTraceabilityDialog}
+        serialNumber={traceabilitySerial}
+      />
 
       {/* Raw Material Consumption Dialog */}
       <RawMaterialConsumptionDialog
