@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,7 +16,8 @@ import {
   ShoppingCart,
   Cpu,
   FileText,
-  Banknote
+  Banknote,
+  QrCode
 } from 'lucide-react';
 import LiveProductionDashboard from '@/components/admin/LiveProductionDashboard';
 import UserManagement from '@/components/admin/UserManagement';
@@ -35,6 +37,7 @@ import LabelCustomizationTool from '@/components/admin/LabelCustomizationTool';
 
 const AdminDashboard = () => {
   const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('live-dashboard');
 
   return (
@@ -116,6 +119,15 @@ const AdminDashboard = () => {
               >
                 <Package className="h-3 w-3 mr-1" />
                 View Inventory
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate('/traceability')}
+                className="h-8"
+              >
+                <QrCode className="h-3 w-3 mr-1" />
+                Traceability
               </Button>
             </div>
           </div>

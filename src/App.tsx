@@ -11,6 +11,7 @@ import ProductionManagerDashboard from "./pages/ProductionManagerDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import AccountantDashboard from "./pages/AccountantDashboard";
 import CommissionAgentDashboard from "./pages/CommissionAgentDashboard";
+import TraceabilityPage from "./pages/TraceabilityPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -70,6 +71,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['commission_agent']}>
                 <CommissionAgentDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/traceability" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'operator', 'production_manager', 'accountant']}>
+                <TraceabilityPage />
               </ProtectedRoute>
             } 
           />
