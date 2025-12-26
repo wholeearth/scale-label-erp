@@ -47,6 +47,7 @@ interface Assignment {
     is_intermediate_product: boolean | null;
     expected_weight_kg: number | null;
     weight_tolerance_percentage: number | null;
+    item_type: string;
   };
 }
 
@@ -1619,6 +1620,7 @@ const ProductionInterface = () => {
         onSubmit={handleConsumptionSubmit}
         requiresWeight={selectedItem?.items.manual_weight_entry || false}
         requiresLength={selectedItem?.items.manual_length_entry || false}
+        producingItemType={selectedItem?.items.item_type}
       />
     </div>
   );
