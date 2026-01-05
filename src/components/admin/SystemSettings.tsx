@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Wifi, WifiOff, RefreshCw, CheckCircle2, Search, X, Activity, Pause, Play } from 'lucide-react';
+import { Save, Wifi, WifiOff, RefreshCw, CheckCircle2, Search, X, Activity, Calendar, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface ScaleTestResult {
   weight: number;
@@ -637,16 +638,139 @@ const SystemSettings = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>General Settings</CardTitle>
-          <CardDescription>System-wide configuration options</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Additional settings coming soon...</p>
-        </CardContent>
-      </Card>
+      <YearlySequenceSettings />
     </div>
+  );
+};
+
+// Yearly Sequence Settings Component
+const YearlySequenceSettings = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const currentYear = new Date().getFullYear();
+
+  // Fetch yearly sequence stats
+  const { data: sequenceStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['yearly-sequence-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('operator_yearly_sequences')
+        .select('*, profiles(full_name, employee_code)')
+        .eq('year', currentYear)
+        .order('sequence_count', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Reset yearly sequences mutation
+  const resetMutation = useMutation({
+    mutationFn: async (year: number) => {
+      const { data, error } = await supabase.functions.invoke('reset-yearly-sequences', {
+        body: { year, manual: true }
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['yearly-sequence-stats'] });
+      toast({
+        title: 'Success',
+        description: `Yearly sequences initialized. Created: ${data.sequencesCreated}, Skipped: ${data.sequencesSkipped}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const totalProduction = sequenceStats?.reduce((sum, s) => sum + (s.sequence_count || 0), 0) || 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Yearly Production Sequences
+            </CardTitle>
+            <CardDescription>
+              Track and manage operator production sequences for {currentYear}
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="text-lg px-3 py-1">
+            {totalProduction.toLocaleString()} items this year
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+          <div>
+            <h4 className="font-medium">Initialize New Year Sequences</h4>
+            <p className="text-sm text-muted-foreground">
+              Create sequence records for all operators for the current year. 
+              Existing sequences won't be affected.
+            </p>
+          </div>
+          <Button 
+            onClick={() => resetMutation.mutate(currentYear)}
+            disabled={resetMutation.isPending}
+            variant="outline"
+          >
+            {resetMutation.isPending ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4 mr-2" />
+            )}
+            Initialize {currentYear}
+          </Button>
+        </div>
+
+        {statsLoading ? (
+          <div className="text-center py-4 text-muted-foreground">Loading sequence data...</div>
+        ) : sequenceStats && sequenceStats.length > 0 ? (
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm text-muted-foreground">Operator Production Summary ({currentYear})</h4>
+            <div className="border rounded-lg divide-y">
+              {sequenceStats.map((stat: any) => (
+                <div key={stat.id} className="flex items-center justify-between p-3">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary" className="font-mono">
+                      {stat.profiles?.employee_code || 'N/A'}
+                    </Badge>
+                    <span className="font-medium">{stat.profiles?.full_name || 'Unknown'}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-lg">{stat.sequence_count.toLocaleString()}</span>
+                    <span className="text-muted-foreground text-sm ml-1">items</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-muted-foreground">
+            <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No production sequences for {currentYear} yet.</p>
+            <p className="text-sm">Click "Initialize {currentYear}" to set up sequences for all operators.</p>
+          </div>
+        )}
+
+        <Alert>
+          <AlertDescription className="text-sm">
+            <strong>Automatic Reset:</strong> New yearly sequences are automatically created when operators start production in a new year. 
+            Use the manual initialization to pre-create sequences for all operators at the start of the year.
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+    </Card>
   );
 };
 
