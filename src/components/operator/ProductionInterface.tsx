@@ -308,10 +308,13 @@ const ProductionInterface = () => {
         throw new Error('Missing required data');
       }
 
+      const now = new Date();
+      const currentYear = now.getFullYear();
+
       // Get counters
       const { data: globalCounter, error: globalError } = await supabase
         .from('production_counters')
-        .select('global_serial')
+        .select('global_serial, id')
         .limit(1)
         .maybeSingle();
 
@@ -325,19 +328,35 @@ const ProductionInterface = () => {
 
       if (itemError) throw itemError;
 
+      // Get or create operator yearly sequence
+      let { data: yearlySeq, error: yearlyError } = await supabase
+        .from('operator_yearly_sequences')
+        .select('id, sequence_count')
+        .eq('operator_id', profile.id)
+        .eq('year', currentYear)
+        .maybeSingle();
+
+      if (yearlyError) throw yearlyError;
+
       const globalSerial = (globalCounter?.global_serial || 0) + 1;
       const itemSerial = (itemCounter?.item_serial || 0) + 1;
+      const yearlySequence = (yearlySeq?.sequence_count || 0) + 1;
       const operatorSequence = (selectedItem.quantity_produced || 0) + 1;
 
-      // Generate serial number: 01-M1-041025-00152-0119
-      const now = new Date();
+      // Generate serial number: [Operator]-[Machine]-[DDMMYY]-[YearlySequence]-[HHMM]
+      // Example: 01-M1-050126-00567-1420
       const operatorCode = profile.employee_code || '00';
       const machineCode = machines?.find(m => m.id === selectedMachine)?.machine_code || 'M1';
-      const ddmmyy = now.toLocaleDateString('en-GB').split('/').join('').slice(0, 6); // DDMMYY
-      const hhmm = now.toTimeString().slice(0, 5).replace(':', ''); // HHMM
-      const opSeq = String(operatorSequence).padStart(5, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = String(now.getFullYear()).slice(-2);
+      const ddmmyy = `${day}${month}${year}`;
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const hhmm = `${hours}${minutes}`;
+      const yearlySeqStr = String(yearlySequence).padStart(5, '0');
 
-      const serialNumber = `${operatorCode}-${machineCode}-${ddmmyy}-${opSeq}-${hhmm}`;
+      const serialNumber = `${operatorCode}-${machineCode}-${ddmmyy}-${yearlySeqStr}-${hhmm}`;
 
       // Build lineage data for QR code
       const parentLineage: LineageData[] = [];
@@ -381,10 +400,9 @@ const ProductionInterface = () => {
         parents: parentLineage.length > 0 ? parentLineage : undefined,
       };
 
-      // Generate barcode data: simple format for 1D barcode
-      const globalSerialStr = String(globalSerial).padStart(8, '0');
-      const itemSerialStr = String(itemSerial).padStart(6, '0');
-      const barcodeData = `${globalSerialStr}:${selectedItem.items.product_code}:${itemSerialStr}:${currentWeight.toFixed(2)}`;
+      // Generate barcode data: [GlobalSerial]|[ItemCode]|[ItemSerial]|[Weight]
+      // Example: 10432|2770|01234|1.50
+      const barcodeData = `${globalSerial}|${selectedItem.items.product_code}|${itemSerial}|${currentWeight.toFixed(2)}`;
 
       // QR code will contain full lineage JSON
       const qrCodeData = JSON.stringify(qrData);
@@ -451,6 +469,22 @@ const ProductionInterface = () => {
         await supabase
           .from('item_counters')
           .insert({ item_id: selectedItem.item_id, item_serial: itemSerial });
+      }
+
+      // Update operator yearly sequence
+      if (yearlySeq) {
+        await supabase
+          .from('operator_yearly_sequences')
+          .update({ sequence_count: yearlySequence })
+          .eq('id', yearlySeq.id);
+      } else {
+        await supabase
+          .from('operator_yearly_sequences')
+          .insert({ 
+            operator_id: profile.id, 
+            year: currentYear, 
+            sequence_count: yearlySequence 
+          });
       }
 
       // Update assignment
