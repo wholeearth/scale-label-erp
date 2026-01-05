@@ -781,6 +781,41 @@ export type Database = {
           },
         ]
       }
+      operator_yearly_sequences: {
+        Row: {
+          created_at: string | null
+          id: string
+          operator_id: string
+          sequence_count: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          operator_id: string
+          sequence_count?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          operator_id?: string
+          sequence_count?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_yearly_sequences_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string | null
