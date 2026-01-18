@@ -34,6 +34,9 @@ import PurchaseManagement from '@/components/admin/PurchaseManagement';
 import { CommissionAgentManagement } from '@/components/admin/CommissionAgentManagement';
 import LabelConfiguration from '@/components/admin/LabelConfiguration';
 import LabelCustomizationTool from '@/components/admin/LabelCustomizationTool';
+import ProductionDetailReport from '@/components/admin/reports/ProductionDetailReport';
+import ProductionSummaryReport from '@/components/admin/reports/ProductionSummaryReport';
+import PerformanceReport from '@/components/admin/reports/PerformanceReport';
 
 const AdminDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -235,15 +238,9 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Reports</CardTitle>
-                <CardDescription>Production, sales, and inventory reports</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Reports module coming soon...</p>
-              </CardContent>
-            </Card>
+            <ProductionDetailReport />
+            <ProductionSummaryReport />
+            <PerformanceReport />
           </TabsContent>
         </Tabs>
       </main>
