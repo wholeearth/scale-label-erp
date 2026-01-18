@@ -26,7 +26,7 @@ interface ProductionRecord {
 }
 
 type ViewType = 'daily' | 'weekly' | 'monthly' | 'yearly';
-type ShiftType = 'all' | 'morning' | 'evening' | 'night';
+type ShiftType = 'all' | 'day' | 'night';
 
 const PerformanceReport = () => {
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -80,9 +80,8 @@ const PerformanceReport = () => {
         filtered = filtered.filter(record => {
           const hour = parseInt(record.production_time.split(':')[0]);
           switch (shiftFilter) {
-            case 'morning': return hour >= 6 && hour < 14;
-            case 'evening': return hour >= 14 && hour < 22;
-            case 'night': return hour >= 22 || hour < 6;
+            case 'day': return hour >= 6 && hour < 18;
+            case 'night': return hour >= 18 || hour < 6;
             default: return true;
           }
         });
@@ -94,7 +93,7 @@ const PerformanceReport = () => {
 
   // Calculate performance metrics
   const performanceData = useMemo(() => {
-    if (!productionRecords) return { byOperator: [], chartData: [], shifts: { morning: 0, evening: 0, night: 0 } };
+    if (!productionRecords) return { byOperator: [], chartData: [], shifts: { day: 0, night: 0 } };
 
     // Group by operator
     const operatorMap = new Map<string, {
@@ -105,7 +104,7 @@ const PerformanceReport = () => {
       totalWeight: number;
       workingDays: Set<string>;
       byDate: Map<string, number>;
-      byShift: { morning: number; evening: number; night: number };
+      byShift: { day: number; night: number };
     }>();
 
     productionRecords.forEach(record => {
@@ -120,7 +119,7 @@ const PerformanceReport = () => {
           totalWeight: 0,
           workingDays: new Set(),
           byDate: new Map(),
-          byShift: { morning: 0, evening: 0, night: 0 },
+          byShift: { day: 0, night: 0 },
         });
       }
 
@@ -133,10 +132,9 @@ const PerformanceReport = () => {
       const dateCount = op.byDate.get(record.production_date) || 0;
       op.byDate.set(record.production_date, dateCount + 1);
       
-      // By shift
+      // By shift (Day: 6AM-6PM, Night: 6PM-6AM)
       const hour = parseInt(record.production_time.split(':')[0]);
-      if (hour >= 6 && hour < 14) op.byShift.morning += 1;
-      else if (hour >= 14 && hour < 22) op.byShift.evening += 1;
+      if (hour >= 6 && hour < 18) op.byShift.day += 1;
       else op.byShift.night += 1;
     });
 
@@ -209,10 +207,9 @@ const PerformanceReport = () => {
     }
 
     // Shift summary
-    const shifts = { morning: 0, evening: 0, night: 0 };
+    const shifts = { day: 0, night: 0 };
     byOperator.forEach(op => {
-      shifts.morning += op.byShift.morning;
-      shifts.evening += op.byShift.evening;
+      shifts.day += op.byShift.day;
       shifts.night += op.byShift.night;
     });
 
@@ -220,7 +217,7 @@ const PerformanceReport = () => {
   }, [productionRecords, viewType, startDate, endDate]);
 
   const exportToCSV = () => {
-    const headers = ['Operator', 'Employee Code', 'Total Units', 'Total Weight (kg)', 'Working Days', 'Avg Units/Day', 'Morning Shift', 'Evening Shift', 'Night Shift'];
+    const headers = ['Operator', 'Employee Code', 'Total Units', 'Total Weight (kg)', 'Working Days', 'Avg Units/Day', 'Day Shift', 'Night Shift'];
     const rows = performanceData.byOperator.map(op => [
       op.operatorName,
       op.employeeCode || 'N/A',
@@ -228,8 +225,7 @@ const PerformanceReport = () => {
       op.totalWeight.toFixed(2),
       op.workingDaysCount.toString(),
       op.avgUnitsPerDay.toFixed(2),
-      op.byShift.morning.toString(),
-      op.byShift.evening.toString(),
+      op.byShift.day.toString(),
       op.byShift.night.toString(),
     ]);
 
@@ -319,9 +315,8 @@ const PerformanceReport = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Shifts</SelectItem>
-                <SelectItem value="morning">Morning (6AM-2PM)</SelectItem>
-                <SelectItem value="evening">Evening (2PM-10PM)</SelectItem>
-                <SelectItem value="night">Night (10PM-6AM)</SelectItem>
+                <SelectItem value="day">Day (6AM-6PM)</SelectItem>
+                <SelectItem value="night">Night (6PM-6AM)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -334,7 +329,7 @@ const PerformanceReport = () => {
         ) : (
           <>
             {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-primary/10 rounded-lg text-center">
                 <Target className="h-5 w-5 mx-auto mb-2 text-primary" />
                 <p className="text-2xl font-bold text-primary">{totalUnits}</p>
@@ -347,17 +342,12 @@ const PerformanceReport = () => {
               </div>
               <div className="p-4 bg-warning/10 rounded-lg text-center">
                 <Clock className="h-5 w-5 mx-auto mb-2 text-warning" />
-                <p className="text-2xl font-bold text-warning">{performanceData.shifts.morning}</p>
-                <p className="text-sm text-muted-foreground">Morning Shift</p>
+                <p className="text-2xl font-bold text-warning">{performanceData.shifts.day}</p>
+                <p className="text-sm text-muted-foreground">Day Shift</p>
               </div>
               <div className="p-4 bg-info/10 rounded-lg text-center">
                 <Clock className="h-5 w-5 mx-auto mb-2 text-info" />
-                <p className="text-2xl font-bold text-info">{performanceData.shifts.evening}</p>
-                <p className="text-sm text-muted-foreground">Evening Shift</p>
-              </div>
-              <div className="p-4 bg-secondary/10 rounded-lg text-center">
-                <Clock className="h-5 w-5 mx-auto mb-2 text-secondary-foreground" />
-                <p className="text-2xl font-bold text-secondary-foreground">{performanceData.shifts.night}</p>
+                <p className="text-2xl font-bold text-info">{performanceData.shifts.night}</p>
                 <p className="text-sm text-muted-foreground">Night Shift</p>
               </div>
             </div>
@@ -381,15 +371,14 @@ const PerformanceReport = () => {
                         <TableHead className="text-right">Total Weight (kg)</TableHead>
                         <TableHead className="text-right">Working Days</TableHead>
                         <TableHead className="text-right">Avg Units/Day</TableHead>
-                        <TableHead className="text-right">Morning</TableHead>
-                        <TableHead className="text-right">Evening</TableHead>
+                        <TableHead className="text-right">Day</TableHead>
                         <TableHead className="text-right">Night</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {performanceData.byOperator.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                             No production records found for the selected criteria
                           </TableCell>
                         </TableRow>
@@ -417,8 +406,7 @@ const PerformanceReport = () => {
                             <TableCell className="text-right">{op.totalWeight.toFixed(2)}</TableCell>
                             <TableCell className="text-right">{op.workingDaysCount}</TableCell>
                             <TableCell className="text-right">{op.avgUnitsPerDay.toFixed(1)}</TableCell>
-                            <TableCell className="text-right">{op.byShift.morning}</TableCell>
-                            <TableCell className="text-right">{op.byShift.evening}</TableCell>
+                            <TableCell className="text-right">{op.byShift.day}</TableCell>
                             <TableCell className="text-right">{op.byShift.night}</TableCell>
                           </TableRow>
                         ))
@@ -470,8 +458,7 @@ const PerformanceReport = () => {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={performanceData.byOperator.slice(0, 5).map(op => ({
                             name: op.operatorName.split(' ')[0],
-                            Morning: op.byShift.morning,
-                            Evening: op.byShift.evening,
+                            Day: op.byShift.day,
                             Night: op.byShift.night,
                           }))}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -479,9 +466,8 @@ const PerformanceReport = () => {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Bar dataKey="Morning" fill="#ffc658" />
-                            <Bar dataKey="Evening" fill="#8884d8" />
-                            <Bar dataKey="Night" fill="#82ca9d" />
+                            <Bar dataKey="Day" fill="#ffc658" />
+                            <Bar dataKey="Night" fill="#8884d8" />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -498,8 +484,7 @@ const PerformanceReport = () => {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Operator</TableHead>
-                            <TableHead className="text-center">🌅 Morning</TableHead>
-                            <TableHead className="text-center">🌆 Evening</TableHead>
+                            <TableHead className="text-center">☀️ Day</TableHead>
                             <TableHead className="text-center">🌙 Night</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -507,8 +492,7 @@ const PerformanceReport = () => {
                           {performanceData.byOperator.map(op => (
                             <TableRow key={op.operatorId}>
                               <TableCell className="font-medium">{op.operatorName.split(' ')[0]}</TableCell>
-                              <TableCell className="text-center">{op.byShift.morning}</TableCell>
-                              <TableCell className="text-center">{op.byShift.evening}</TableCell>
+                              <TableCell className="text-center">{op.byShift.day}</TableCell>
                               <TableCell className="text-center">{op.byShift.night}</TableCell>
                             </TableRow>
                           ))}
