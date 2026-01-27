@@ -1408,6 +1408,30 @@ export type Database = {
         }
         Relationships: []
       }
+      shift_config: {
+        Row: {
+          created_at: string
+          day_shift_end: string
+          day_shift_start: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_shift_end?: string
+          day_shift_start?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_shift_end?: string
+          day_shift_start?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shift_intermediate_production: {
         Row: {
           created_at: string
