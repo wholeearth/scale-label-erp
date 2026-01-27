@@ -37,6 +37,10 @@ import LabelCustomizationTool from '@/components/admin/LabelCustomizationTool';
 import ProductionDetailReport from '@/components/admin/reports/ProductionDetailReport';
 import ProductionSummaryReport from '@/components/admin/reports/ProductionSummaryReport';
 import PerformanceReport from '@/components/admin/reports/PerformanceReport';
+import FinancialReports from '@/components/reports/FinancialReports';
+import SalesReceivablesReport from '@/components/reports/SalesReceivablesReport';
+import InventoryReports from '@/components/reports/InventoryReports';
+import CommissionReports from '@/components/reports/CommissionReports';
 
 const AdminDashboard = () => {
   const { profile, signOut } = useAuth();
@@ -238,9 +242,32 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
-            <ProductionDetailReport />
-            <ProductionSummaryReport />
-            <PerformanceReport />
+            <Tabs defaultValue="production" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="production">Production</TabsTrigger>
+                <TabsTrigger value="financial">Financial</TabsTrigger>
+                <TabsTrigger value="sales">Sales & Receivables</TabsTrigger>
+                <TabsTrigger value="inventory">Inventory</TabsTrigger>
+                <TabsTrigger value="commission">Commission</TabsTrigger>
+              </TabsList>
+              <TabsContent value="production" className="space-y-6">
+                <ProductionDetailReport />
+                <ProductionSummaryReport />
+                <PerformanceReport />
+              </TabsContent>
+              <TabsContent value="financial">
+                <FinancialReports />
+              </TabsContent>
+              <TabsContent value="sales">
+                <SalesReceivablesReport />
+              </TabsContent>
+              <TabsContent value="inventory">
+                <InventoryReports />
+              </TabsContent>
+              <TabsContent value="commission">
+                <CommissionReports />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </main>
