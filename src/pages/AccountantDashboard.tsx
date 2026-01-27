@@ -19,6 +19,10 @@ import { PurchaseReturnForm } from '@/components/accountant/PurchaseReturnForm';
 import { AllVouchersReport } from '@/components/accountant/AllVouchersReport';
 import CreatePurchaseInvoice from '@/components/admin/CreatePurchaseInvoice';
 import ShiftDataManagement from '@/components/accountant/ShiftDataManagement';
+import FinancialReports from '@/components/reports/FinancialReports';
+import SalesReceivablesReport from '@/components/reports/SalesReceivablesReport';
+import InventoryReports from '@/components/reports/InventoryReports';
+import CommissionReports from '@/components/reports/CommissionReports';
 import { Clock } from 'lucide-react';
 
 const AccountantDashboard = () => {
@@ -120,7 +124,30 @@ const AccountantDashboard = () => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">
-            <AllVouchersReport />
+            <Tabs defaultValue="vouchers" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="vouchers">All Vouchers</TabsTrigger>
+                <TabsTrigger value="financial">Financial</TabsTrigger>
+                <TabsTrigger value="sales">Sales & Receivables</TabsTrigger>
+                <TabsTrigger value="inventory">Inventory</TabsTrigger>
+                <TabsTrigger value="commission">Commission</TabsTrigger>
+              </TabsList>
+              <TabsContent value="vouchers">
+                <AllVouchersReport />
+              </TabsContent>
+              <TabsContent value="financial">
+                <FinancialReports />
+              </TabsContent>
+              <TabsContent value="sales">
+                <SalesReceivablesReport />
+              </TabsContent>
+              <TabsContent value="inventory">
+                <InventoryReports />
+              </TabsContent>
+              <TabsContent value="commission">
+                <CommissionReports />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="shift-data" className="space-y-6">
