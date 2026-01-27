@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ShiftConfigSettings from './ShiftConfigSettings';
 
 interface ScaleTestResult {
   weight: number;
@@ -637,6 +638,8 @@ const SystemSettings = () => {
           )}
         </CardContent>
       </Card>
+
+      <ShiftConfigSettings />
 
       <YearlySequenceSettings />
     </div>

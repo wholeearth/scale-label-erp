@@ -28,12 +28,34 @@ interface ProductionRecord {
 type ViewType = 'daily' | 'weekly' | 'monthly' | 'yearly';
 type ShiftType = 'all' | 'day' | 'night';
 
+interface ShiftConfig {
+  day_shift_start: string;
+  day_shift_end: string;
+}
+
 const PerformanceReport = () => {
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedOperator, setSelectedOperator] = useState<string>('all');
   const [viewType, setViewType] = useState<ViewType>('daily');
   const [shiftFilter, setShiftFilter] = useState<ShiftType>('all');
+
+  // Fetch shift configuration
+  const { data: shiftConfig } = useQuery({
+    queryKey: ['shift-config'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shift_config')
+        .select('day_shift_start, day_shift_end')
+        .single();
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as ShiftConfig | null;
+    },
+  });
+
+  // Default shift times if not configured
+  const dayShiftStart = shiftConfig?.day_shift_start ? parseInt(shiftConfig.day_shift_start.split(':')[0]) : 6;
+  const dayShiftEnd = shiftConfig?.day_shift_end ? parseInt(shiftConfig.day_shift_end.split(':')[0]) : 18;
 
   // Fetch operators for filter
   const { data: operators } = useQuery({
@@ -74,14 +96,14 @@ const PerformanceReport = () => {
       const { data, error } = await query;
       if (error) throw error;
       
-      // Filter by shift if needed
+      // Filter by shift if needed using configured shift times
       let filtered = data as ProductionRecord[];
       if (shiftFilter !== 'all') {
         filtered = filtered.filter(record => {
           const hour = parseInt(record.production_time.split(':')[0]);
           switch (shiftFilter) {
-            case 'day': return hour >= 6 && hour < 18;
-            case 'night': return hour >= 18 || hour < 6;
+            case 'day': return hour >= dayShiftStart && hour < dayShiftEnd;
+            case 'night': return hour >= dayShiftEnd || hour < dayShiftStart;
             default: return true;
           }
         });
@@ -132,9 +154,9 @@ const PerformanceReport = () => {
       const dateCount = op.byDate.get(record.production_date) || 0;
       op.byDate.set(record.production_date, dateCount + 1);
       
-      // By shift (Day: 6AM-6PM, Night: 6PM-6AM)
+      // By shift using configured times
       const hour = parseInt(record.production_time.split(':')[0]);
-      if (hour >= 6 && hour < 18) op.byShift.day += 1;
+      if (hour >= dayShiftStart && hour < dayShiftEnd) op.byShift.day += 1;
       else op.byShift.night += 1;
     });
 
@@ -214,7 +236,14 @@ const PerformanceReport = () => {
     });
 
     return { byOperator, chartData, shifts };
-  }, [productionRecords, viewType, startDate, endDate]);
+  }, [productionRecords, viewType, startDate, endDate, dayShiftStart, dayShiftEnd]);
+
+  // Format shift time for display
+  const formatShiftTime = (hour: number) => {
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}${ampm}`;
+  };
 
   const exportToCSV = () => {
     const headers = ['Operator', 'Employee Code', 'Total Units', 'Total Weight (kg)', 'Working Days', 'Avg Units/Day', 'Day Shift', 'Night Shift'];
@@ -315,8 +344,8 @@ const PerformanceReport = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Shifts</SelectItem>
-                <SelectItem value="day">Day (6AM-6PM)</SelectItem>
-                <SelectItem value="night">Night (6PM-6AM)</SelectItem>
+                <SelectItem value="day">Day ({formatShiftTime(dayShiftStart)}-{formatShiftTime(dayShiftEnd)})</SelectItem>
+                <SelectItem value="night">Night ({formatShiftTime(dayShiftEnd)}-{formatShiftTime(dayShiftStart)})</SelectItem>
               </SelectContent>
             </Select>
           </div>
