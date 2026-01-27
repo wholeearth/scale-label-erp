@@ -1,9 +1,21 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.0';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// UUID validation regex
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Input validation schema
+const updateUserRoleSchema = z.object({
+  user_id: z.string().regex(uuidRegex, 'Invalid user ID format'),
+  role: z.enum(['admin', 'operator', 'production_manager', 'sales', 'customer', 'accountant', 'commission_agent']),
+  full_name: z.string().trim().min(1, 'Full name is required').max(200, 'Full name too long'),
+  employee_code: z.string().trim().max(50, 'Employee code too long').optional().nullable(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,19 +61,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { user_id, role, full_name, employee_code } = await req.json();
+    // Parse and validate input
+    const rawBody = await req.json();
+    const validation = updateUserRoleSchema.safeParse(rawBody);
+    
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validation.error.errors }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+
+    const { user_id, role, full_name, employee_code } = validation.data;
 
     // Update profile
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({
         full_name,
-        employee_code,
+        employee_code: employee_code || null,
       })
       .eq('id', user_id);
 
     if (profileError) {
-      throw profileError;
+      return new Response(
+        JSON.stringify({ error: 'Failed to update profile' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
     // Update or insert role
@@ -82,7 +114,13 @@ Deno.serve(async (req) => {
         .insert({ user_id, role });
       
       if (insertError) {
-        throw insertError;
+        return new Response(
+          JSON.stringify({ error: 'Failed to update role' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          }
+        );
       }
     }
 
@@ -94,8 +132,9 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error('Update user role error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'An error occurred' }),
+      JSON.stringify({ error: 'An error occurred while updating the user' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
