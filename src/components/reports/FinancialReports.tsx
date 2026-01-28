@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CalendarIcon, Download, TrendingUp, TrendingDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const FinancialReports = () => {
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(new Date()));
@@ -190,6 +192,31 @@ const FinancialReports = () => {
           </TabsContent>
 
           <TabsContent value="profit-loss" className="mt-4">
+            {/* Revenue vs Expenses Bar Chart */}
+            <Card className="mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Revenue vs Expenses Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{
+                    revenue: { label: "Revenue", color: "hsl(var(--success))" },
+                    expenses: { label: "Expenses", color: "hsl(var(--destructive))" }
+                  }}
+                  className="h-[200px]"
+                >
+                  <BarChart data={[{ name: 'Total', revenue: revenueTotal, expenses: expenseTotal }]}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="revenue" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader className="pb-2">
@@ -199,6 +226,39 @@ const FinancialReports = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {getAccountsByType('revenue').length > 0 && (
+                    <ChartContainer
+                      config={getAccountsByType('revenue').reduce((acc, account, idx) => ({
+                        ...acc,
+                        [account.account_code]: { 
+                          label: account.account_name, 
+                          color: `hsl(${120 + idx * 30}, 70%, 50%)` 
+                        }
+                      }), {})}
+                      className="h-[180px] mb-4"
+                    >
+                      <PieChart>
+                        <Pie
+                          data={getAccountsByType('revenue').map((a, idx) => ({
+                            name: a.account_name,
+                            value: a.current_balance || 0,
+                            fill: `hsl(${120 + idx * 30}, 70%, 50%)`
+                          }))}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                        >
+                          {getAccountsByType('revenue').map((_, idx) => (
+                            <Cell key={idx} fill={`hsl(${120 + idx * 30}, 70%, 50%)`} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ChartContainer>
+                  )}
                   <Table>
                     <TableBody>
                       {getAccountsByType('revenue').map(account => (
@@ -228,6 +288,39 @@ const FinancialReports = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {getAccountsByType('expense').length > 0 && (
+                    <ChartContainer
+                      config={getAccountsByType('expense').reduce((acc, account, idx) => ({
+                        ...acc,
+                        [account.account_code]: { 
+                          label: account.account_name, 
+                          color: `hsl(${0 + idx * 20}, 70%, 50%)` 
+                        }
+                      }), {})}
+                      className="h-[180px] mb-4"
+                    >
+                      <PieChart>
+                        <Pie
+                          data={getAccountsByType('expense').map((a, idx) => ({
+                            name: a.account_name,
+                            value: a.current_balance || 0,
+                            fill: `hsl(${0 + idx * 20}, 70%, 50%)`
+                          }))}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                        >
+                          {getAccountsByType('expense').map((_, idx) => (
+                            <Cell key={idx} fill={`hsl(${0 + idx * 20}, 70%, 50%)`} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ChartContainer>
+                  )}
                   <Table>
                     <TableBody>
                       {getAccountsByType('expense').map(account => (

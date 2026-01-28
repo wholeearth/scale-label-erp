@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { CalendarIcon, Download, Package, AlertTriangle, ArrowUpDown, Search } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 const InventoryReports = () => {
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(new Date()));
@@ -203,6 +205,76 @@ const InventoryReports = () => {
           </TabsList>
 
           <TabsContent value="valuation" className="mt-4">
+            {/* Stock Distribution Charts */}
+            <div className="grid gap-6 md:grid-cols-2 mb-6">
+              {/* Top Items by Value Bar Chart */}
+              {filteredStockLevels.filter(i => i.estimatedValue > 0).length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Top Items by Value</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={{ value: { label: "Value", color: "hsl(var(--primary))" } }}
+                      className="h-[200px]"
+                    >
+                      <BarChart data={filteredStockLevels
+                        .filter(i => i.estimatedValue > 0)
+                        .sort((a, b) => b.estimatedValue - a.estimatedValue)
+                        .slice(0, 6)
+                        .map(i => ({ name: i.product_name.slice(0, 12), value: i.estimatedValue }))
+                      }>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="name" fontSize={11} />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Stock Status Pie Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Stock Status Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      inStock: { label: "In Stock", color: "hsl(var(--success))" },
+                      lowStock: { label: "Low Stock", color: "hsl(var(--warning))" },
+                      outOfStock: { label: "Out of Stock", color: "hsl(var(--destructive))" }
+                    }}
+                    className="h-[200px]"
+                  >
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'In Stock', value: stockLevels.filter(i => !i.isLowStock && !i.isOutOfStock).length, fill: 'hsl(var(--success))' },
+                          { name: 'Low Stock', value: lowStockItems.length, fill: 'hsl(var(--warning))' },
+                          { name: 'Out of Stock', value: outOfStockItems.length, fill: 'hsl(var(--destructive))' }
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={70}
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        <Cell fill="hsl(var(--success))" />
+                        <Cell fill="hsl(var(--warning))" />
+                        <Cell fill="hsl(var(--destructive))" />
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="flex justify-between mb-4">
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

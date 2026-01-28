@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarIcon, Download, Users, Package, AlertTriangle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 const SalesReceivablesReport = () => {
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(new Date()));
@@ -227,6 +229,37 @@ const SalesReceivablesReport = () => {
           </TabsList>
 
           <TabsContent value="by-customer" className="mt-4">
+            {/* Top Customers Bar Chart */}
+            {customerSalesArray.length > 0 && (
+              <Card className="mb-6">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Top Customers by Sales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      sales: { label: "Sales", color: "hsl(var(--primary))" },
+                      paid: { label: "Paid", color: "hsl(var(--success))" }
+                    }}
+                    className="h-[250px]"
+                  >
+                    <BarChart data={customerSalesArray.slice(0, 8).map((c: any) => ({
+                      name: c.customer.customer_name.slice(0, 15),
+                      sales: c.totalSales,
+                      paid: c.paidAmount
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="name" fontSize={12} angle={-20} textAnchor="end" height={60} />
+                      <YAxis />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="paid" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex justify-end mb-4">
               <Button
                 variant="outline"
@@ -288,6 +321,48 @@ const SalesReceivablesReport = () => {
           </TabsContent>
 
           <TabsContent value="by-product" className="mt-4">
+            {/* Product Sales Pie Chart */}
+            {productSalesArray.length > 0 && (
+              <Card className="mb-6">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Sales Distribution by Product</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={productSalesArray.slice(0, 6).reduce((acc, product, idx) => ({
+                      ...acc,
+                      [product.productName]: { 
+                        label: product.productName, 
+                        color: `hsl(${idx * 60}, 70%, 50%)` 
+                      }
+                    }), {})}
+                    className="h-[250px]"
+                  >
+                    <PieChart>
+                      <Pie
+                        data={productSalesArray.slice(0, 6).map((p, idx) => ({
+                          name: p.productName,
+                          value: p.totalValue,
+                          fill: `hsl(${idx * 60}, 70%, 50%)`
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        label={({ name, percent }) => `${name.slice(0, 10)} (${(percent * 100).toFixed(0)}%)`}
+                      >
+                        {productSalesArray.slice(0, 6).map((_, idx) => (
+                          <Cell key={idx} fill={`hsl(${idx * 60}, 70%, 50%)`} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex justify-end mb-4">
               <Button
                 variant="outline"
@@ -325,6 +400,37 @@ const SalesReceivablesReport = () => {
           </TabsContent>
 
           <TabsContent value="aging" className="mt-4">
+            {/* Aging Bar Chart */}
+            <Card className="mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Aging Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{
+                    amount: { label: "Amount", color: "hsl(var(--primary))" }
+                  }}
+                  className="h-[200px]"
+                >
+                  <BarChart data={Object.values(agingBuckets).map((bucket, idx) => ({
+                    name: bucket.label,
+                    amount: bucket.amount,
+                    fill: idx === 3 ? 'hsl(var(--destructive))' : idx === 2 ? 'hsl(var(--warning))' : 'hsl(var(--primary))'
+                  }))}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                      {Object.values(agingBuckets).map((_, idx) => (
+                        <Cell key={idx} fill={idx === 3 ? 'hsl(var(--destructive))' : idx === 2 ? 'hsl(var(--warning))' : 'hsl(var(--primary))'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
             <div className="grid gap-4 md:grid-cols-4 mb-6">
               {Object.values(agingBuckets).map((bucket, idx) => (
                 <Card key={idx} className={cn(
