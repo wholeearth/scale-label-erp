@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CalendarIcon, Download, Users, Wallet, TrendingUp } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 const CommissionReports = () => {
   const [dateFrom, setDateFrom] = useState<Date>(startOfMonth(new Date()));
@@ -215,6 +217,91 @@ const CommissionReports = () => {
           </TabsList>
 
           <TabsContent value="summary" className="mt-4">
+            {/* Agent Commission Charts */}
+            <div className="grid gap-6 md:grid-cols-2 mb-6">
+              {/* Commission by Agent Bar Chart */}
+              {agentSummaries.filter(a => a.commissionEarned > 0).length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Commission by Agent</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={{
+                        earned: { label: "Earned", color: "hsl(var(--success))" },
+                        paid: { label: "Paid", color: "hsl(var(--muted-foreground))" }
+                      }}
+                      className="h-[220px]"
+                    >
+                      <BarChart data={agentSummaries
+                        .filter(a => a.commissionEarned > 0)
+                        .slice(0, 6)
+                        .map(a => ({
+                          name: a.agent_name.slice(0, 12),
+                          earned: a.commissionEarned,
+                          paid: a.commissionPaid
+                        }))
+                      }>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="name" fontSize={11} />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="earned" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="paid" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Customers per Agent Pie Chart */}
+              {agentSummaries.filter(a => a.customerCount > 0).length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Customers per Agent</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={agentSummaries.slice(0, 6).reduce((acc, agent, idx) => ({
+                        ...acc,
+                        [agent.agent_code]: { 
+                          label: agent.agent_name, 
+                          color: `hsl(${idx * 50}, 70%, 50%)` 
+                        }
+                      }), {})}
+                      className="h-[220px]"
+                    >
+                      <PieChart>
+                        <Pie
+                          data={agentSummaries
+                            .filter(a => a.customerCount > 0)
+                            .slice(0, 6)
+                            .map((a, idx) => ({
+                              name: a.agent_name,
+                              value: a.customerCount,
+                              fill: `hsl(${idx * 50}, 70%, 50%)`
+                            }))
+                          }
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          label={({ name, value }) => `${name.slice(0, 8)}: ${value}`}
+                        >
+                          {agentSummaries.slice(0, 6).map((_, idx) => (
+                            <Cell key={idx} fill={`hsl(${idx * 50}, 70%, 50%)`} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
             <div className="flex justify-end mb-4">
               <Button
                 variant="outline"
