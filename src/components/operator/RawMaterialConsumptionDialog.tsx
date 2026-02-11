@@ -57,7 +57,7 @@ const RawMaterialConsumptionDialog = ({
     if (producingItemType === 'intermediate_type_2') {
       return ['raw_material', 'intermediate_type_1'];
     }
-    // For finished goods, allow intermediate products
+    // For finished goods, allow raw materials and all intermediate products
     return ['raw_material', 'intermediate_type_1', 'intermediate_type_2'];
   };
 
@@ -173,11 +173,11 @@ const RawMaterialConsumptionDialog = ({
       case 'raw_material':
         return 'Raw Material';
       case 'intermediate_type_1':
-        return 'Intermediate Type 1';
+        return 'Intermediate Product 1';
       case 'intermediate_type_2':
-        return 'Intermediate Type 2';
+        return 'Intermediate Product 2';
       case 'finished_good':
-        return 'Finished Good';
+        return 'Finished Goods';
       default:
         return itemType;
     }

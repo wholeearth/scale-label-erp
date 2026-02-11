@@ -26,11 +26,12 @@ const getItemTypeBadge = (type: string) => {
     case 'raw_material':
       return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">Raw Material</Badge>;
     case 'intermediate_type_1':
-      return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">Intermediate Type 1</Badge>;
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">Intermediate Product 1</Badge>;
     case 'intermediate_type_2':
-      return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30">Intermediate Type 2</Badge>;
+      return <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/30">Intermediate Product 2</Badge>;
+    case 'finished_good':
     case 'finished_product':
-      return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">Finished Product</Badge>;
+      return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">Finished Goods</Badge>;
     default:
       return <Badge variant="outline">{type}</Badge>;
   }
