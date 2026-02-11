@@ -194,10 +194,10 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="finished_good">Finished Good</SelectItem>
-                        <SelectItem value="raw_material">Raw Material</SelectItem>
-                        <SelectItem value="intermediate_type_1">Intermediate Type 1 (Non-Fused Interlining)</SelectItem>
-                        <SelectItem value="intermediate_type_2">Intermediate Type 2 (Fusible Interlining)</SelectItem>
+                        <SelectItem value="raw_material">1. Raw Material (Purchased for production)</SelectItem>
+                        <SelectItem value="intermediate_type_1">2. Intermediate Product 1 (Produced from raw materials)</SelectItem>
+                        <SelectItem value="intermediate_type_2">3. Intermediate Product 2 (Produced from intermediate + raw materials)</SelectItem>
+                        <SelectItem value="finished_good">4. Finished Goods (Final product)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

@@ -13,6 +13,16 @@ import { CalendarIcon, Download, Package, AlertTriangle, ArrowUpDown, Search } f
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+
+const formatItemType = (type: string): string => {
+  switch (type) {
+    case 'raw_material': return 'Raw Material';
+    case 'intermediate_type_1': return 'Intermediate Product 1';
+    case 'intermediate_type_2': return 'Intermediate Product 2';
+    case 'finished_good': return 'Finished Goods';
+    default: return type;
+  }
+};
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 const InventoryReports = () => {
@@ -292,7 +302,7 @@ const InventoryReports = () => {
                   filteredStockLevels.map(item => ({
                     code: item.product_code,
                     name: item.product_name,
-                    type: item.item_type,
+                    type: formatItemType(item.item_type),
                     stockQty: item.stockQty,
                     stockWeight: item.stockWeight,
                     estimatedValue: item.estimatedValue
@@ -322,7 +332,7 @@ const InventoryReports = () => {
                     <TableCell className="font-mono">{item.product_code}</TableCell>
                     <TableCell className="font-medium">{item.product_name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{item.item_type}</Badge>
+                      <Badge variant="outline">{formatItemType(item.item_type)}</Badge>
                     </TableCell>
                     <TableCell className="text-right">{item.stockQty.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{item.stockWeight.toFixed(2)}</TableCell>
@@ -363,7 +373,7 @@ const InventoryReports = () => {
                   [...lowStockItems, ...outOfStockItems].map(item => ({
                     code: item.product_code,
                     name: item.product_name,
-                    type: item.item_type,
+                    type: formatItemType(item.item_type),
                     currentStock: item.stockQty,
                     status: item.isOutOfStock ? 'Out of Stock' : 'Low Stock'
                   })),
@@ -392,7 +402,7 @@ const InventoryReports = () => {
                       <TableRow key={item.id} className="bg-destructive/5">
                         <TableCell className="font-mono">{item.product_code}</TableCell>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
-                        <TableCell><Badge variant="outline">{item.item_type}</Badge></TableCell>
+                        <TableCell><Badge variant="outline">{formatItemType(item.item_type)}</Badge></TableCell>
                         <TableCell className="text-right font-bold text-destructive">0</TableCell>
                       </TableRow>
                     ))}
@@ -418,7 +428,7 @@ const InventoryReports = () => {
                       <TableRow key={item.id} className="bg-warning/5">
                         <TableCell className="font-mono">{item.product_code}</TableCell>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
-                        <TableCell><Badge variant="outline">{item.item_type}</Badge></TableCell>
+                        <TableCell><Badge variant="outline">{formatItemType(item.item_type)}</Badge></TableCell>
                         <TableCell className="text-right font-bold text-warning">{item.stockQty}</TableCell>
                       </TableRow>
                     ))}
