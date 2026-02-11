@@ -194,10 +194,10 @@ const ItemDialog = ({ open, onOpenChange, item, units }: ItemDialogProps) => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="raw_material">1. Raw Material (Purchased for production)</SelectItem>
-                        <SelectItem value="intermediate_type_1">2. Intermediate Product 1 (Produced from raw materials)</SelectItem>
-                        <SelectItem value="intermediate_type_2">3. Intermediate Product 2 (Produced from intermediate + raw materials)</SelectItem>
-                        <SelectItem value="finished_good">4. Finished Goods (Final product)</SelectItem>
+                        <SelectItem value="raw_material">1. Raw Material (Purchased for use in production)</SelectItem>
+                        <SelectItem value="intermediate_type_1">2. Intermediate Product 1 (Produced from raw materials, used in next process)</SelectItem>
+                        <SelectItem value="intermediate_type_2">3. Intermediate Product 2 (Produced from intermediate products + raw materials)</SelectItem>
+                        <SelectItem value="finished_good">4. Finished Goods (Produced from raw materials or intermediate products)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
