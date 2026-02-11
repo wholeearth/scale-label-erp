@@ -341,7 +341,11 @@ const ProductionInterface = () => {
       const globalSerial = (globalCounter?.global_serial || 0) + 1;
       const itemSerial = (itemCounter?.item_serial || 0) + 1;
       const yearlySequence = (yearlySeq?.sequence_count || 0) + 1;
-      const operatorSequence = (selectedItem.quantity_produced || 0) + 1;
+      // For manual_length_entry items, track cumulative length as quantity_produced
+      const isLengthBased = selectedItem.items.manual_length_entry;
+      const operatorSequence = isLengthBased
+        ? (selectedItem.quantity_produced || 0) + currentLength
+        : (selectedItem.quantity_produced || 0) + 1;
 
       // Generate serial number: [Operator]-[Machine]-[DDMMYY]-[YearlySequence]-[HHMM]
       // Example: 01-M1-050126-00567-1420
@@ -535,7 +539,10 @@ const ProductionInterface = () => {
       
       // Update selected item state with new produced quantity
       if (selectedItem) {
-        const newProducedQty = (selectedItem.quantity_produced || 0) + 1;
+        const isLengthBased = selectedItem.items.manual_length_entry;
+        const newProducedQty = isLengthBased
+          ? (selectedItem.quantity_produced || 0) + currentLength
+          : (selectedItem.quantity_produced || 0) + 1;
         setSelectedItem({
           ...selectedItem,
           quantity_produced: newProducedQty,
@@ -590,7 +597,7 @@ const ProductionInterface = () => {
       company_name: labelConfig?.company_name || 'R. K. INTERLINING',
       item_name: selectedItem?.items.product_name || '',
       item_code: selectedItem?.items.product_code || '',
-      length: `${selectedItem?.items.length_yards || '-'} yds`,
+      length: `${selectedItem?.items.manual_length_entry ? (currentLength || '-') : (selectedItem?.items.length_yards || '-')} yds`,
       width: `${selectedItem?.items.width_inches || '-'}"`,
       color: selectedItem?.items.color || '-',
       quality: '-',
@@ -627,7 +634,7 @@ const ProductionInterface = () => {
       company_name: companyName,
       item_name: item?.product_name || '-',
       item_code: item?.product_code || '-',
-      length: `${item?.length_yards || '-'} yds`,
+      length: `${item?.manual_length_entry ? (currentLength || '-') : (item?.length_yards || '-')} yds`,
       width: `${item?.width_inches || '-'}"`,
       color: item?.color || '-',
       quality: '-',
@@ -1359,9 +1366,11 @@ const ProductionInterface = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Produced</p>
+                    <p className="text-sm text-muted-foreground">Produced{selectedItem.items.manual_length_entry ? ' (yards)' : ''}</p>
                     <p className="text-3xl font-bold text-success">
-                      {selectedItem.quantity_produced || 0}
+                      {selectedItem.items.manual_length_entry 
+                        ? (selectedItem.quantity_produced || 0).toFixed(1)
+                        : (selectedItem.quantity_produced || 0)}
                     </p>
                   </div>
                   <Package className="h-10 w-10 text-success" />
@@ -1373,9 +1382,11 @@ const ProductionInterface = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Remaining</p>
+                    <p className="text-sm text-muted-foreground">Remaining{selectedItem.items.manual_length_entry ? ' (yards)' : ''}</p>
                     <p className="text-3xl font-bold text-warning">
-                      {selectedItem.quantity_assigned - (selectedItem.quantity_produced || 0)}
+                      {selectedItem.items.manual_length_entry
+                        ? (selectedItem.quantity_assigned - (selectedItem.quantity_produced || 0)).toFixed(1)
+                        : selectedItem.quantity_assigned - (selectedItem.quantity_produced || 0)}
                     </p>
                   </div>
                   <Clock className="h-10 w-10 text-warning" />
