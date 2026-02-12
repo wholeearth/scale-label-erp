@@ -1480,7 +1480,7 @@ export type Database = {
       shift_raw_material_consumption: {
         Row: {
           consumed_length_yards: number | null
-          consumed_serial_number: string
+          consumed_serial_number: string | null
           consumed_weight_kg: number | null
           created_at: string
           id: string
@@ -1489,7 +1489,7 @@ export type Database = {
         }
         Insert: {
           consumed_length_yards?: number | null
-          consumed_serial_number: string
+          consumed_serial_number?: string | null
           consumed_weight_kg?: number | null
           created_at?: string
           id?: string
@@ -1498,7 +1498,7 @@ export type Database = {
         }
         Update: {
           consumed_length_yards?: number | null
-          consumed_serial_number?: string
+          consumed_serial_number?: string | null
           consumed_weight_kg?: number | null
           created_at?: string
           id?: string

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, ArrowLeft, Save } from 'lucide-react';
+import SerialNumberAutocomplete from '@/components/shared/SerialNumberAutocomplete';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -136,7 +137,7 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
       await supabase.from('shift_intermediate_production').delete().eq('shift_record_id', shiftId);
 
       // Insert raw materials
-      const validRawMaterials = rawMaterials.filter(rm => rm.serialNumber.trim());
+      const validRawMaterials = rawMaterials.filter(rm => rm.itemId);
       if (validRawMaterials.length > 0) {
         const { error: rmError } = await supabase
           .from('shift_raw_material_consumption')
@@ -268,54 +269,64 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
                     </Button>
                   )}
                 </div>
-                    <div className="grid grid-cols-4 gap-3">
-                      <div>
-                        <Label>Item *</Label>
-                        <Select
-                          value={material.itemId}
-                          onValueChange={(value) => updateRawMaterial(index, 'itemId', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select item" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {items?.map((item) => (
-                              <SelectItem key={item.id} value={item.id}>
-                                {item.product_code} - {item.product_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Serial Number *</Label>
-                        <Input
-                          placeholder="e.g., 01-M1-041025-00152-0119"
-                          value={material.serialNumber}
-                          onChange={(e) => updateRawMaterial(index, 'serialNumber', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Weight (kg)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="e.g., 15.5"
-                          value={material.weightKg}
-                          onChange={(e) => updateRawMaterial(index, 'weightKg', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Length (yards)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="e.g., 100"
-                          value={material.lengthYards}
-                          onChange={(e) => updateRawMaterial(index, 'lengthYards', e.target.value)}
-                        />
-                      </div>
-                    </div>
+                    {(() => {
+                      const selectedItemData = items?.find(i => i.id === material.itemId);
+                      const hasSerialNumber = selectedItemData && selectedItemData.item_type !== 'raw_material';
+                      const colCount = hasSerialNumber ? 4 : 3;
+                      return (
+                        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}>
+                          <div>
+                            <Label>Item *</Label>
+                            <Select
+                              value={material.itemId}
+                              onValueChange={(value) => updateRawMaterial(index, 'itemId', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select item" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {items?.map((item) => (
+                                  <SelectItem key={item.id} value={item.id}>
+                                    {item.product_code} - {item.product_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {hasSerialNumber && (
+                            <div>
+                              <Label>Serial Number</Label>
+                              <SerialNumberAutocomplete
+                                value={material.serialNumber}
+                                onChange={(val) => updateRawMaterial(index, 'serialNumber', val)}
+                                itemId={material.itemId}
+                                placeholder="Type to search..."
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <Label>Weight (kg)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="e.g., 15.5"
+                              value={material.weightKg}
+                              onChange={(e) => updateRawMaterial(index, 'weightKg', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Length (yards)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="e.g., 100"
+                              value={material.lengthYards}
+                              onChange={(e) => updateRawMaterial(index, 'lengthYards', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
               </div>
             </Card>
           ))}
