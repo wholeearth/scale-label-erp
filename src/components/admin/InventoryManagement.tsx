@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Package, Search, TrendingUp, TrendingDown, AlertTriangle, Edit } from 'lucide-react';
 import { PhysicalInventoryAdjustmentDialog } from './PhysicalInventoryAdjustmentDialog';
+import InventorySerialDetails from './InventorySerialDetails';
 import {
   Table,
   TableBody,
@@ -44,6 +45,7 @@ const InventoryManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [serialDetailsItem, setSerialDetailsItem] = useState<InventoryItem | null>(null);
 
   const handleAdjustClick = (item: InventoryItem) => {
     setSelectedItem(item);
@@ -249,7 +251,15 @@ const InventoryManagement = () => {
                     filteredItems?.map((item) => (
                       <TableRow key={item.item_id}>
                         <TableCell className="font-medium">{item.product_code}</TableCell>
-                        <TableCell>{item.product_name}</TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            className="text-left underline decoration-dotted underline-offset-4 hover:text-primary cursor-pointer"
+                            onClick={() => setSerialDetailsItem(item)}
+                          >
+                            {item.product_name}
+                          </button>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Badge variant={item.total_quantity < 10 ? 'destructive' : 'default'}>
                             {item.total_quantity}
@@ -386,6 +396,16 @@ const InventoryManagement = () => {
         onOpenChange={setAdjustmentDialogOpen}
         item={selectedItem}
       />
+
+      {serialDetailsItem && (
+        <InventorySerialDetails
+          open={!!serialDetailsItem}
+          onOpenChange={(open) => !open && setSerialDetailsItem(null)}
+          itemId={serialDetailsItem.item_id}
+          productName={serialDetailsItem.product_name}
+          productCode={serialDetailsItem.product_code}
+        />
+      )}
     </div>
   );
 };
