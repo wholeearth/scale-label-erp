@@ -34,24 +34,56 @@ const SerialNumberAutocomplete = ({ value, onChange, itemId, placeholder = "Type
       }
 
       setIsLoading(true);
+      
+      // Query production records
       let query = supabase
         .from('production_records')
         .select('serial_number, weight_kg, length_yards')
         .ilike('serial_number', `%${value}%`)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (itemId) {
         query = query.eq('item_id', itemId);
       }
 
-      const { data, error } = await query;
+      const [prodResult, consumptionResult] = await Promise.all([
+        query,
+        supabase
+          .from('shift_raw_material_consumption')
+          .select('consumed_serial_number, consumed_weight_kg, consumed_length_yards')
+          .ilike('consumed_serial_number', `%${value}%`)
+      ]);
+
       setIsLoading(false);
 
-      if (!error && data) {
-        setSuggestions(data);
-        setShowSuggestions(data.length > 0);
+      if (prodResult.error || !prodResult.data) return;
+
+      // Aggregate total consumed per serial number
+      const consumed: Record<string, { weight: number; length: number }> = {};
+      if (consumptionResult.data) {
+        for (const c of consumptionResult.data) {
+          const sn = c.consumed_serial_number || '';
+          if (!consumed[sn]) consumed[sn] = { weight: 0, length: 0 };
+          consumed[sn].weight += c.consumed_weight_kg || 0;
+          consumed[sn].length += c.consumed_length_yards || 0;
+        }
       }
+
+      // Calculate remaining and filter out fully consumed
+      const withRemaining = prodResult.data
+        .map(p => {
+          const c = consumed[p.serial_number] || { weight: 0, length: 0 };
+          return {
+            serial_number: p.serial_number,
+            weight_kg: Math.max(0, (p.weight_kg || 0) - c.weight),
+            length_yards: p.length_yards != null ? Math.max(0, (p.length_yards || 0) - c.length) : null,
+          };
+        })
+        .filter(p => p.weight_kg > 0.01 || (p.length_yards != null && p.length_yards > 0.01));
+
+      setSuggestions(withRemaining);
+      setShowSuggestions(withRemaining.length > 0);
     };
 
     const debounce = setTimeout(search, 300);
@@ -88,7 +120,7 @@ const SerialNumberAutocomplete = ({ value, onChange, itemId, placeholder = "Type
               >
                 <div className="font-mono text-xs">{s.serial_number}</div>
                 <div className="text-xs text-muted-foreground">
-                  {s.weight_kg}kg{s.length_yards ? ` · ${s.length_yards} yds` : ''}
+                  Remaining: {s.weight_kg.toFixed(2)}kg{s.length_yards != null ? ` · ${s.length_yards.toFixed(2)} yds` : ''}
                 </div>
               </button>
             ))
