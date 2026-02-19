@@ -6,11 +6,12 @@ import { cn } from '@/lib/utils';
 interface SerialNumberAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  onSelect?: (data: { serial_number: string; weight_kg: number; length_yards: number | null }) => void;
   itemId?: string;
   placeholder?: string;
 }
 
-const SerialNumberAutocomplete = ({ value, onChange, itemId, placeholder = "Type to search..." }: SerialNumberAutocompleteProps) => {
+const SerialNumberAutocomplete = ({ value, onChange, onSelect, itemId, placeholder = "Type to search..." }: SerialNumberAutocompleteProps) => {
   const [suggestions, setSuggestions] = useState<{ serial_number: string; weight_kg: number; length_yards: number | null }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,6 +93,7 @@ const SerialNumberAutocomplete = ({ value, onChange, itemId, placeholder = "Type
 
   const handleSelect = (suggestion: typeof suggestions[0]) => {
     onChange(suggestion.serial_number);
+    onSelect?.(suggestion);
     setShowSuggestions(false);
   };
 

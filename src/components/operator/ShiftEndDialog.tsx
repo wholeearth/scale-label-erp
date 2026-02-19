@@ -292,6 +292,13 @@ const ShiftEndDialog = ({ open, onOpenChange, shiftId, onComplete }: ShiftEndDia
                               <SerialNumberAutocomplete
                                 value={material.serialNumber}
                                 onChange={(val) => updateRawMaterial(index, 'serialNumber', val)}
+                                onSelect={(data) => {
+                                  const updated = [...rawMaterials];
+                                  updated[index].serialNumber = data.serial_number;
+                                  updated[index].weightKg = data.weight_kg.toFixed(2);
+                                  updated[index].lengthYards = data.length_yards != null ? data.length_yards.toFixed(2) : '';
+                                  setRawMaterials(updated);
+                                }}
                                 itemId={material.itemId}
                                 placeholder="Type to search..."
                               />
