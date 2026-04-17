@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, FileText, Receipt, DollarSign, BarChart3 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Users, FileText, Receipt, DollarSign, BarChart3, ShoppingCart } from 'lucide-react';
+import { AppShell } from '@/components/layout/AppShell';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { RoleSidebar, NavSection, PageHeader } from '@/components/layout/RoleSidebar';
 import { AgentInvoicesList } from '@/components/commission-agent/AgentInvoicesList';
 import { AgentStatement } from '@/components/commission-agent/AgentStatement';
 import { AgentCustomers } from '@/components/commission-agent/AgentCustomers';
@@ -11,94 +10,61 @@ import { AgentReceiptCollection } from '@/components/commission-agent/AgentRecei
 import { AgentReports } from '@/components/commission-agent/AgentReports';
 import { AgentOrders } from '@/components/commission-agent/AgentOrders';
 
-export default function CommissionAgentDashboard() {
-  const { user, profile, signOut } = useAuth();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('orders');
+const SECTIONS: NavSection[] = [
+  {
+    label: 'Sales',
+    items: [
+      { key: 'orders', label: 'Orders', icon: ShoppingCart },
+      { key: 'invoices', label: 'Invoices', icon: FileText },
+      { key: 'customers', label: 'My Customers', icon: Users },
+    ],
+  },
+  {
+    label: 'Collections',
+    items: [
+      { key: 'receipts', label: 'Collect Receipt', icon: Receipt },
+      { key: 'statement', label: 'Statement', icon: DollarSign },
+    ],
+  },
+  {
+    label: 'Reports',
+    items: [{ key: 'reports', label: 'Reports', icon: BarChart3 }],
+  },
+];
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
+const TITLES: Record<string, { title: string; description: string }> = {
+  orders: { title: 'Orders', description: 'Place and view orders for your customers' },
+  invoices: { title: 'Invoices', description: 'Customer invoices' },
+  customers: { title: 'My Customers', description: 'Customers assigned to you' },
+  receipts: { title: 'Collect Receipt', description: 'Record cash collections from customers' },
+  statement: { title: 'Statement', description: 'Your commission statement' },
+  reports: { title: 'Reports', description: 'Sales and commission reports' },
+};
+
+export default function CommissionAgentDashboard() {
+  const [activeTab, setActiveTab] = useState('orders');
+  const meta = TITLES[activeTab];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground shadow-lg">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold">Commission Agent Dashboard</h1>
-              <p className="text-sm opacity-90 mt-1">Welcome, {profile?.full_name}</p>
-            </div>
-            <Button
-              onClick={handleLogout}
-              variant="secondary"
-              size="lg"
-              className="gap-2"
-            >
-              <LogOut className="h-5 w-5" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="orders" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Orders
-            </TabsTrigger>
-            <TabsTrigger value="invoices" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Invoices
-            </TabsTrigger>
-            <TabsTrigger value="customers" className="gap-2">
-              <Users className="h-4 w-4" />
-              My Customers
-            </TabsTrigger>
-            <TabsTrigger value="receipts" className="gap-2">
-              <Receipt className="h-4 w-4" />
-              Collect Receipt
-            </TabsTrigger>
-            <TabsTrigger value="statement" className="gap-2">
-              <DollarSign className="h-4 w-4" />
-              Statement
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Reports
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="orders">
-            <AgentOrders />
-          </TabsContent>
-
-          <TabsContent value="invoices">
-            <AgentInvoicesList />
-          </TabsContent>
-
-          <TabsContent value="customers">
-            <AgentCustomers />
-          </TabsContent>
-
-          <TabsContent value="receipts">
-            <AgentReceiptCollection />
-          </TabsContent>
-
-          <TabsContent value="statement">
-            <AgentStatement />
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <AgentReports />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+    <AppShell
+      sidebar={
+        <RoleSidebar
+          brand="Commission Agent"
+          roleLabel="Sales Agent"
+          sections={SECTIONS}
+          activeKey={activeTab}
+          onSelect={setActiveTab}
+        />
+      }
+      header={<AppHeader title={meta.title} subtitle={meta.description} />}
+    >
+      <PageHeader title={meta.title} description={meta.description} />
+      {activeTab === 'orders' && <AgentOrders />}
+      {activeTab === 'invoices' && <AgentInvoicesList />}
+      {activeTab === 'customers' && <AgentCustomers />}
+      {activeTab === 'receipts' && <AgentReceiptCollection />}
+      {activeTab === 'statement' && <AgentStatement />}
+      {activeTab === 'reports' && <AgentReports />}
+    </AppShell>
   );
 }
