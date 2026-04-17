@@ -48,64 +48,40 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted to-accent">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-16">
+    <div className="min-h-screen bg-gradient-subtle">
+      <div className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16 max-w-3xl mx-auto">
           <div className="flex justify-center mb-6">
-            <div className="h-20 w-20 rounded-full bg-gradient-primary flex items-center justify-center shadow-lg">
-              <Factory className="h-10 w-10 text-primary-foreground" />
+            <div className="h-16 w-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-elevated">
+              <Factory className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-5xl font-bold mb-4 text-foreground">Production ERP System</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Real-time production tracking with CAS CN1 scale integration, automatic inventory management, and comprehensive business operations
+          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-4 text-foreground text-balance">
+            Production ERP System
+          </h1>
+          <p className="text-lg text-muted-foreground text-balance">
+            Real-time production tracking with CAS CN1 scale integration, automatic inventory management, and comprehensive business operations.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 mb-12">
-          <div className="bg-card rounded-lg p-6 shadow-md border border-border">
-            <div className="flex items-center mb-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mr-4">
-                <BarChart3 className="h-6 w-6 text-primary" />
+        <div className="grid md:grid-cols-3 gap-6 mb-16 max-w-5xl mx-auto">
+          {[
+            { icon: BarChart3, color: 'primary', title: 'Real-Time Tracking', desc: 'Live dashboards and automatic weight data from CAS CN1 scale.' },
+            { icon: Package, color: 'success', title: 'Automated Labels', desc: 'Barcode labels with product details, weight, serial numbers, and timestamps.' },
+            { icon: Users, color: 'warning', title: 'Role-Based Access', desc: 'Secure access for admins, operators, managers, sales, and customers.' },
+          ].map(({ icon: Icon, color, title, desc }) => (
+            <div key={title} className="bg-card rounded-xl p-6 shadow-card border border-border/60 hover:shadow-md transition-shadow">
+              <div className={`h-11 w-11 rounded-lg bg-${color}/10 flex items-center justify-center mb-4`}>
+                <Icon className={`h-5 w-5 text-${color}`} />
               </div>
-              <h3 className="text-lg font-semibold">Real-Time Tracking</h3>
+              <h3 className="text-base font-semibold mb-1.5">{title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
             </div>
-            <p className="text-muted-foreground">
-              Monitor production in real-time with live dashboards and automatic weight data collection from CAS CN1 scale
-            </p>
-          </div>
-
-          <div className="bg-card rounded-lg p-6 shadow-md border border-border">
-            <div className="flex items-center mb-4">
-              <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center mr-4">
-                <Package className="h-6 w-6 text-success" />
-              </div>
-              <h3 className="text-lg font-semibold">Automated Labels</h3>
-            </div>
-            <p className="text-muted-foreground">
-              Generate barcode labels automatically with product details, weight, serial numbers, and timestamps
-            </p>
-          </div>
-
-          <div className="bg-card rounded-lg p-6 shadow-md border border-border">
-            <div className="flex items-center mb-4">
-              <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center mr-4">
-                <Users className="h-6 w-6 text-warning" />
-              </div>
-              <h3 className="text-lg font-semibold">Role-Based Access</h3>
-            </div>
-            <p className="text-muted-foreground">
-              Secure access control for admins, operators, production managers, sales team, and customers
-            </p>
-          </div>
+          ))}
         </div>
 
         <div className="text-center">
-          <Button 
-            size="lg" 
-            className="shadow-lg"
-            onClick={() => navigate('/auth')}
-          >
+          <Button size="lg" className="shadow-elevated h-11 px-8" onClick={() => navigate('/auth')}>
             Get Started
           </Button>
         </div>
