@@ -66,13 +66,13 @@ const Index = () => {
 
         <div className="grid md:grid-cols-3 gap-6 mb-16 max-w-5xl mx-auto">
           {[
-            { icon: BarChart3, color: 'primary', title: 'Real-Time Tracking', desc: 'Live dashboards and automatic weight data from CAS CN1 scale.' },
-            { icon: Package, color: 'success', title: 'Automated Labels', desc: 'Barcode labels with product details, weight, serial numbers, and timestamps.' },
-            { icon: Users, color: 'warning', title: 'Role-Based Access', desc: 'Secure access for admins, operators, managers, sales, and customers.' },
-          ].map(({ icon: Icon, color, title, desc }) => (
+            { icon: BarChart3, bg: 'bg-primary/10', fg: 'text-primary', title: 'Real-Time Tracking', desc: 'Live dashboards and automatic weight data from CAS CN1 scale.' },
+            { icon: Package, bg: 'bg-success/10', fg: 'text-success', title: 'Automated Labels', desc: 'Barcode labels with product details, weight, serial numbers, and timestamps.' },
+            { icon: Users, bg: 'bg-warning/10', fg: 'text-warning', title: 'Role-Based Access', desc: 'Secure access for admins, operators, managers, sales, and customers.' },
+          ].map(({ icon: Icon, bg, fg, title, desc }) => (
             <div key={title} className="bg-card rounded-xl p-6 shadow-card border border-border/60 hover:shadow-md transition-shadow">
-              <div className={`h-11 w-11 rounded-lg bg-${color}/10 flex items-center justify-center mb-4`}>
-                <Icon className={`h-5 w-5 text-${color}`} />
+              <div className={`h-11 w-11 rounded-lg ${bg} flex items-center justify-center mb-4`}>
+                <Icon className={`h-5 w-5 ${fg}`} />
               </div>
               <h3 className="text-base font-semibold mb-1.5">{title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
