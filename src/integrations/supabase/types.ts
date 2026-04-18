@@ -438,6 +438,158 @@ export type Database = {
         }
         Relationships: []
       }
+      fiber_bag_consumption: {
+        Row: {
+          consumed_by: string | null
+          consumed_weight_kg: number
+          created_at: string
+          fiber_bag_id: string
+          id: string
+          notes: string | null
+          production_record_id: string | null
+          shift_record_id: string | null
+        }
+        Insert: {
+          consumed_by?: string | null
+          consumed_weight_kg: number
+          created_at?: string
+          fiber_bag_id: string
+          id?: string
+          notes?: string | null
+          production_record_id?: string | null
+          shift_record_id?: string | null
+        }
+        Update: {
+          consumed_by?: string | null
+          consumed_weight_kg?: number
+          created_at?: string
+          fiber_bag_id?: string
+          id?: string
+          notes?: string | null
+          production_record_id?: string | null
+          shift_record_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiber_bag_consumption_fiber_bag_id_fkey"
+            columns: ["fiber_bag_id"]
+            isOneToOne: false
+            referencedRelation: "fiber_bags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiber_bag_consumption_production_record_id_fkey"
+            columns: ["production_record_id"]
+            isOneToOne: false
+            referencedRelation: "production_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiber_bag_consumption_shift_record_id_fkey"
+            columns: ["shift_record_id"]
+            isOneToOne: false
+            referencedRelation: "shift_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiber_bag_yearly_sequences: {
+        Row: {
+          created_at: string
+          id: string
+          sequence_count: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sequence_count?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sequence_count?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      fiber_bags: {
+        Row: {
+          bag_serial: number
+          consumed_weight_kg: number
+          created_at: string
+          id: string
+          item_id: string
+          original_weight_kg: number
+          pack_type: string
+          purchase_date: string
+          purchase_id: string
+          purchase_item_id: string
+          status: string
+          supplier_name: string
+          unique_id: string
+          updated_at: string
+        }
+        Insert: {
+          bag_serial: number
+          consumed_weight_kg?: number
+          created_at?: string
+          id?: string
+          item_id: string
+          original_weight_kg: number
+          pack_type?: string
+          purchase_date: string
+          purchase_id: string
+          purchase_item_id: string
+          status?: string
+          supplier_name: string
+          unique_id: string
+          updated_at?: string
+        }
+        Update: {
+          bag_serial?: number
+          consumed_weight_kg?: number
+          created_at?: string
+          id?: string
+          item_id?: string
+          original_weight_kg?: number
+          pack_type?: string
+          purchase_date?: string
+          purchase_id?: string
+          purchase_item_id?: string
+          status?: string
+          supplier_name?: string
+          unique_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiber_bags_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiber_bags_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiber_bags_purchase_item_id_fkey"
+            columns: ["purchase_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           created_at: string | null
@@ -1688,6 +1840,10 @@ export type Database = {
     }
     Functions: {
       generate_expense_number: { Args: never; Returns: string }
+      generate_fiber_bag_id: {
+        Args: { _product_code: string }
+        Returns: string
+      }
       generate_invoice_number: { Args: never; Returns: string }
       generate_journal_entry_number: { Args: never; Returns: string }
       generate_order_number: { Args: never; Returns: string }
