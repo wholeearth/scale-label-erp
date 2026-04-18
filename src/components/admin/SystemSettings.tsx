@@ -62,7 +62,7 @@ const SystemSettings = () => {
   const [lastWeight, setLastWeight] = useState<number | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
-  const monitorIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const monitorIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   const { toast } = useToast();
 
