@@ -31,6 +31,7 @@ import FinancialReports from '@/components/reports/FinancialReports';
 import SalesReceivablesReport from '@/components/reports/SalesReceivablesReport';
 import InventoryReports from '@/components/reports/InventoryReports';
 import CommissionReports from '@/components/reports/CommissionReports';
+import FiberBagReports from '@/components/admin/FiberBagReports';
 
 const SECTIONS: NavSection[] = [
   {
@@ -137,11 +138,12 @@ const AdminDashboard = () => {
       )}
       {activeTab === 'reports' && (
         <Tabs defaultValue="production" className="space-y-4">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="production">Production</TabsTrigger>
             <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="sales">Sales</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
+            <TabsTrigger value="fiber">Fiber Bags</TabsTrigger>
             <TabsTrigger value="commission">Commission</TabsTrigger>
           </TabsList>
           <TabsContent value="production" className="space-y-6">
@@ -152,6 +154,7 @@ const AdminDashboard = () => {
           <TabsContent value="financial"><FinancialReports /></TabsContent>
           <TabsContent value="sales"><SalesReceivablesReport /></TabsContent>
           <TabsContent value="inventory"><InventoryReports /></TabsContent>
+          <TabsContent value="fiber"><FiberBagReports /></TabsContent>
           <TabsContent value="commission"><CommissionReports /></TabsContent>
         </Tabs>
       )}

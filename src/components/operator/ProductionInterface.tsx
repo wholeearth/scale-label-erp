@@ -15,6 +15,7 @@ import QRCode from 'qrcode';
 import { QRCodeSVG } from 'qrcode.react';
 import JsBarcode from 'jsbarcode';
 import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
+import { recordFiberBagConsumption } from '@/lib/fiberBagConsumption';
 import { TraceabilityDialog } from '@/components/traceability/TraceabilityDialog';
 import { LineageData } from '@/hooks/useTraceability';
 import {
@@ -450,6 +451,16 @@ const ProductionInterface = () => {
           console.error('Consumption tracking error:', consumptionError);
           throw new Error('Failed to record raw material consumption');
         }
+
+        // Also record fiber bag consumption for any serials matching fiber_bags.unique_id
+        await recordFiberBagConsumption(
+          consumptionEntries.map((e) => ({
+            serialNumber: e.serialNumber,
+            weightKg: e.weight || 0,
+            productionRecordId: productionRecord.id,
+          })),
+          profile.id,
+        );
       }
 
       // Update counters
