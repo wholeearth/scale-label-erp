@@ -117,7 +117,32 @@ const RawMaterialConsumptionDialog = ({
     }
 
     try {
-      // Look up the production record to get the item type
+      // 1. First, try to match against fiber_bags.unique_id (hyphen-insensitive).
+      const norm = serialNumber.trim().replace(/-/g, '').toUpperCase();
+      const { data: fiberBag } = await supabase
+        .from('fiber_bags')
+        .select('unique_id, original_weight_kg, consumed_weight_kg, supplier_name, status')
+        .ilike('unique_id', norm)
+        .maybeSingle();
+
+      if (fiberBag) {
+        if (fiberBag.status === 'used') {
+          updateEntryValidation(index, 'invalid', 'Fiber bag is fully consumed');
+          return;
+        }
+        const remaining = Math.max(
+          0,
+          (Number(fiberBag.original_weight_kg) || 0) - (Number(fiberBag.consumed_weight_kg) || 0),
+        );
+        updateEntryValidation(
+          index,
+          'valid',
+          `Valid fiber bag from ${fiberBag.supplier_name} · Remaining: ${remaining.toFixed(2)} kg`,
+        );
+        return;
+      }
+
+      // 2. Otherwise validate as a production record serial.
       const { data: productionRecord, error } = await supabase
         .from('production_records')
         .select(`
@@ -146,21 +171,19 @@ const RawMaterialConsumptionDialog = ({
       const sourceItemType = (productionRecord.items as any)?.item_type;
       const allowedTypes = getAllowedItemTypes();
 
-      // Validate based on what we're producing
       if (!allowedTypes.includes(sourceItemType)) {
         updateEntryValidation(
-          index, 
-          'invalid', 
-          `${getItemTypeLabel(producingItemType || '')} products cannot use ${getItemTypeLabel(sourceItemType)}. Allowed: ${allowedTypes.map(getItemTypeLabel).join(', ')}`
+          index,
+          'invalid',
+          `${getItemTypeLabel(producingItemType || '')} products cannot use ${getItemTypeLabel(sourceItemType)}. Allowed: ${allowedTypes.map(getItemTypeLabel).join(', ')}`,
         );
         return;
       }
 
-      // Valid source material
       updateEntryValidation(
-        index, 
-        'valid', 
-        `Valid: ${(productionRecord.items as any)?.product_name} (${getItemTypeLabel(sourceItemType)})`
+        index,
+        'valid',
+        `Valid: ${(productionRecord.items as any)?.product_name} (${getItemTypeLabel(sourceItemType)})`,
       );
     } catch (error) {
       console.error('Validation error:', error);
