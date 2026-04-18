@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { recordFiberBagConsumption } from '@/lib/fiberBagConsumption';
 
 interface ShiftDataEntryFormProps {
   shiftId: string;
@@ -152,6 +153,16 @@ const ShiftDataEntryForm = ({ shiftId, onBack }: ShiftDataEntryFormProps) => {
           );
 
         if (rmError) throw rmError;
+
+        // Also record fiber bag consumption for any matching serials
+        await recordFiberBagConsumption(
+          validRawMaterials.map((rm) => ({
+            serialNumber: rm.serialNumber,
+            weightKg: rm.weightKg ? parseFloat(rm.weightKg) : 0,
+            shiftRecordId: shiftId,
+          })),
+          profile.id,
+        );
       }
 
       // Insert intermediate products
