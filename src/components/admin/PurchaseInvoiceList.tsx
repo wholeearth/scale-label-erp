@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Eye, Trash2, CheckCircle, XCircle, Package } from 'lucide-react';
+import { Search, Eye, Trash2, CheckCircle, XCircle, Package, Printer } from 'lucide-react';
+import FiberBagLabels from './FiberBagLabels';
 import {
   Table,
   TableBody,
@@ -54,6 +55,7 @@ const PurchaseInvoiceList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [viewDialog, setViewDialog] = useState(false);
+  const [labelsPurchaseId, setLabelsPurchaseId] = useState<string | null>(null);
 
   // Fetch purchases
   const { data: purchases, isLoading } = useQuery({
@@ -259,6 +261,14 @@ const PurchaseInvoiceList = () => {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => setLabelsPurchaseId(purchase.id)}
+                          title="Print bag/bale labels"
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => {
                             if (confirm('Are you sure you want to delete this purchase?')) {
                               deletePurchaseMutation.mutate(purchase.id);
@@ -368,6 +378,18 @@ const PurchaseInvoiceList = () => {
                 </div>
               )}
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!labelsPurchaseId} onOpenChange={(o) => !o && setLabelsPurchaseId(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Print Bag/Bale Labels</DialogTitle>
+            <DialogDescription>Configure size and print all labels for this purchase.</DialogDescription>
+          </DialogHeader>
+          {labelsPurchaseId && (
+            <FiberBagLabels purchaseId={labelsPurchaseId} onClose={() => setLabelsPurchaseId(null)} />
           )}
         </DialogContent>
       </Dialog>
