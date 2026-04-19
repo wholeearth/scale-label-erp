@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
+import { SuggestedProductionHint } from '@/components/shared/SuggestedProductionHint';
 
 const orderItemSchema = z.object({
   item_id: z.string().uuid(),
