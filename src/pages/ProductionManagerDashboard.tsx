@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   ClipboardList, Users, TrendingUp, UserPlus, Calendar, Printer, History, Clock, Factory,
+  Truck, Sparkles, BarChart3,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -13,6 +14,9 @@ import { MachinePlanning } from '@/components/production-manager/MachinePlanning
 import { ProductionCalendar } from '@/components/production-manager/ProductionCalendar';
 import { ReprintRequests } from '@/components/production-manager/ReprintRequests';
 import { ReprintRequestHistory } from '@/components/production-manager/ReprintRequestHistory';
+import { DeliveryManagement } from '@/components/production-manager/DeliveryManagement';
+import { SurplusAllocations } from '@/components/production-manager/SurplusAllocations';
+import { MachinePerformanceReport } from '@/components/production-manager/MachinePerformanceReport';
 import ShiftDataManagement from '@/components/accountant/ShiftDataManagement';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +32,9 @@ const TITLES: Record<string, { title: string; description: string }> = {
   history: { title: 'Reprint History', description: 'Processed reprint requests' },
   metrics: { title: 'Efficiency Metrics', description: 'Operator and machine performance' },
   'shift-data': { title: 'Shift Data', description: 'Daily shift data input' },
+  deliveries: { title: 'Deliveries', description: 'Create delivery notes; auto-generate draft invoices' },
+  surplus: { title: 'Surplus Allocations', description: 'Reuse overproduction across pending orders' },
+  'machine-perf': { title: 'Machine Performance', description: 'Machine-wise production analytics' },
 };
 
 const ProductionManagerDashboard = () => {
@@ -83,9 +90,17 @@ const ProductionManagerDashboard = () => {
       ],
     },
     {
+      label: 'Fulfillment',
+      items: [
+        { key: 'deliveries', label: 'Deliveries', icon: Truck },
+        { key: 'surplus', label: 'Surplus', icon: Sparkles },
+      ],
+    },
+    {
       label: 'Insights',
       items: [
         { key: 'metrics', label: 'Efficiency Metrics', icon: TrendingUp },
+        { key: 'machine-perf', label: 'Machine Performance', icon: BarChart3 },
         { key: 'shift-data', label: 'Shift Data', icon: Clock },
       ],
     },
@@ -116,6 +131,9 @@ const ProductionManagerDashboard = () => {
       {activeTab === 'history' && <ReprintRequestHistory />}
       {activeTab === 'metrics' && <EfficiencyMetrics />}
       {activeTab === 'shift-data' && <ShiftDataManagement />}
+      {activeTab === 'deliveries' && <DeliveryManagement />}
+      {activeTab === 'surplus' && <SurplusAllocations />}
+      {activeTab === 'machine-perf' && <MachinePerformanceReport />}
     </AppShell>
   );
 };
