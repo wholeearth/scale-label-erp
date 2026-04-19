@@ -257,6 +257,14 @@ export const PlaceOrder = () => {
             </div>
           </div>
 
+          {selectedItemId && quantity > 0 && (
+            <SuggestedProductionHint
+              itemId={selectedItemId}
+              orderQty={quantity}
+              onApply={(q) => setQuantity(q)}
+            />
+          )}
+
           {orderItems.length > 0 && (
             <div className="space-y-3">
               <h3 className="font-semibold">Order Items</h3>
