@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart, Plus, Trash2 } from 'lucide-react';
 import { z } from 'zod';
+import { SuggestedProductionHint } from '@/components/shared/SuggestedProductionHint';
 
 const orderItemSchema = z.object({
   item_id: z.string().uuid(),
@@ -255,6 +256,14 @@ export const PlaceOrder = () => {
               </div>
             </div>
           </div>
+
+          {selectedItemId && quantity > 0 && (
+            <SuggestedProductionHint
+              itemId={selectedItemId}
+              orderQty={quantity}
+              onApply={(q) => setQuantity(q)}
+            />
+          )}
 
           {orderItems.length > 0 && (
             <div className="space-y-3">
