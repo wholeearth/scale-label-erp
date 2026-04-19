@@ -384,6 +384,92 @@ export type Database = {
           },
         ]
       }
+      deliveries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          delivery_date: string
+          delivery_number: string
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          order_id: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          delivery_date?: string
+          delivery_number: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          delivery_date?: string
+          delivery_number?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          order_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      delivery_items: {
+        Row: {
+          created_at: string
+          delivery_id: string
+          id: string
+          item_id: string
+          order_item_id: string | null
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          delivery_id: string
+          id?: string
+          item_id: string
+          order_item_id?: string | null
+          quantity: number
+          total_price?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          delivery_id?: string
+          id?: string
+          item_id?: string
+          order_item_id?: string | null
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_items_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "deliveries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -1922,6 +2008,51 @@ export type Database = {
           },
         ]
       }
+      surplus_allocations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          notes: string | null
+          quantity: number
+          source_order_id: string | null
+          source_shift_machine_production_id: string | null
+          status: string
+          target_order_id: string | null
+          target_order_item_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          notes?: string | null
+          quantity: number
+          source_order_id?: string | null
+          source_shift_machine_production_id?: string | null
+          status?: string
+          target_order_id?: string | null
+          target_order_item_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          notes?: string | null
+          quantity?: number
+          source_order_id?: string | null
+          source_shift_machine_production_id?: string | null
+          status?: string
+          target_order_id?: string | null
+          target_order_item_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       units: {
         Row: {
           abbreviation: string
@@ -1977,6 +2108,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_delivery_number: { Args: never; Returns: string }
       generate_expense_number: { Args: never; Returns: string }
       generate_fiber_bag_id: {
         Args: { _product_code: string }
@@ -1989,6 +2121,22 @@ export type Database = {
       generate_purchase_number: { Args: never; Returns: string }
       generate_receipt_number: { Args: never; Returns: string }
       generate_return_number: { Args: never; Returns: string }
+      get_item_surplus_stock: { Args: { _item_id: string }; Returns: number }
+      get_machine_performance: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          assignments_count: number
+          machine_code: string
+          machine_id: string
+          machine_name: string
+          shifts_count: number
+          total_produced: number
+        }[]
+      }
+      get_suggested_production: {
+        Args: { _item_id: string; _order_qty: number }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
