@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  ClipboardList, Users, TrendingUp, UserPlus, Calendar, Printer, History, Clock,
+  ClipboardList, Users, TrendingUp, UserPlus, Calendar, Printer, History, Clock, Factory,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -9,6 +9,7 @@ import { OrdersList } from '@/components/production-manager/OrdersList';
 import { ActiveAssignments } from '@/components/production-manager/ActiveAssignments';
 import { EfficiencyMetrics } from '@/components/production-manager/EfficiencyMetrics';
 import { DirectAssignment } from '@/components/production-manager/DirectAssignment';
+import { MachinePlanning } from '@/components/production-manager/MachinePlanning';
 import { ProductionCalendar } from '@/components/production-manager/ProductionCalendar';
 import { ReprintRequests } from '@/components/production-manager/ReprintRequests';
 import { ReprintRequestHistory } from '@/components/production-manager/ReprintRequestHistory';
@@ -20,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 const TITLES: Record<string, { title: string; description: string }> = {
   orders: { title: 'Orders', description: 'Approved orders awaiting assignment' },
   direct: { title: 'Direct Assignment', description: 'Assign work directly to operators' },
+  machines: { title: 'Machine Planning', description: 'Assign orders to machines and monitor load' },
   calendar: { title: 'Production Calendar', description: 'Schedule and view production runs' },
   assignments: { title: 'Active Assignments', description: 'In-progress operator assignments' },
   reprints: { title: 'Reprint Requests', description: 'Pending label reprint requests' },
@@ -67,6 +69,7 @@ const ProductionManagerDashboard = () => {
       label: 'Workspace',
       items: [
         { key: 'orders', label: 'Orders', icon: ClipboardList },
+        { key: 'machines', label: 'Machine Planning', icon: Factory },
         { key: 'direct', label: 'Direct Assignment', icon: UserPlus },
         { key: 'calendar', label: 'Calendar', icon: Calendar },
         { key: 'assignments', label: 'Assignments', icon: Users },
@@ -105,6 +108,7 @@ const ProductionManagerDashboard = () => {
     >
       <PageHeader title={meta.title} description={meta.description} />
       {activeTab === 'orders' && <OrdersList />}
+      {activeTab === 'machines' && <MachinePlanning />}
       {activeTab === 'direct' && <DirectAssignment />}
       {activeTab === 'calendar' && <ProductionCalendar />}
       {activeTab === 'assignments' && <ActiveAssignments />}
