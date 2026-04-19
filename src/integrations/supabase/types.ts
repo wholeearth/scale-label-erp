@@ -864,6 +864,57 @@ export type Database = {
         }
         Relationships: []
       }
+      machine_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          item_id: string
+          machine_id: string
+          notes: string | null
+          order_id: string
+          order_item_id: string
+          planned_date: string
+          planned_quantity: number
+          priority: number
+          produced_quantity: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id: string
+          machine_id: string
+          notes?: string | null
+          order_id: string
+          order_item_id: string
+          planned_date?: string
+          planned_quantity: number
+          priority?: number
+          produced_quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_id?: string
+          machine_id?: string
+          notes?: string | null
+          order_id?: string
+          order_item_id?: string
+          planned_date?: string
+          planned_quantity?: number
+          priority?: number
+          produced_quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       machines: {
         Row: {
           created_at: string | null
@@ -1050,6 +1101,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      production_audit_log: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+        }
+        Relationships: []
       }
       production_counters: {
         Row: {
@@ -1629,6 +1713,57 @@ export type Database = {
           },
         ]
       }
+      shift_machine_production: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_time: string | null
+          id: string
+          item_id: string
+          machine_assignment_id: string
+          machine_id: string
+          notes: string | null
+          operator_id: string | null
+          order_id: string
+          quantity_produced: number
+          shift_record_id: string
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_time?: string | null
+          id?: string
+          item_id: string
+          machine_assignment_id: string
+          machine_id: string
+          notes?: string | null
+          operator_id?: string | null
+          order_id: string
+          quantity_produced: number
+          shift_record_id: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_time?: string | null
+          id?: string
+          item_id?: string
+          machine_assignment_id?: string
+          machine_id?: string
+          notes?: string | null
+          operator_id?: string | null
+          order_id?: string
+          quantity_produced?: number
+          shift_record_id?: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shift_raw_material_consumption: {
         Row: {
           consumed_length_yards: number | null
@@ -1681,6 +1816,7 @@ export type Database = {
           data_input_by: string | null
           data_input_completed: boolean
           id: string
+          machine_id: string | null
           operator_id: string
           shift_date: string
           shift_end: string | null
@@ -1692,6 +1828,7 @@ export type Database = {
           data_input_by?: string | null
           data_input_completed?: boolean
           id?: string
+          machine_id?: string | null
           operator_id: string
           shift_date: string
           shift_end?: string | null
@@ -1703,6 +1840,7 @@ export type Database = {
           data_input_by?: string | null
           data_input_completed?: boolean
           id?: string
+          machine_id?: string | null
           operator_id?: string
           shift_date?: string
           shift_end?: string | null
