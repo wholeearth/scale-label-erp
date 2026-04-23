@@ -312,36 +312,20 @@ const ProductionInterface = () => {
       const now = new Date();
       const currentYear = now.getFullYear();
 
-      // Get counters
-      const { data: globalCounter, error: globalError } = await supabase
-        .from('production_counters')
-        .select('global_serial, id')
-        .limit(1)
-        .maybeSingle();
+      // Atomically allocate next sequences (race-safe across concurrent operators)
+      const [globalRes, itemRes, yearlyRes] = await Promise.all([
+        supabase.rpc('next_global_serial'),
+        supabase.rpc('next_item_serial', { _item_id: selectedItem.item_id }),
+        supabase.rpc('next_operator_yearly_sequence', { _operator_id: profile.id, _year: currentYear }),
+      ]);
 
-      if (globalError) throw globalError;
+      if (globalRes.error) throw globalRes.error;
+      if (itemRes.error) throw itemRes.error;
+      if (yearlyRes.error) throw yearlyRes.error;
 
-      const { data: itemCounter, error: itemError } = await supabase
-        .from('item_counters')
-        .select('item_serial')
-        .eq('item_id', selectedItem.item_id)
-        .maybeSingle();
-
-      if (itemError) throw itemError;
-
-      // Get or create operator yearly sequence
-      let { data: yearlySeq, error: yearlyError } = await supabase
-        .from('operator_yearly_sequences')
-        .select('id, sequence_count')
-        .eq('operator_id', profile.id)
-        .eq('year', currentYear)
-        .maybeSingle();
-
-      if (yearlyError) throw yearlyError;
-
-      const globalSerial = (globalCounter?.global_serial || 0) + 1;
-      const itemSerial = (itemCounter?.item_serial || 0) + 1;
-      const yearlySequence = (yearlySeq?.sequence_count || 0) + 1;
+      const globalSerial = globalRes.data as number;
+      const itemSerial = itemRes.data as number;
+      const yearlySequence = yearlyRes.data as number;
       // For manual_length_entry items, track cumulative length as quantity_produced
       const isLengthBased = selectedItem.items.manual_length_entry;
       const operatorSequence = isLengthBased
