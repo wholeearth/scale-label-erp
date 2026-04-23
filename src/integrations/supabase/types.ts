@@ -2133,6 +2133,7 @@ export type Database = {
           total_produced: number
         }[]
       }
+      get_shift_window: { Args: { _ts?: string }; Returns: string }
       get_suggested_production: {
         Args: { _item_id: string; _order_qty: number }
         Returns: Json
@@ -2146,6 +2147,15 @@ export type Database = {
       }
       is_customer_of_current_agent: {
         Args: { cust_id: string }
+        Returns: boolean
+      }
+      is_machine_locked: {
+        Args: {
+          _exclude_shift_id?: string
+          _machine_id: string
+          _shift_date: string
+          _window: string
+        }
         Returns: boolean
       }
     }
