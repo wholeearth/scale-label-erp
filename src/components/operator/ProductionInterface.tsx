@@ -447,44 +447,9 @@ const ProductionInterface = () => {
         );
       }
 
-      // Update counters
-      await supabase
-        .from('production_counters')
-        .update({ global_serial: globalSerial })
-        .eq('id', (globalCounter as any)?.id ?? '00000000-0000-0000-0000-000000000000');
+      // Counters were already incremented atomically via RPCs above (next_global_serial,
+      // next_item_serial, next_operator_yearly_sequence). No further counter updates needed.
 
-      if (!globalCounter) {
-        await supabase
-          .from('production_counters')
-          .insert({ global_serial: globalSerial });
-      }
-
-      if (itemCounter) {
-        await supabase
-          .from('item_counters')
-          .update({ item_serial: itemSerial })
-          .eq('item_id', selectedItem.item_id);
-      } else {
-        await supabase
-          .from('item_counters')
-          .insert({ item_id: selectedItem.item_id, item_serial: itemSerial });
-      }
-
-      // Update operator yearly sequence
-      if (yearlySeq) {
-        await supabase
-          .from('operator_yearly_sequences')
-          .update({ sequence_count: yearlySequence })
-          .eq('id', yearlySeq.id);
-      } else {
-        await supabase
-          .from('operator_yearly_sequences')
-          .insert({ 
-            operator_id: profile.id, 
-            year: currentYear, 
-            sequence_count: yearlySequence 
-          });
-      }
 
       // Update assignment
       await supabase
