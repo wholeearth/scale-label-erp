@@ -11,18 +11,17 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Save, Factory, AlertCircle } from 'lucide-react';
 
-const LAST_MACHINE_KEY = 'op:lastMachineId';
+const DEVICE_MACHINE_KEY = 'op:deviceMachineId';
 
 export const MachineShiftEntry = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const [machineId, setMachineId] = useState<string>(() => localStorage.getItem(LAST_MACHINE_KEY) || '');
   const [assignmentId, setAssignmentId] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(0);
 
-  // Active shift for this operator
+  // Active shift for this operator — its machine is locked for this device
   const { data: activeShift } = useQuery({
     queryKey: ['operator-active-shift', user?.id],
     enabled: !!user?.id,
@@ -39,6 +38,10 @@ export const MachineShiftEntry = () => {
       return data;
     },
   });
+
+  // Machine is dictated by the active shift (locked). Fallback to device-stored id.
+  const machineId =
+    (activeShift?.machine_id as string | null) || localStorage.getItem(DEVICE_MACHINE_KEY) || '';
 
   const { data: machines } = useQuery({
     queryKey: ['machines-list-op'],
