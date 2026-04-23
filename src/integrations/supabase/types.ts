@@ -2158,6 +2158,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_global_serial: { Args: never; Returns: number }
+      next_item_serial: { Args: { _item_id: string }; Returns: number }
+      next_operator_yearly_sequence: {
+        Args: { _operator_id: string; _year: number }
+        Returns: number
+      }
     }
     Enums: {
       account_type: "asset" | "liability" | "equity" | "revenue" | "expense"
