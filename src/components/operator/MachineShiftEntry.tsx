@@ -93,8 +93,9 @@ export const MachineShiftEntry = () => {
     }
   }, [assignments, assignmentId]);
 
+  // Reset selected assignment if the locked machine changes
   useEffect(() => {
-    if (machineId) localStorage.setItem(LAST_MACHINE_KEY, machineId);
+    setAssignmentId('');
   }, [machineId]);
 
   const selected = useMemo(
@@ -181,15 +182,18 @@ export const MachineShiftEntry = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Machine</Label>
-              <Select value={machineId} onValueChange={(v) => { setMachineId(v); setAssignmentId(''); }}>
-                <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
-                <SelectContent>
-                  {machines?.map((m: any) => (
-                    <SelectItem key={m.id} value={m.id}>{m.machine_name} ({m.machine_code})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Machine (locked for this shift)</Label>
+              <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/30 text-sm">
+                <Factory className="h-4 w-4 text-muted-foreground" />
+                {(() => {
+                  const m = machines?.find((x: any) => x.id === machineId);
+                  return m ? (
+                    <span>{m.machine_name} <span className="text-muted-foreground">({m.machine_code})</span></span>
+                  ) : (
+                    <span className="text-muted-foreground">No machine selected</span>
+                  );
+                })()}
+              </div>
             </div>
 
             <div className="space-y-2 md:col-span-2">
