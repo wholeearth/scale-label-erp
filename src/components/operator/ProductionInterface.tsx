@@ -1102,6 +1102,7 @@ const ProductionInterface = () => {
 
   const handleSelectItem = (assignment: Assignment) => {
     setSelectedItem(assignment);
+    setSelectedSource('operator');
     setConsumptionEntries([]); // Reset consumption entries for new item
     setCurrentLength(0); // Reset length
     // Reset weight unless item uses predefined weight
@@ -1112,60 +1113,62 @@ const ProductionInterface = () => {
     }
   };
 
+  const handleSelectUnified = (row: UnifiedRow) => {
+    // Build an Assignment-shaped object so all downstream code keeps working unchanged.
+    const synthetic: Assignment = {
+      id: row.sourceId,
+      item_id: row.item_id,
+      quantity_assigned: row.total,
+      quantity_produced: row.produced,
+      items: row.item,
+    };
+    setSelectedItem(synthetic);
+    setSelectedSource(row.source);
+    setConsumptionEntries([]);
+    setCurrentLength(0);
+    if (row.item.use_predefined_weight && row.item.predefined_weight_kg) {
+      setCurrentWeight(row.item.predefined_weight_kg);
+    } else {
+      setCurrentWeight(0);
+    }
+  };
+
   if (!selectedItem) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Select Item to Produce</CardTitle>
-          <CardDescription>Choose from your assigned items to begin production</CardDescription>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ListChecks className="h-5 w-5" /> My Work Queue
+              </CardTitle>
+              <CardDescription>
+                Items assigned to you and pending work for your machine — click to start
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <Badge variant="outline" className="gap-1">
+                <UserCheck className="h-3 w-3" /> Assigned to me
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <Factory className="h-3 w-3" /> Machine queue
+              </Badge>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {!assignments || assignments.length === 0 ? (
+          {unifiedRows.length === 0 ? (
             <div className="text-center py-12">
               <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No items assigned yet</p>
+              <p className="text-muted-foreground">No items in your queue</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Contact your production manager for assignments
+                New work for you or your machine will appear here automatically
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {assignments.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => handleSelectItem(assignment)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-lg">{assignment.items.product_name}</p>
-                      <p className="text-sm text-muted-foreground">Code: {assignment.items.product_code}</p>
-                      <div className="flex gap-4 mt-2 text-sm">
-                        {assignment.items.length_yards && (
-                          <span className="text-muted-foreground">
-                            Length: {assignment.items.length_yards} yds
-                          </span>
-                        )}
-                        {assignment.items.width_inches && (
-                          <span className="text-muted-foreground">
-                            Width: {assignment.items.width_inches} in
-                          </span>
-                        )}
-                        {assignment.items.color && (
-                          <span className="text-muted-foreground">
-                            Color: {assignment.items.color}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="default" className="text-lg px-3 py-1">
-                        {assignment.quantity_produced || 0} / {assignment.quantity_assigned}
-                      </Badge>
-                      <p className="text-xs text-muted-foreground mt-1">produced</p>
-                    </div>
-                  </div>
-                </div>
+            <div className="grid gap-3">
+              {unifiedRows.map((row) => (
+                <UnifiedQueueRow key={row.key} row={row} onSelect={handleSelectUnified} />
               ))}
             </div>
           )}
