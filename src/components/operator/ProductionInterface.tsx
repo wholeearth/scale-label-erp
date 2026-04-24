@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye, QrCode } from 'lucide-react';
+import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye, QrCode, Factory, UserCheck, ListChecks } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
@@ -18,6 +18,7 @@ import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
 import { recordFiberBagConsumption } from '@/lib/fiberBagConsumption';
 import { TraceabilityDialog } from '@/components/traceability/TraceabilityDialog';
 import { readWeight, ScaleError } from '@/lib/scaleAgent';
+import { DEVICE_MACHINE_KEY } from './MachineSelectGate';
 import { LineageData } from '@/hooks/useTraceability';
 import {
   AlertDialog,
