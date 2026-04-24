@@ -17,6 +17,7 @@ import JsBarcode from 'jsbarcode';
 import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
 import { recordFiberBagConsumption } from '@/lib/fiberBagConsumption';
 import { TraceabilityDialog } from '@/components/traceability/TraceabilityDialog';
+import { readWeight, ScaleError } from '@/lib/scaleAgent';
 import { LineageData } from '@/hooks/useTraceability';
 import {
   AlertDialog,
@@ -217,8 +218,8 @@ const ProductionInterface = () => {
         setCurrentWeight(0);
       } else if (autoWeight) {
         const interval = setInterval(() => {
-          captureWeight();
-        }, 2000); // Poll every 2 seconds
+          captureWeight({ silent: true });
+        }, 1000); // Poll every 1 second
         return () => clearInterval(interval);
       }
     }
@@ -239,43 +240,27 @@ const ProductionInterface = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [selectedItem, isCapturingWeight, productionHistory]);
 
-  const captureWeight = async () => {
+  const captureWeight = async (opts?: { silent?: boolean }) => {
     if (isCapturingWeight) return;
-    
     setIsCapturingWeight(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/read-scale-weight`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to read scale');
-
-      const data = await response.json();
-      setCurrentWeight(data.weight);
-      checkWeightVariance(data.weight);
-      
-      if (data.mock) {
-        setIsUsingMockWeight(true);
-        toast({
-          title: 'Warning: Mock Weight Data',
-          description: 'Scale not connected. Using simulated weight. Connect the scale for real measurements.',
-          variant: 'destructive',
-        });
-      } else {
-        setIsUsingMockWeight(false);
-      }
+      const reading = await readWeight();
+      setCurrentWeight(reading.weight);
+      checkWeightVariance(reading.weight);
+      setIsUsingMockWeight(false);
     } catch (error) {
       console.error('Weight capture error:', error);
+      setIsUsingMockWeight(true);
+      if (!opts?.silent) {
+        const message = error instanceof ScaleError
+          ? error.message
+          : 'Failed to read weight from scale agent.';
+        toast({
+          title: 'Scale Error',
+          description: message,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsCapturingWeight(false);
     }
@@ -1273,7 +1258,7 @@ const ProductionInterface = () => {
                           {currentWeight.toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          kg {isUsingMockWeight && <span className="text-destructive font-semibold">(MOCK)</span>}
+                          kg {isUsingMockWeight && <span className="text-destructive font-semibold">(SCALE ERROR)</span>}
                         </p>
                       </>
                     )}
@@ -1285,7 +1270,7 @@ const ProductionInterface = () => {
                     size="sm"
                     variant="outline"
                     className="w-full mt-3"
-                    onClick={captureWeight}
+                    onClick={() => captureWeight()}
                     disabled={isCapturingWeight}
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isCapturingWeight ? 'animate-spin' : ''}`} />
