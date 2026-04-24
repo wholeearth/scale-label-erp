@@ -218,8 +218,8 @@ const ProductionInterface = () => {
         setCurrentWeight(0);
       } else if (autoWeight) {
         const interval = setInterval(() => {
-          captureWeight();
-        }, 2000); // Poll every 2 seconds
+          captureWeight({ silent: true });
+        }, 1000); // Poll every 1 second
         return () => clearInterval(interval);
       }
     }
