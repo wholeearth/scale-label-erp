@@ -66,6 +66,100 @@ interface Machine {
   machine_name: string;
 }
 
+// Memoized row so silent realtime updates only re-render the changed row (no scroll jump)
+type UnifiedRowShape = {
+  key: string;
+  source: 'operator' | 'machine';
+  sourceId: string;
+  item: Assignment['items'];
+  item_id: string;
+  produced: number;
+  total: number;
+  status: string;
+  priority?: number;
+  orderNumber?: string | null;
+  customerName?: string | null;
+};
+
+const UnifiedQueueRow = memo(function UnifiedQueueRow({
+  row,
+  onSelect,
+}: {
+  row: UnifiedRowShape;
+  onSelect: (row: UnifiedRowShape) => void;
+}) {
+  const remaining = Math.max(0, row.total - row.produced);
+  const pct = row.total > 0 ? Math.min(100, Math.round((row.produced / row.total) * 100)) : 0;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(row)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(row);
+        }
+      }}
+      className="p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {row.source === 'operator' ? (
+              <Badge variant="secondary" className="gap-1">
+                <UserCheck className="h-3 w-3" /> Assigned to me
+              </Badge>
+            ) : (
+              <Badge className="gap-1 bg-primary/10 text-primary hover:bg-primary/15 border border-primary/20">
+                <Factory className="h-3 w-3" /> Machine queue
+                {row.priority !== undefined && <span className="ml-1 opacity-80">P{row.priority}</span>}
+              </Badge>
+            )}
+            {row.status === 'in_progress' && (
+              <Badge variant="outline" className="border-success/30 text-success">
+                In progress
+              </Badge>
+            )}
+          </div>
+          <p className="font-semibold text-lg mt-1 truncate">
+            {row.item.product_name}
+            <span className="text-muted-foreground font-normal text-sm ml-2">
+              ({row.item.product_code})
+            </span>
+          </p>
+          <div className="flex gap-4 mt-1 text-sm flex-wrap">
+            {row.item.length_yards && (
+              <span className="text-muted-foreground">Length: {row.item.length_yards} yds</span>
+            )}
+            {row.item.width_inches && (
+              <span className="text-muted-foreground">Width: {row.item.width_inches} in</span>
+            )}
+            {row.item.color && <span className="text-muted-foreground">Color: {row.item.color}</span>}
+          </div>
+          {(row.orderNumber || row.customerName) && (
+            <p className="text-xs text-muted-foreground mt-1 truncate">
+              {row.orderNumber && <>Order {row.orderNumber}</>}
+              {row.customerName && <> • {row.customerName}</>}
+            </p>
+          )}
+          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <Badge variant="default" className="text-lg px-3 py-1 tabular-nums">
+            {row.produced} / {row.total}
+          </Badge>
+          <p className="text-xs text-muted-foreground mt-1">
+            {remaining > 0 ? `${remaining} remaining` : 'Complete'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const ProductionInterface = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
