@@ -232,7 +232,165 @@ const ProductionInterface = () => {
     enabled: !!profile,
   });
 
-  // Auto-capture weight when item is selected (only if not using predefined/manual weight)
+  // ── Merged work queue (operator + machine) ──────────────────────────────
+  // Device-locked machine (from gate). Used to filter the machine queue.
+  const deviceMachineId = useMemo(
+    () => (typeof window !== 'undefined' ? localStorage.getItem(DEVICE_MACHINE_KEY) : null),
+    [],
+  );
+
+  type MachineQueueRow = {
+    id: string;
+    item_id: string;
+    planned_quantity: number;
+    produced_quantity: number;
+    status: string;
+    priority: number;
+    planned_date: string;
+    items: Assignment['items'];
+    orders: { order_number: string | null; customers: { customer_name: string | null } | null } | null;
+  };
+
+  const machineQueueKey = ['machine-queue', deviceMachineId] as const;
+
+  const { data: machineQueue } = useQuery({
+    queryKey: machineQueueKey,
+    enabled: !!deviceMachineId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('machine_assignments')
+        .select(
+          'id, item_id, planned_quantity, produced_quantity, status, priority, planned_date, items(*), orders(order_number, customers(customer_name))',
+        )
+        .eq('machine_id', deviceMachineId!)
+        .in('status', ['planned', 'in_progress'])
+        .order('status', { ascending: false })
+        .order('priority', { ascending: true })
+        .order('planned_date', { ascending: true });
+      if (error) throw error;
+      return (data || []) as unknown as MachineQueueRow[];
+    },
+    // No polling — silent realtime keeps it in sync
+  });
+
+  // Silent realtime for machine queue — surgical patches only
+  useEffect(() => {
+    if (!deviceMachineId) return;
+    const channel = supabase
+      .channel(`machine-queue-${deviceMachineId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'machine_assignments',
+          filter: `machine_id=eq.${deviceMachineId}`,
+        },
+        (payload) => {
+          queryClient.setQueryData<MachineQueueRow[]>(machineQueueKey as any, (prev) => {
+            const list = prev ? [...prev] : [];
+            if (payload.eventType === 'INSERT') {
+              // Need joined item/order data — fetch the single new row instead of full list
+              const newId = (payload.new as { id?: string })?.id;
+              if (newId) {
+                supabase
+                  .from('machine_assignments')
+                  .select(
+                    'id, item_id, planned_quantity, produced_quantity, status, priority, planned_date, items(*), orders(order_number, customers(customer_name))',
+                  )
+                  .eq('id', newId)
+                  .maybeSingle()
+                  .then(({ data }) => {
+                    if (!data) return;
+                    queryClient.setQueryData<MachineQueueRow[]>(machineQueueKey as any, (cur) => {
+                      const arr = cur ? [...cur] : [];
+                      if (arr.some((r) => r.id === data.id)) return arr;
+                      arr.push(data as unknown as MachineQueueRow);
+                      return arr;
+                    });
+                  });
+              }
+              return prev;
+            }
+            if (payload.eventType === 'UPDATE') {
+              const next = payload.new as Partial<MachineQueueRow> & { id: string; status?: string };
+              const idx = list.findIndex((r) => r.id === next.id);
+              if (idx === -1) return prev;
+              if (next.status && !['planned', 'in_progress'].includes(next.status)) {
+                list.splice(idx, 1);
+                return list;
+              }
+              list[idx] = { ...list[idx], ...next } as MachineQueueRow;
+              return list;
+            }
+            if (payload.eventType === 'DELETE') {
+              const oldId = (payload.old as { id?: string })?.id;
+              return oldId ? list.filter((r) => r.id !== oldId) : prev;
+            }
+            return prev;
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceMachineId, queryClient]);
+
+  // Unified rows for the selection list. Stable order so silent updates don't shuffle.
+  type UnifiedRow = {
+    key: string;
+    source: 'operator' | 'machine';
+    sourceId: string; // operator_assignments.id OR machine_assignments.id
+    item: Assignment['items'];
+    item_id: string;
+    produced: number;
+    total: number;
+    status: string;
+    priority?: number;
+    orderNumber?: string | null;
+    customerName?: string | null;
+  };
+
+  const unifiedRows: UnifiedRow[] = useMemo(() => {
+    const ops: UnifiedRow[] = (assignments || []).map((a) => ({
+      key: `op-${a.id}`,
+      source: 'operator',
+      sourceId: a.id,
+      item: a.items,
+      item_id: a.item_id,
+      produced: Number(a.quantity_produced || 0),
+      total: Number(a.quantity_assigned || 0),
+      status: 'active',
+    }));
+    const mach: UnifiedRow[] = (machineQueue || []).map((m) => ({
+      key: `m-${m.id}`,
+      source: 'machine',
+      sourceId: m.id,
+      item: m.items,
+      item_id: m.item_id,
+      produced: Number(m.produced_quantity || 0),
+      total: Number(m.planned_quantity || 0),
+      status: m.status,
+      priority: m.priority,
+      orderNumber: m.orders?.order_number ?? null,
+      customerName: m.orders?.customers?.customer_name ?? null,
+    }));
+    const all = [...ops, ...mach];
+    all.sort((a, b) => {
+      // in_progress first, then by priority (machine), then by key for stability
+      const ap = a.status === 'in_progress' ? 0 : 1;
+      const bp = b.status === 'in_progress' ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      const apr = a.priority ?? 99;
+      const bpr = b.priority ?? 99;
+      if (apr !== bpr) return apr - bpr;
+      return a.key.localeCompare(b.key);
+    });
+    return all;
+  }, [assignments, machineQueue]);
+
   useEffect(() => {
     if (selectedItem) {
       // If item uses predefined weight, set it immediately and disable scale
