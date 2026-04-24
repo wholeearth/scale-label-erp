@@ -105,7 +105,7 @@ const ProductionInterface = () => {
     // No refetchInterval — realtime subscriptions below keep this in sync silently
   });
 
-  // Set up real-time subscription for assignment updates
+  // Silent real-time updates: patch cache surgically so unchanged rows don't re-render
   useEffect(() => {
     if (!profile) return;
 
@@ -114,14 +114,40 @@ const ProductionInterface = () => {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'operator_assignments',
           filter: `operator_id=eq.${profile.id}`,
         },
         (payload) => {
-          console.log('Assignment updated:', payload);
-          refetchAssignments();
+          queryClient.setQueryData<Assignment[]>(['operator-assignments', profile.id], (prev) => {
+            const list = prev ? [...prev] : [];
+            if (payload.eventType === 'INSERT') {
+              // Need item details — refetch only when a brand new row arrives
+              refetchAssignments();
+              return prev;
+            }
+            if (payload.eventType === 'UPDATE') {
+              const next = payload.new as Partial<Assignment> & { id: string; status?: string };
+              const idx = list.findIndex((a) => a.id === next.id);
+              if (idx === -1) {
+                refetchAssignments();
+                return prev;
+              }
+              // If it left the active set, drop it; else patch in place
+              if (next.status && next.status !== 'active') {
+                list.splice(idx, 1);
+                return list;
+              }
+              list[idx] = { ...list[idx], ...next } as Assignment;
+              return list;
+            }
+            if (payload.eventType === 'DELETE') {
+              const oldId = (payload.old as { id?: string })?.id;
+              return oldId ? list.filter((a) => a.id !== oldId) : prev;
+            }
+            return prev;
+          });
         }
       )
       .subscribe();
@@ -129,7 +155,7 @@ const ProductionInterface = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile, refetchAssignments]);
+  }, [profile, queryClient, refetchAssignments]);
 
   // Fetch machines
   const { data: machines } = useQuery({
