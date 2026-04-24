@@ -71,6 +71,7 @@ const ProductionInterface = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<Assignment | null>(null);
+  const [selectedSource, setSelectedSource] = useState<'operator' | 'machine'>('operator');
   const [selectedMachine, setSelectedMachine] = useState<string>('');
   const [currentWeight, setCurrentWeight] = useState<number>(0);
   const [currentLength, setCurrentLength] = useState<number>(0);
