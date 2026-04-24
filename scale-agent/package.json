@@ -1,0 +1,15 @@
+{
+  "name": "cas-cn1-scale-agent",
+  "version": "1.0.0",
+  "description": "Local bridge service that reads weight from a CAS CN1 weighing scale over TCP and exposes it via HTTP for the ERP frontend.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {}
+}
