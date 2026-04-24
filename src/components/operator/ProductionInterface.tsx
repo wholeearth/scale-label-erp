@@ -102,7 +102,7 @@ const ProductionInterface = () => {
       return data as Assignment[];
     },
     enabled: !!profile,
-    refetchInterval: 5000, // Auto-refetch every 5 seconds for live updates
+    // No refetchInterval — realtime subscriptions below keep this in sync silently
   });
 
   // Set up real-time subscription for assignment updates
