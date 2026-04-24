@@ -10,7 +10,6 @@ import ProductionInterface from '@/components/operator/ProductionInterface';
 import ShiftManagement from '@/components/operator/ShiftManagement';
 import MachineShiftEntry from '@/components/operator/MachineShiftEntry';
 import MachineSelectGate, { DEVICE_MACHINE_KEY } from '@/components/operator/MachineSelectGate';
-import UnifiedWorkQueue from '@/components/operator/UnifiedWorkQueue';
 
 const SECTIONS: NavSection[] = [
   {
@@ -82,13 +81,6 @@ const OperatorDashboard = () => {
       header={<AppHeader title={meta.title} subtitle={meta.description} />}
     >
       <PageHeader title={meta.title} description={meta.description} />
-
-      {/* Unified queue is always visible above tab content once a shift is active */}
-      {activeShift && deviceMachineId && (
-        <div className="mb-4">
-          <UnifiedWorkQueue machineId={deviceMachineId} />
-        </div>
-      )}
 
       {activeTab === 'production' && <ProductionInterface />}
       {activeTab === 'machine' && <MachineShiftEntry />}
