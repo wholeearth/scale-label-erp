@@ -1258,7 +1258,7 @@ const ProductionInterface = () => {
                           {currentWeight.toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          kg {isUsingMockWeight && <span className="text-destructive font-semibold">(MOCK)</span>}
+                          kg {isUsingMockWeight && <span className="text-destructive font-semibold">(SCALE ERROR)</span>}
                         </p>
                       </>
                     )}
@@ -1270,7 +1270,7 @@ const ProductionInterface = () => {
                     size="sm"
                     variant="outline"
                     className="w-full mt-3"
-                    onClick={captureWeight}
+                    onClick={() => captureWeight()}
                     disabled={isCapturingWeight}
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isCapturingWeight ? 'animate-spin' : ''}`} />
