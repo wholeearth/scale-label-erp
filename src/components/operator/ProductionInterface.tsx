@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye, QrCode } from 'lucide-react';
+import { Package, Weight, Clock, Barcode, Printer, RefreshCw, AlertTriangle, History, Eye, QrCode, Factory, UserCheck, ListChecks } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
@@ -18,6 +18,7 @@ import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
 import { recordFiberBagConsumption } from '@/lib/fiberBagConsumption';
 import { TraceabilityDialog } from '@/components/traceability/TraceabilityDialog';
 import { readWeight, ScaleError } from '@/lib/scaleAgent';
+import { DEVICE_MACHINE_KEY } from './MachineSelectGate';
 import { LineageData } from '@/hooks/useTraceability';
 import {
   AlertDialog,
@@ -65,11 +66,106 @@ interface Machine {
   machine_name: string;
 }
 
+// Memoized row so silent realtime updates only re-render the changed row (no scroll jump)
+type UnifiedRowShape = {
+  key: string;
+  source: 'operator' | 'machine';
+  sourceId: string;
+  item: Assignment['items'];
+  item_id: string;
+  produced: number;
+  total: number;
+  status: string;
+  priority?: number;
+  orderNumber?: string | null;
+  customerName?: string | null;
+};
+
+const UnifiedQueueRow = memo(function UnifiedQueueRow({
+  row,
+  onSelect,
+}: {
+  row: UnifiedRowShape;
+  onSelect: (row: UnifiedRowShape) => void;
+}) {
+  const remaining = Math.max(0, row.total - row.produced);
+  const pct = row.total > 0 ? Math.min(100, Math.round((row.produced / row.total) * 100)) : 0;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(row)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(row);
+        }
+      }}
+      className="p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {row.source === 'operator' ? (
+              <Badge variant="secondary" className="gap-1">
+                <UserCheck className="h-3 w-3" /> Assigned to me
+              </Badge>
+            ) : (
+              <Badge className="gap-1 bg-primary/10 text-primary hover:bg-primary/15 border border-primary/20">
+                <Factory className="h-3 w-3" /> Machine queue
+                {row.priority !== undefined && <span className="ml-1 opacity-80">P{row.priority}</span>}
+              </Badge>
+            )}
+            {row.status === 'in_progress' && (
+              <Badge variant="outline" className="border-success/30 text-success">
+                In progress
+              </Badge>
+            )}
+          </div>
+          <p className="font-semibold text-lg mt-1 truncate">
+            {row.item.product_name}
+            <span className="text-muted-foreground font-normal text-sm ml-2">
+              ({row.item.product_code})
+            </span>
+          </p>
+          <div className="flex gap-4 mt-1 text-sm flex-wrap">
+            {row.item.length_yards && (
+              <span className="text-muted-foreground">Length: {row.item.length_yards} yds</span>
+            )}
+            {row.item.width_inches && (
+              <span className="text-muted-foreground">Width: {row.item.width_inches} in</span>
+            )}
+            {row.item.color && <span className="text-muted-foreground">Color: {row.item.color}</span>}
+          </div>
+          {(row.orderNumber || row.customerName) && (
+            <p className="text-xs text-muted-foreground mt-1 truncate">
+              {row.orderNumber && <>Order {row.orderNumber}</>}
+              {row.customerName && <> • {row.customerName}</>}
+            </p>
+          )}
+          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <Badge variant="default" className="text-lg px-3 py-1 tabular-nums">
+            {row.produced} / {row.total}
+          </Badge>
+          <p className="text-xs text-muted-foreground mt-1">
+            {remaining > 0 ? `${remaining} remaining` : 'Complete'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const ProductionInterface = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedItem, setSelectedItem] = useState<Assignment | null>(null);
+  const [selectedSource, setSelectedSource] = useState<'operator' | 'machine'>('operator');
   const [selectedMachine, setSelectedMachine] = useState<string>('');
   const [currentWeight, setCurrentWeight] = useState<number>(0);
   const [currentLength, setCurrentLength] = useState<number>(0);
@@ -102,10 +198,10 @@ const ProductionInterface = () => {
       return data as Assignment[];
     },
     enabled: !!profile,
-    refetchInterval: 5000, // Auto-refetch every 5 seconds for live updates
+    // No refetchInterval — realtime subscriptions below keep this in sync silently
   });
 
-  // Set up real-time subscription for assignment updates
+  // Silent real-time updates: patch cache surgically so unchanged rows don't re-render
   useEffect(() => {
     if (!profile) return;
 
@@ -114,14 +210,40 @@ const ProductionInterface = () => {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'operator_assignments',
           filter: `operator_id=eq.${profile.id}`,
         },
         (payload) => {
-          console.log('Assignment updated:', payload);
-          refetchAssignments();
+          queryClient.setQueryData<Assignment[]>(['operator-assignments', profile.id], (prev) => {
+            const list = prev ? [...prev] : [];
+            if (payload.eventType === 'INSERT') {
+              // Need item details — refetch only when a brand new row arrives
+              refetchAssignments();
+              return prev;
+            }
+            if (payload.eventType === 'UPDATE') {
+              const next = payload.new as Partial<Assignment> & { id: string; status?: string };
+              const idx = list.findIndex((a) => a.id === next.id);
+              if (idx === -1) {
+                refetchAssignments();
+                return prev;
+              }
+              // If it left the active set, drop it; else patch in place
+              if (next.status && next.status !== 'active') {
+                list.splice(idx, 1);
+                return list;
+              }
+              list[idx] = { ...list[idx], ...next } as Assignment;
+              return list;
+            }
+            if (payload.eventType === 'DELETE') {
+              const oldId = (payload.old as { id?: string })?.id;
+              return oldId ? list.filter((a) => a.id !== oldId) : prev;
+            }
+            return prev;
+          });
         }
       )
       .subscribe();
@@ -129,7 +251,7 @@ const ProductionInterface = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile, refetchAssignments]);
+  }, [profile, queryClient, refetchAssignments]);
 
   // Fetch machines
   const { data: machines } = useQuery({
@@ -205,7 +327,165 @@ const ProductionInterface = () => {
     enabled: !!profile,
   });
 
-  // Auto-capture weight when item is selected (only if not using predefined/manual weight)
+  // ── Merged work queue (operator + machine) ──────────────────────────────
+  // Device-locked machine (from gate). Used to filter the machine queue.
+  const deviceMachineId = useMemo(
+    () => (typeof window !== 'undefined' ? localStorage.getItem(DEVICE_MACHINE_KEY) : null),
+    [],
+  );
+
+  type MachineQueueRow = {
+    id: string;
+    item_id: string;
+    planned_quantity: number;
+    produced_quantity: number;
+    status: string;
+    priority: number;
+    planned_date: string;
+    items: Assignment['items'];
+    orders: { order_number: string | null; customers: { customer_name: string | null } | null } | null;
+  };
+
+  const machineQueueKey = ['machine-queue', deviceMachineId] as const;
+
+  const { data: machineQueue } = useQuery({
+    queryKey: machineQueueKey,
+    enabled: !!deviceMachineId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('machine_assignments')
+        .select(
+          'id, item_id, planned_quantity, produced_quantity, status, priority, planned_date, items(*), orders(order_number, customers(customer_name))',
+        )
+        .eq('machine_id', deviceMachineId!)
+        .in('status', ['planned', 'in_progress'])
+        .order('status', { ascending: false })
+        .order('priority', { ascending: true })
+        .order('planned_date', { ascending: true });
+      if (error) throw error;
+      return (data || []) as unknown as MachineQueueRow[];
+    },
+    // No polling — silent realtime keeps it in sync
+  });
+
+  // Silent realtime for machine queue — surgical patches only
+  useEffect(() => {
+    if (!deviceMachineId) return;
+    const channel = supabase
+      .channel(`machine-queue-${deviceMachineId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'machine_assignments',
+          filter: `machine_id=eq.${deviceMachineId}`,
+        },
+        (payload) => {
+          queryClient.setQueryData<MachineQueueRow[]>(machineQueueKey as any, (prev) => {
+            const list = prev ? [...prev] : [];
+            if (payload.eventType === 'INSERT') {
+              // Need joined item/order data — fetch the single new row instead of full list
+              const newId = (payload.new as { id?: string })?.id;
+              if (newId) {
+                supabase
+                  .from('machine_assignments')
+                  .select(
+                    'id, item_id, planned_quantity, produced_quantity, status, priority, planned_date, items(*), orders(order_number, customers(customer_name))',
+                  )
+                  .eq('id', newId)
+                  .maybeSingle()
+                  .then(({ data }) => {
+                    if (!data) return;
+                    queryClient.setQueryData<MachineQueueRow[]>(machineQueueKey as any, (cur) => {
+                      const arr = cur ? [...cur] : [];
+                      if (arr.some((r) => r.id === data.id)) return arr;
+                      arr.push(data as unknown as MachineQueueRow);
+                      return arr;
+                    });
+                  });
+              }
+              return prev;
+            }
+            if (payload.eventType === 'UPDATE') {
+              const next = payload.new as Partial<MachineQueueRow> & { id: string; status?: string };
+              const idx = list.findIndex((r) => r.id === next.id);
+              if (idx === -1) return prev;
+              if (next.status && !['planned', 'in_progress'].includes(next.status)) {
+                list.splice(idx, 1);
+                return list;
+              }
+              list[idx] = { ...list[idx], ...next } as MachineQueueRow;
+              return list;
+            }
+            if (payload.eventType === 'DELETE') {
+              const oldId = (payload.old as { id?: string })?.id;
+              return oldId ? list.filter((r) => r.id !== oldId) : prev;
+            }
+            return prev;
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceMachineId, queryClient]);
+
+  // Unified rows for the selection list. Stable order so silent updates don't shuffle.
+  type UnifiedRow = {
+    key: string;
+    source: 'operator' | 'machine';
+    sourceId: string; // operator_assignments.id OR machine_assignments.id
+    item: Assignment['items'];
+    item_id: string;
+    produced: number;
+    total: number;
+    status: string;
+    priority?: number;
+    orderNumber?: string | null;
+    customerName?: string | null;
+  };
+
+  const unifiedRows: UnifiedRow[] = useMemo(() => {
+    const ops: UnifiedRow[] = (assignments || []).map((a) => ({
+      key: `op-${a.id}`,
+      source: 'operator',
+      sourceId: a.id,
+      item: a.items,
+      item_id: a.item_id,
+      produced: Number(a.quantity_produced || 0),
+      total: Number(a.quantity_assigned || 0),
+      status: 'active',
+    }));
+    const mach: UnifiedRow[] = (machineQueue || []).map((m) => ({
+      key: `m-${m.id}`,
+      source: 'machine',
+      sourceId: m.id,
+      item: m.items,
+      item_id: m.item_id,
+      produced: Number(m.produced_quantity || 0),
+      total: Number(m.planned_quantity || 0),
+      status: m.status,
+      priority: m.priority,
+      orderNumber: m.orders?.order_number ?? null,
+      customerName: m.orders?.customers?.customer_name ?? null,
+    }));
+    const all = [...ops, ...mach];
+    all.sort((a, b) => {
+      // in_progress first, then by priority (machine), then by key for stability
+      const ap = a.status === 'in_progress' ? 0 : 1;
+      const bp = b.status === 'in_progress' ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      const apr = a.priority ?? 99;
+      const bpr = b.priority ?? 99;
+      if (apr !== bpr) return apr - bpr;
+      return a.key.localeCompare(b.key);
+    });
+    return all;
+  }, [assignments, machineQueue]);
+
   useEffect(() => {
     if (selectedItem) {
       // If item uses predefined weight, set it immediately and disable scale
@@ -432,15 +712,23 @@ const ProductionInterface = () => {
         );
       }
 
-      // Counters were already incremented atomically via RPCs above (next_global_serial,
-      // next_item_serial, next_operator_yearly_sequence). No further counter updates needed.
 
 
-      // Update assignment
-      await supabase
-        .from('operator_assignments')
-        .update({ quantity_produced: operatorSequence })
-        .eq('id', selectedItem.id);
+      // Update assignment progress on the source the operator selected.
+      if (selectedSource === 'machine') {
+        await supabase
+          .from('machine_assignments')
+          .update({
+            produced_quantity: operatorSequence,
+            status: 'in_progress',
+          })
+          .eq('id', selectedItem.id);
+      } else {
+        await supabase
+          .from('operator_assignments')
+          .update({ quantity_produced: operatorSequence })
+          .eq('id', selectedItem.id);
+      }
 
       // Add to inventory
       const { error: inventoryError } = await supabase
@@ -917,6 +1205,7 @@ const ProductionInterface = () => {
 
   const handleSelectItem = (assignment: Assignment) => {
     setSelectedItem(assignment);
+    setSelectedSource('operator');
     setConsumptionEntries([]); // Reset consumption entries for new item
     setCurrentLength(0); // Reset length
     // Reset weight unless item uses predefined weight
@@ -927,60 +1216,62 @@ const ProductionInterface = () => {
     }
   };
 
+  const handleSelectUnified = (row: UnifiedRow) => {
+    // Build an Assignment-shaped object so all downstream code keeps working unchanged.
+    const synthetic: Assignment = {
+      id: row.sourceId,
+      item_id: row.item_id,
+      quantity_assigned: row.total,
+      quantity_produced: row.produced,
+      items: row.item,
+    };
+    setSelectedItem(synthetic);
+    setSelectedSource(row.source);
+    setConsumptionEntries([]);
+    setCurrentLength(0);
+    if (row.item.use_predefined_weight && row.item.predefined_weight_kg) {
+      setCurrentWeight(row.item.predefined_weight_kg);
+    } else {
+      setCurrentWeight(0);
+    }
+  };
+
   if (!selectedItem) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Select Item to Produce</CardTitle>
-          <CardDescription>Choose from your assigned items to begin production</CardDescription>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ListChecks className="h-5 w-5" /> My Work Queue
+              </CardTitle>
+              <CardDescription>
+                Items assigned to you and pending work for your machine — click to start
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <Badge variant="outline" className="gap-1">
+                <UserCheck className="h-3 w-3" /> Assigned to me
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <Factory className="h-3 w-3" /> Machine queue
+              </Badge>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {!assignments || assignments.length === 0 ? (
+          {unifiedRows.length === 0 ? (
             <div className="text-center py-12">
               <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No items assigned yet</p>
+              <p className="text-muted-foreground">No items in your queue</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Contact your production manager for assignments
+                New work for you or your machine will appear here automatically
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {assignments.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="p-4 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => handleSelectItem(assignment)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-lg">{assignment.items.product_name}</p>
-                      <p className="text-sm text-muted-foreground">Code: {assignment.items.product_code}</p>
-                      <div className="flex gap-4 mt-2 text-sm">
-                        {assignment.items.length_yards && (
-                          <span className="text-muted-foreground">
-                            Length: {assignment.items.length_yards} yds
-                          </span>
-                        )}
-                        {assignment.items.width_inches && (
-                          <span className="text-muted-foreground">
-                            Width: {assignment.items.width_inches} in
-                          </span>
-                        )}
-                        {assignment.items.color && (
-                          <span className="text-muted-foreground">
-                            Color: {assignment.items.color}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="default" className="text-lg px-3 py-1">
-                        {assignment.quantity_produced || 0} / {assignment.quantity_assigned}
-                      </Badge>
-                      <p className="text-xs text-muted-foreground mt-1">produced</p>
-                    </div>
-                  </div>
-                </div>
+            <div className="grid gap-3">
+              {unifiedRows.map((row) => (
+                <UnifiedQueueRow key={row.key} row={row} onSelect={handleSelectUnified} />
               ))}
             </div>
           )}
