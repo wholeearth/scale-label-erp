@@ -1,103 +1,71 @@
 # CAS CN1 Scale Bridge Agent
 
-A tiny local Node.js service that bridges a **CAS CN1 weighing scale** (TCP) to the ERP frontend (HTTP). Browsers cannot open raw TCP sockets, so this agent runs on the **weighing PC** and exposes the scale at `http://localhost:5000`.
+A small Node.js service that runs on the weighing PC and exposes the CAS CN1
+scale to the ERP over a local HTTP API. Browsers can't open raw TCP sockets,
+so this agent is the bridge.
 
-## What it does
+## Run
 
-- Opens a persistent TCP connection to the scale (default `192.168.1.239:20304`)
-- Continuously reads weight frames, parses the numeric value, tracks stability
-- Auto-reconnects on disconnection
-- Serves a small CORS-enabled HTTP API:
-  - `GET /weight` → `{ weight, unit, stable, connected, fresh, raw, ts }`
-  - `GET /health` → `{ ok, connected, lastUpdate, scale }`
-
-**No mock values are ever returned.** If the scale is offline, `connected: false` and `weight: 0` so the frontend can show an error.
-
-## Requirements
-
-- Node.js **16+** installed on the weighing PC
-- Network access from the weighing PC to the scale IP
-- (Optional) Allow inbound on port `5000` only on `localhost` — the ERP browser tab on the same PC calls it.
-
-## Run it
-
-```bash
-cd scale-agent
+```
 node server.js
 ```
 
-You should see:
-
-```
-[2026-04-24T...] Scale agent HTTP API listening on http://localhost:5000
-[2026-04-24T...] Connecting to scale 192.168.1.239:20304...
-[2026-04-24T...] Scale connected.
-```
-
-Test it:
-
-```bash
-curl http://localhost:5000/weight
-# {"weight":12.34,"unit":"kg","stable":true,"connected":true,...}
-```
+No npm install required — uses only Node built-ins.
 
 ## Configuration (env vars)
 
-| Var          | Default           | Purpose                                              |
-|--------------|-------------------|------------------------------------------------------|
-| `SCALE_HOST` | `192.168.1.239`   | Scale IP                                             |
-| `SCALE_PORT` | `20304`           | Scale TCP port                                       |
-| `AGENT_PORT` | `5000`            | Local HTTP port the ERP frontend will call           |
-| `STABLE_MS`  | `800`             | ms a value must be unchanged to be reported `stable` |
+| Var                 | Default            | Description                                           |
+|---------------------|--------------------|-------------------------------------------------------|
+| `SCALE_HOST`        | `192.168.1.239`    | Scale IP                                              |
+| `SCALE_PORT`        | `20304`            | Scale TCP port                                        |
+| `AGENT_PORT`        | `5000`             | Local HTTP port the ERP talks to                      |
+| `STABLE_MS`         | `800`              | ms a value must be unchanged to be considered stable  |
+| `SCALE_REQUEST_CMD` | `P\r\n`            | Command sent to scale on `/weight/request`            |
+| `REQUEST_TIMEOUT_MS`| `1500`             | Max wait for a frame after `/weight/request`          |
 
-Example:
+## Endpoints
 
-```bash
-SCALE_HOST=192.168.1.239 SCALE_PORT=20304 AGENT_PORT=5000 node server.js
+### `GET /weight`
+Returns the last passively-received reading.
+```
+{ weight, unit, stable, connected, fresh, raw, ts }
 ```
 
-## Run as a Windows service (production)
+### `POST /weight/request`
+Actively triggers the scale to transmit a frame (CAS CN1 emits a frame when
+the PRINT command is sent). Body (optional):
+```
+{ "command": "P\r\n", "encoding": "utf8" }
+```
+Returns the same reading shape as `/weight`. `408` if the scale doesn't reply
+in time, `503` if the TCP socket is down.
 
-Use [`node-windows`](https://github.com/coreybutler/node-windows) or NSSM.
+### `POST /print`
+Forwards a payload to the scale's built-in printer over the same TCP socket.
+```
+{ "payload": "Hello\r\n", "encoding": "utf8" | "ascii" | "hex" }
+```
+Use `hex` to send raw control bytes (e.g. ESC/P).
 
-**Quick NSSM recipe:**
-
-1. Download NSSM (https://nssm.cc/) and place `nssm.exe` somewhere on PATH.
-2. Open an elevated Command Prompt:
-   ```
-   nssm install ScaleAgent "C:\Program Files\nodejs\node.exe" "C:\path\to\scale-agent\server.js"
-   nssm set ScaleAgent AppDirectory "C:\path\to\scale-agent"
-   nssm set ScaleAgent AppEnvironmentExtra SCALE_HOST=192.168.1.239 SCALE_PORT=20304 AGENT_PORT=5000
-   nssm start ScaleAgent
-   ```
-3. The service will auto-start on boot.
-
-## Linux / systemd
-
-Create `/etc/systemd/system/scale-agent.service`:
-
-```ini
-[Unit]
-Description=CAS CN1 Scale Bridge Agent
-After=network.target
-
-[Service]
-Environment=SCALE_HOST=192.168.1.239
-Environment=SCALE_PORT=20304
-Environment=AGENT_PORT=5000
-ExecStart=/usr/bin/node /opt/scale-agent/server.js
-Restart=always
-RestartSec=2
-
-[Install]
-WantedBy=multi-user.target
+### `GET /health`
+```
+{ ok, connected, lastUpdate, scale: { host, port } }
 ```
 
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now scale-agent
+## Why the printer route?
+
+If the CAS CN1 doesn't continuously stream weight to TCP, the ERP can:
+1. Call `POST /weight/request` to actively pull a frame, AND/OR
+2. Call `POST /print` to send the formatted label directly to the scale's
+   built-in printer (the scale prints it itself, with its known weight).
+
+Both routes share the single persistent TCP socket maintained by the agent.
+
+## Run as a Windows service
+
+Use `nssm` (https://nssm.cc):
 ```
-
-## Frontend integration
-
-The ERP reads from this agent via the URL stored in `localStorage` under `scale_agent_url` (defaults to `http://localhost:5000`). Change it in **Admin → System Settings → Scale Configuration** if the agent runs on a different host/port.
+nssm install ScaleAgent "C:\Program Files\nodejs\node.exe" "C:\path\to\scale-agent\server.js"
+nssm set ScaleAgent AppEnvironmentExtra SCALE_HOST=192.168.1.239 SCALE_PORT=20304
+nssm start ScaleAgent
+```
