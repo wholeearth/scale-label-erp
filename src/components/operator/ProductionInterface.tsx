@@ -1576,9 +1576,20 @@ const ProductionInterface = () => {
                     disabled={isCapturingWeight}
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isCapturingWeight ? 'animate-spin' : ''}`} />
-                    Refresh
+                    Request Weight
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full mt-2"
+                  onClick={handlePrintOnScale}
+                  disabled={isCapturingWeight}
+                  title="Send label to the scale's built-in printer"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print on Scale
+                </Button>
                 {(selectedItem.items.use_predefined_weight || selectedItem.items.manual_weight_entry) && (
                   <p className="text-xs text-center mt-3 text-muted-foreground">
                     {selectedItem.items.use_predefined_weight ? 'Scale disabled' : 'Manual entry mode'}
