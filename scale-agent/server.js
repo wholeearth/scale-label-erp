@@ -5,16 +5,20 @@
  *  - Maintains a persistent TCP connection to the scale (default 192.168.1.239:20304)
  *  - Continuously reads weight frames and parses the latest stable value
  *  - Exposes a CORS-enabled HTTP API:
- *      GET  /weight   -> { weight, unit, stable, connected, raw, ts }
- *      GET  /health   -> { ok, connected, lastUpdate }
+ *      GET  /weight          -> last passively-received reading
+ *      POST /weight/request  -> actively trigger a weight transmission and wait for the next frame
+ *      POST /print           -> forward an arbitrary payload to the scale's built-in printer
+ *      GET  /health          -> { ok, connected, lastUpdate }
  *
  * No external npm deps — uses only Node.js built-ins (net, http).
  *
  * Configuration (env vars):
- *   SCALE_HOST   default "192.168.1.239"
- *   SCALE_PORT   default 20304
- *   AGENT_PORT   default 5000
- *   STABLE_MS    default 800   (ms a weight must be unchanged to be "stable")
+ *   SCALE_HOST          default "192.168.1.239"
+ *   SCALE_PORT          default 20304
+ *   AGENT_PORT          default 5000
+ *   STABLE_MS           default 800   (ms a weight must be unchanged to be "stable")
+ *   SCALE_REQUEST_CMD   default "P\r\n"  (sent to scale on /weight/request; CAS CN1 typically responds with one frame)
+ *   REQUEST_TIMEOUT_MS  default 1500
  */
 
 const net = require('net');
@@ -24,6 +28,8 @@ const SCALE_HOST = process.env.SCALE_HOST || '192.168.1.239';
 const SCALE_PORT = parseInt(process.env.SCALE_PORT || '20304', 10);
 const AGENT_PORT = parseInt(process.env.AGENT_PORT || '5000', 10);
 const STABLE_MS  = parseInt(process.env.STABLE_MS  || '800', 10);
+const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '1500', 10);
+const SCALE_REQUEST_CMD = process.env.SCALE_REQUEST_CMD || 'P\r\n';
 const RECONNECT_DELAY_MS = 2000;
 
 let scaleSocket = null;
@@ -32,21 +38,18 @@ let buffer = '';
 let lastWeight = null;     // number kg
 let lastUnit   = 'kg';
 let lastRaw    = '';
-let lastUpdate = 0;        // epoch ms when a frame was last parsed
-let stableSince = 0;       // epoch ms since current weight value first seen
+let lastUpdate = 0;
+let stableSince = 0;
+
+// One-shot listeners awaiting the next parsed frame (used by /weight/request)
+const frameWaiters = [];
+// Simple write mutex so /weight/request and /print don't interleave bytes
+let writeBusy = Promise.resolve();
 
 function log(...args) {
   console.log(`[${new Date().toISOString()}]`, ...args);
 }
 
-/**
- * Parse a raw frame from the CAS CN1.
- * Typical formats observed:
- *   "ST,GS,   12.34kg\r\n"   (stable, gross)
- *   "US,GS,   12.34kg\r\n"   (unstable)
- *   "   12.34 kg"
- * We extract the first decimal number we see.
- */
 function parseFrame(frame) {
   const trimmed = frame.trim();
   if (!trimmed) return null;
@@ -55,11 +58,17 @@ function parseFrame(frame) {
   const weight = parseFloat(m[1]);
   if (Number.isNaN(weight)) return null;
   const unit = /kg/i.test(trimmed) ? 'kg' : (/lb/i.test(trimmed) ? 'lb' : 'kg');
-  // Some scales prefix "ST" for stable, "US" for unstable
   const stableFlag = /^ST/i.test(trimmed) ? true
                    : /^US/i.test(trimmed) ? false
-                   : null; // unknown — fall back to time-based stability
+                   : null;
   return { weight, unit, raw: trimmed, stableFlag };
+}
+
+function notifyFrameWaiters(reading) {
+  while (frameWaiters.length) {
+    const w = frameWaiters.shift();
+    try { w.resolve(reading); } catch {}
+  }
 }
 
 function connectToScale() {
@@ -75,7 +84,6 @@ function connectToScale() {
 
   scaleSocket.on('data', (chunk) => {
     buffer += chunk.toString('utf8');
-    // Frames usually end in \r\n; also flush long buffers
     let idx;
     while ((idx = buffer.search(/[\r\n]/)) !== -1) {
       const frame = buffer.slice(0, idx);
@@ -90,10 +98,10 @@ function connectToScale() {
       lastUnit = parsed.unit;
       lastRaw = parsed.raw;
       lastUpdate = now;
-      // Track explicit stable flag if scale provides it
       if (parsed.stableFlag === true) stableSince = Math.min(stableSince, now - STABLE_MS);
+      notifyFrameWaiters(currentReading());
     }
-    if (buffer.length > 4096) buffer = buffer.slice(-1024); // safety
+    if (buffer.length > 4096) buffer = buffer.slice(-1024);
   });
 
   scaleSocket.on('error', (err) => {
@@ -122,6 +130,42 @@ function currentReading() {
   };
 }
 
+function decodePayload(payload, encoding) {
+  if (encoding === 'hex') {
+    const clean = String(payload).replace(/\s+/g, '');
+    return Buffer.from(clean, 'hex');
+  }
+  return Buffer.from(String(payload), encoding === 'ascii' ? 'ascii' : 'utf8');
+}
+
+function writeToScale(buf) {
+  // Queue writes so two concurrent requests don't interleave
+  const job = writeBusy.then(() => new Promise((resolve, reject) => {
+    if (!connected || !scaleSocket || scaleSocket.destroyed) {
+      return reject(new Error('Scale socket is not connected'));
+    }
+    scaleSocket.write(buf, (err) => {
+      if (err) reject(err);
+      else resolve(buf.length);
+    });
+  }));
+  writeBusy = job.catch(() => {});
+  return job;
+}
+
+function waitForNextFrame(timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const idx = frameWaiters.findIndex((w) => w.resolve === resolve);
+      if (idx >= 0) frameWaiters.splice(idx, 1);
+      reject(new Error('Timed out waiting for scale frame'));
+    }, timeoutMs);
+    frameWaiters.push({
+      resolve: (r) => { clearTimeout(timer); resolve(r); },
+    });
+  });
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -134,25 +178,69 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-const server = http.createServer((req, res) => {
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (c) => { data += c; if (data.length > 1_000_000) reject(new Error('payload too large')); });
+    req.on('end', () => {
+      if (!data) return resolve({});
+      try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+    });
+    req.on('error', reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, corsHeaders);
     return res.end();
   }
   const url = (req.url || '/').split('?')[0];
-  if (url === '/weight') return send(res, 200, currentReading());
-  if (url === '/health') return send(res, 200, {
-    ok: true,
-    connected,
-    lastUpdate,
-    scale: { host: SCALE_HOST, port: SCALE_PORT },
-  });
+
+  if (req.method === 'GET' && url === '/weight') {
+    return send(res, 200, currentReading());
+  }
+  if (req.method === 'GET' && url === '/health') {
+    return send(res, 200, { ok: true, connected, lastUpdate, scale: { host: SCALE_HOST, port: SCALE_PORT } });
+  }
+
+  if (req.method === 'POST' && url === '/weight/request') {
+    if (!connected) return send(res, 503, { error: 'scale_disconnected' });
+    try {
+      const body = await readJsonBody(req).catch(() => ({}));
+      const cmd = body?.command ? String(body.command) : SCALE_REQUEST_CMD;
+      const enc = body?.encoding;
+      const payload = decodePayload(cmd, enc);
+      const waiter = waitForNextFrame(REQUEST_TIMEOUT_MS);
+      await writeToScale(payload);
+      const reading = await waiter;
+      return send(res, 200, reading);
+    } catch (e) {
+      log('weight/request error:', e.message);
+      return send(res, 408, { error: 'no_frame', message: e.message });
+    }
+  }
+
+  if (req.method === 'POST' && url === '/print') {
+    if (!connected) return send(res, 503, { error: 'scale_disconnected' });
+    try {
+      const body = await readJsonBody(req);
+      if (!body?.payload) return send(res, 400, { error: 'missing_payload' });
+      const buf = decodePayload(body.payload, body.encoding);
+      const bytes = await writeToScale(buf);
+      return send(res, 200, { ok: true, bytesWritten: bytes });
+    } catch (e) {
+      log('print error:', e.message);
+      return send(res, 500, { error: 'print_failed', message: e.message });
+    }
+  }
+
   send(res, 404, { error: 'Not found' });
 });
 
 server.listen(AGENT_PORT, () => {
   log(`Scale agent HTTP API listening on http://localhost:${AGENT_PORT}`);
-  log(`Endpoints: GET /weight, GET /health`);
+  log(`Endpoints: GET /weight, POST /weight/request, POST /print, GET /health`);
 });
 
 connectToScale();
