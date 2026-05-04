@@ -15,7 +15,13 @@ import {
   getScaleAgentUrl,
   setScaleAgentUrl,
   readWeight,
+  requestWeight,
+  printOnScale,
   checkAgentHealth,
+  getTriggerCommand,
+  setTriggerCommand,
+  getPrintTemplate,
+  setPrintTemplate,
   ScaleError,
   type ScaleReading,
 } from '@/lib/scaleAgent';
@@ -244,15 +250,53 @@ const SystemSettings = () => {
             <p>Override with env vars on the agent: <code className="bg-background px-1 rounded">SCALE_HOST</code>, <code className="bg-background px-1 rounded">SCALE_PORT</code>.</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={testScaleConnection} disabled={testing} variant="outline">
               {testing ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Wifi className="h-4 w-4 mr-2" />
               )}
-              Test Connection
+              Test Connection (passive)
             </Button>
+            <Button onClick={requestActiveWeight} disabled={testing} variant="outline">
+              <Activity className="h-4 w-4 mr-2" />
+              Request Weight (active)
+            </Button>
+            <Button onClick={sendTestPrint} disabled={testing} variant="outline">
+              <Save className="h-4 w-4 mr-2" />
+              Send Test Print
+            </Button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="triggerCmd">Weight trigger command</Label>
+              <Input
+                id="triggerCmd"
+                value={triggerCmd}
+                onChange={(e) => setTriggerCmdState(e.target.value)}
+                onBlur={() => setTriggerCommand(triggerCmd)}
+                placeholder="P\r\n"
+              />
+              <p className="text-xs text-muted-foreground">
+                Sent over TCP when "Request Weight" is clicked. Use <code>\r</code>, <code>\n</code> escapes. Default <code>P\r\n</code> works for most CAS CN1.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="tpl">Built-in printer template</Label>
+              <textarea
+                id="tpl"
+                value={printTpl}
+                onChange={(e) => setPrintTplState(e.target.value)}
+                onBlur={() => setPrintTemplate(printTpl)}
+                rows={4}
+                className="w-full rounded-md border bg-background p-2 text-xs font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tokens: <code>{'{COMPANY}'}</code>, <code>{'{PRODUCT_CODE}'}</code>, <code>{'{PRODUCT_NAME}'}</code>, <code>{'{SERIAL}'}</code>, <code>{'{WEIGHT}'}</code>, <code>{'{LENGTH}'}</code>, <code>{'{DATETIME}'}</code>.
+              </p>
+            </div>
           </div>
 
           {testError && (
