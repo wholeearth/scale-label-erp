@@ -39,6 +39,8 @@ const SystemSettings = () => {
   const [testResult, setTestResult] = useState<ScaleReading | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [lastTestTime, setLastTestTime] = useState<Date | null>(null);
+  const [triggerCmd, setTriggerCmdState] = useState<string>(getTriggerCommand());
+  const [printTpl, setPrintTplState] = useState<string>(getPrintTemplate());
 
   // Live monitoring
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
@@ -125,6 +127,41 @@ const SystemSettings = () => {
         description: message,
         variant: 'destructive',
       });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const requestActiveWeight = async () => {
+    setTesting(true);
+    setTestResult(null);
+    setTestError(null);
+    try {
+      const reading = await requestWeight();
+      setTestResult(reading);
+      setLastTestTime(new Date());
+      toast({
+        title: 'Active read OK',
+        description: `${reading.weight.toFixed(2)} ${reading.unit} ${reading.stable ? '(stable)' : '(unstable)'}`,
+      });
+    } catch (error) {
+      const message = error instanceof ScaleError ? error.message : 'Active request failed.';
+      setTestError(message);
+      setLastTestTime(new Date());
+      toast({ title: 'Active request failed', description: message, variant: 'destructive' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const sendTestPrint = async () => {
+    setTesting(true);
+    try {
+      const r = await printOnScale('*** TEST PRINT ***\r\nScale agent OK\r\n\r\n\r\n', 'utf8');
+      toast({ title: 'Print sent', description: `${r.bytesWritten} bytes written to scale.` });
+    } catch (error) {
+      const message = error instanceof ScaleError ? error.message : 'Print failed.';
+      toast({ title: 'Print failed', description: message, variant: 'destructive' });
     } finally {
       setTesting(false);
     }
