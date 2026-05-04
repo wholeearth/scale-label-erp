@@ -557,6 +557,31 @@ const ProductionInterface = () => {
     }
   };
 
+  const handlePrintOnScale = async () => {
+    if (!selectedItem) {
+      toast({ title: 'No item selected', description: 'Pick a work item first.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const payload = buildScaleLabelPayload({
+        companyName: labelConfig?.company_name || 'Company',
+        productCode: selectedItem.items.product_code,
+        productName: selectedItem.items.product_name,
+        serial: '-',
+        weightKg: currentWeight,
+        lengthYards: currentLength || undefined,
+      });
+      const result = await printOnScale(payload, 'utf8');
+      toast({
+        title: 'Sent to scale printer',
+        description: `${result.bytesWritten} bytes written.`,
+      });
+    } catch (err) {
+      const msg = err instanceof ScaleError ? err.message : 'Failed to print on scale.';
+      toast({ title: 'Print failed', description: msg, variant: 'destructive' });
+    }
+  };
+
   const checkWeightVariance = (weight: number) => {
     if (!selectedItem?.items.expected_weight_kg || !selectedItem?.items.weight_tolerance_percentage) {
       return;
