@@ -17,7 +17,7 @@ import JsBarcode from 'jsbarcode';
 import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
 import { recordFiberBagConsumption } from '@/lib/fiberBagConsumption';
 import { TraceabilityDialog } from '@/components/traceability/TraceabilityDialog';
-import { readWeight, ScaleError } from '@/lib/scaleAgent';
+import { readWeight, requestWeight, printOnScale, buildScaleLabelPayload, ScaleError } from '@/lib/scaleAgent';
 import { DEVICE_MACHINE_KEY } from './MachineSelectGate';
 import { LineageData } from '@/hooks/useTraceability';
 import {
@@ -524,7 +524,18 @@ const ProductionInterface = () => {
     if (isCapturingWeight) return;
     setIsCapturingWeight(true);
     try {
-      const reading = await readWeight();
+      // CAS CN1 typically only sends a frame on demand. Try active request first;
+      // fall back to last passive reading if the active request route fails.
+      let reading;
+      try {
+        reading = await requestWeight();
+      } catch (err) {
+        if (err instanceof ScaleError && (err.kind === 'timeout' || err.kind === 'agent_unreachable')) {
+          reading = await readWeight();
+        } else {
+          throw err;
+        }
+      }
       setCurrentWeight(reading.weight);
       checkWeightVariance(reading.weight);
       setIsUsingMockWeight(false);
