@@ -17,7 +17,7 @@ import JsBarcode from 'jsbarcode';
 import RawMaterialConsumptionDialog from './RawMaterialConsumptionDialog';
 import { recordFiberBagConsumption } from '@/lib/fiberBagConsumption';
 import { TraceabilityDialog } from '@/components/traceability/TraceabilityDialog';
-import { readWeight, ScaleError } from '@/lib/scaleAgent';
+import { readWeight, requestWeight, printOnScale, buildScaleLabelPayload, ScaleError } from '@/lib/scaleAgent';
 import { DEVICE_MACHINE_KEY } from './MachineSelectGate';
 import { LineageData } from '@/hooks/useTraceability';
 import {
@@ -524,7 +524,18 @@ const ProductionInterface = () => {
     if (isCapturingWeight) return;
     setIsCapturingWeight(true);
     try {
-      const reading = await readWeight();
+      // CAS CN1 typically only sends a frame on demand. Try active request first;
+      // fall back to last passive reading if the active request route fails.
+      let reading;
+      try {
+        reading = await requestWeight();
+      } catch (err) {
+        if (err instanceof ScaleError && (err.kind === 'timeout' || err.kind === 'agent_unreachable')) {
+          reading = await readWeight();
+        } else {
+          throw err;
+        }
+      }
       setCurrentWeight(reading.weight);
       checkWeightVariance(reading.weight);
       setIsUsingMockWeight(false);
@@ -543,6 +554,31 @@ const ProductionInterface = () => {
       }
     } finally {
       setIsCapturingWeight(false);
+    }
+  };
+
+  const handlePrintOnScale = async () => {
+    if (!selectedItem) {
+      toast({ title: 'No item selected', description: 'Pick a work item first.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const payload = buildScaleLabelPayload({
+        companyName: labelConfig?.company_name || 'Company',
+        productCode: selectedItem.items.product_code,
+        productName: selectedItem.items.product_name,
+        serial: '-',
+        weightKg: currentWeight,
+        lengthYards: currentLength || undefined,
+      });
+      const result = await printOnScale(payload, 'utf8');
+      toast({
+        title: 'Sent to scale printer',
+        description: `${result.bytesWritten} bytes written.`,
+      });
+    } catch (err) {
+      const msg = err instanceof ScaleError ? err.message : 'Failed to print on scale.';
+      toast({ title: 'Print failed', description: msg, variant: 'destructive' });
     }
   };
 
@@ -1565,9 +1601,20 @@ const ProductionInterface = () => {
                     disabled={isCapturingWeight}
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isCapturingWeight ? 'animate-spin' : ''}`} />
-                    Refresh
+                    Request Weight
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full mt-2"
+                  onClick={handlePrintOnScale}
+                  disabled={isCapturingWeight}
+                  title="Send label to the scale's built-in printer"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print on Scale
+                </Button>
                 {(selectedItem.items.use_predefined_weight || selectedItem.items.manual_weight_entry) && (
                   <p className="text-xs text-center mt-3 text-muted-foreground">
                     {selectedItem.items.use_predefined_weight ? 'Scale disabled' : 'Manual entry mode'}

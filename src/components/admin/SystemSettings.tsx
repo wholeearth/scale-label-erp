@@ -15,7 +15,13 @@ import {
   getScaleAgentUrl,
   setScaleAgentUrl,
   readWeight,
+  requestWeight,
+  printOnScale,
   checkAgentHealth,
+  getTriggerCommand,
+  setTriggerCommand,
+  getPrintTemplate,
+  setPrintTemplate,
   ScaleError,
   type ScaleReading,
 } from '@/lib/scaleAgent';
@@ -33,6 +39,8 @@ const SystemSettings = () => {
   const [testResult, setTestResult] = useState<ScaleReading | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   const [lastTestTime, setLastTestTime] = useState<Date | null>(null);
+  const [triggerCmd, setTriggerCmdState] = useState<string>(getTriggerCommand());
+  const [printTpl, setPrintTplState] = useState<string>(getPrintTemplate());
 
   // Live monitoring
   const [monitoringEnabled, setMonitoringEnabled] = useState(false);
@@ -119,6 +127,41 @@ const SystemSettings = () => {
         description: message,
         variant: 'destructive',
       });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const requestActiveWeight = async () => {
+    setTesting(true);
+    setTestResult(null);
+    setTestError(null);
+    try {
+      const reading = await requestWeight();
+      setTestResult(reading);
+      setLastTestTime(new Date());
+      toast({
+        title: 'Active read OK',
+        description: `${reading.weight.toFixed(2)} ${reading.unit} ${reading.stable ? '(stable)' : '(unstable)'}`,
+      });
+    } catch (error) {
+      const message = error instanceof ScaleError ? error.message : 'Active request failed.';
+      setTestError(message);
+      setLastTestTime(new Date());
+      toast({ title: 'Active request failed', description: message, variant: 'destructive' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const sendTestPrint = async () => {
+    setTesting(true);
+    try {
+      const r = await printOnScale('*** TEST PRINT ***\r\nScale agent OK\r\n\r\n\r\n', 'utf8');
+      toast({ title: 'Print sent', description: `${r.bytesWritten} bytes written to scale.` });
+    } catch (error) {
+      const message = error instanceof ScaleError ? error.message : 'Print failed.';
+      toast({ title: 'Print failed', description: message, variant: 'destructive' });
     } finally {
       setTesting(false);
     }
@@ -244,15 +287,53 @@ const SystemSettings = () => {
             <p>Override with env vars on the agent: <code className="bg-background px-1 rounded">SCALE_HOST</code>, <code className="bg-background px-1 rounded">SCALE_PORT</code>.</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={testScaleConnection} disabled={testing} variant="outline">
               {testing ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Wifi className="h-4 w-4 mr-2" />
               )}
-              Test Connection
+              Test Connection (passive)
             </Button>
+            <Button onClick={requestActiveWeight} disabled={testing} variant="outline">
+              <Activity className="h-4 w-4 mr-2" />
+              Request Weight (active)
+            </Button>
+            <Button onClick={sendTestPrint} disabled={testing} variant="outline">
+              <Save className="h-4 w-4 mr-2" />
+              Send Test Print
+            </Button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="triggerCmd">Weight trigger command</Label>
+              <Input
+                id="triggerCmd"
+                value={triggerCmd}
+                onChange={(e) => setTriggerCmdState(e.target.value)}
+                onBlur={() => setTriggerCommand(triggerCmd)}
+                placeholder="P\r\n"
+              />
+              <p className="text-xs text-muted-foreground">
+                Sent over TCP when "Request Weight" is clicked. Use <code>\r</code>, <code>\n</code> escapes. Default <code>P\r\n</code> works for most CAS CN1.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="tpl">Built-in printer template</Label>
+              <textarea
+                id="tpl"
+                value={printTpl}
+                onChange={(e) => setPrintTplState(e.target.value)}
+                onBlur={() => setPrintTemplate(printTpl)}
+                rows={4}
+                className="w-full rounded-md border bg-background p-2 text-xs font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Tokens: <code>{'{COMPANY}'}</code>, <code>{'{PRODUCT_CODE}'}</code>, <code>{'{PRODUCT_NAME}'}</code>, <code>{'{SERIAL}'}</code>, <code>{'{WEIGHT}'}</code>, <code>{'{LENGTH}'}</code>, <code>{'{DATETIME}'}</code>.
+              </p>
+            </div>
           </div>
 
           {testError && (
